@@ -32,3 +32,6 @@ nav button:hover,nav button.active{background:#c7a87a55;color:#243718}
 .paper{border-radius:4px;aspect-ratio:3/4}.paper>div:first-child{max-width:92%;max-height:92%;margin:auto}
 .layout>aside:last-child{align-self:start;position:sticky;top:18px}.ad .book{border-radius:13px;box-shadow:4px 6px 0 #17200f}
 @media(max-width:1050px){.canopy{height:145px;margin-bottom:-88px}.grid article:nth-child(n){transform:none}}
+
+/* Profile avatar selection — mirrors the supplied 8-avatar sheet until each illustration is wired */
+.avatar-picker{display:grid;grid-template-columns:repeat(4,64px);gap:12px;justify-content:center;margin:14px auto 24px}.avatar-picker button{width:64px;height:64px;border-radius:50%;border:4px solid #69452b;background:#d8c69b;font-size:31px;box-shadow:0 3px 0 #342116;cursor:pointer;transition:.15s}.avatar-picker button:hover{transform:translateY(-2px)}.avatar-picker button.selected{outline:4px solid #6e8a4a;outline-offset:3px;background:#f4e8c9}.profile>.avatar{width:100px;height:100px;border-radius:50%;display:grid;place-items:center;margin:0 auto 10px;background:#d8c69b;border:6px solid #654128;box-shadow:0 5px 0 #342116;font-size:50px}@media(max-width:480px){.avatar-picker{grid-template-columns:repeat(4,54px);gap:9px}.avatar-picker button{width:54px;height:54px;font-size:26px}}
