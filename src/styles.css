@@ -64,3 +64,21 @@ main{min-height:100vh;background:linear-gradient(#14220b33,#14220b33);overflow-x
 footer{color:#d6c49b;padding:55px 10px 25px}
 @media(max-width:1100px){.cb-header{width:92vw}.cb-home{grid-template-columns:180px minmax(0,1fr)}.cb-home .ad{display:none}.cb-home .grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:720px){.cb-floral{height:150px;margin-bottom:-90px}.cb-header nav{grid-template-columns:repeat(3,1fr)}.cb-header .search{width:92%}.settings-btn{right:-48px}.cb-home{grid-template-columns:1fr}.wood-menu{min-height:auto!important}.cb-home .grid{grid-template-columns:repeat(2,1fr);gap:28px 13px}}
+
+/* Force the approved reference composition to be visibly distinct */
+.cb-floral{height:270px;margin-bottom:-180px;background:
+radial-gradient(circle at 50% 46%,#fff8e8 0 4%,#d89d24 4.2% 5.7%,transparent 6%),
+radial-gradient(circle at 31% 58%,#fff8e8 0 3.4%,#d89d24 3.6% 4.8%,transparent 5%),
+radial-gradient(circle at 69% 58%,#fff8e8 0 3.4%,#d89d24 3.6% 4.8%,transparent 5%),
+radial-gradient(ellipse at 50% 64%,#344b1d 0 29%,transparent 30%),
+radial-gradient(ellipse at 18% 70%,#425b25 0 25%,transparent 26%),
+radial-gradient(ellipse at 82% 70%,#425b25 0 25%,transparent 26%)}
+.cb-floral:after{content:"";display:none}
+.cb-header{padding-top:82px}
+.cb-header .logo{position:absolute;top:0;left:50%;transform:translateX(-50%);width:260px;height:76px;border-radius:45% 45% 18px 18px;background:linear-gradient(#445d27,#263b19);border:6px solid #1d2a13;color:#f2a92d;font:800 25px/76px system-ui;text-align:center;letter-spacing:4px;box-shadow:0 6px 0 #15200e}
+.cb-header nav{border-radius:26px 26px 12px 12px;box-shadow:0 6px 0 #3a2417}
+.cb-header .search{background:#fff8e8;border:4px solid #69452b;box-shadow:0 4px 0 #392317}
+.cb-home{background:#a79561;padding:18px 16px 36px;border-radius:6px}
+.cb-home .grid article{background:#4b2b18;border-width:5px;border-radius:20px;padding:12px}
+.cb-home .paper{background:#fffaf0}
+.cb-home .heart{bottom:-30px}
