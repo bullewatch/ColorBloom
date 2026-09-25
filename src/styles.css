@@ -90,7 +90,7 @@ radial-gradient(ellipse at 82% 70%,#425b25 0 25%,transparent 26%)}
 .settings-btn svg{display:none!important}
 
 /* Supplied artwork layer */
-main{background-image:url("/forest-background.jpg");background-size:cover;background-attachment:fixed;background-position:center top}
+main{background-image:url("/reference-layout.jpg");background-size:cover;background-attachment:fixed;background-position:center top}
 .cb-floral{background:none!important;position:relative;height:250px}
 .cb-floral img{position:absolute;width:min(1500px,100vw);height:auto;left:50%;top:-25px;transform:translateX(-50%);display:block}
 .cb-header{padding-top:75px}
