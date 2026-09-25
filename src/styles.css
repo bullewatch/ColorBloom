@@ -99,3 +99,6 @@ main{background-image:url("/reference-layout.jpg");background-size:cover;backgro
 .cb-header .nav-art{position:absolute;z-index:-1;left:50%;top:78px;transform:translateX(-50%);width:118%;height:auto;display:block}
 .cb-header nav,.cb-header .search{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
 .cb-header nav button{background:transparent!important}
+
+/* Real coloring artwork */
+.paper{overflow:hidden}.coloring-img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}.bigpaper{overflow:hidden}.bigpaper .coloring-img{width:100%;height:100%;object-fit:contain;background:#fff}
