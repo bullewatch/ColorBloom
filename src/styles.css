@@ -102,3 +102,6 @@ main{background-image:url("/reference-layout.jpg");background-size:cover;backgro
 
 /* Real coloring artwork */
 .paper{overflow:hidden}.coloring-img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}.bigpaper{overflow:hidden}.bigpaper .coloring-img{width:100%;height:100%;object-fit:contain;background:#fff}
+
+/* Admin coloring manager */
+.file-pick{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:14px;background:#315b37;color:#fff;font-weight:700;cursor:pointer}.file-pick input{display:none}.admin-preview{display:block;max-width:260px;max-height:320px;object-fit:contain;margin:14px auto;background:#fff;border-radius:12px}.library-row .mini{overflow:hidden;background:#fff}.library-row .mini img{width:100%;height:100%;object-fit:contain;display:block}
