@@ -105,3 +105,13 @@ main{background-image:url("/reference-layout.jpg");background-size:cover;backgro
 
 /* Admin coloring manager */
 .file-pick{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:14px;background:#315b37;color:#fff;font-weight:700;cursor:pointer}.file-pick input{display:none}.admin-preview{display:block;max-width:260px;max-height:320px;object-fit:contain;margin:14px auto;background:#fff;border-radius:12px}.library-row .mini{overflow:hidden;background:#fff}.library-row .mini img{width:100%;height:100%;object-fit:contain;display:block}
+
+/* ColorBloom supplied assets — canonical integration */
+main{background-image:url('../forest-background.jpg')!important;background-size:cover!important;background-position:center top!important;background-attachment:fixed!important}
+.cb-home .wood-menu{background-image:url('../category-panel.jpg')!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important;background-color:transparent!important;border-color:transparent!important;box-shadow:none!important;padding:22px 20px 28px!important}
+.settings-btn{background-image:url('../settings.jpg')!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-color:transparent!important;border:0!important;box-shadow:none!important}
+.settings-btn svg{display:none!important}
+.cb-home .heart{background-image:url('../heart.jpg')!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-color:transparent!important;border:0!important;box-shadow:none!important}
+.cb-home .heart svg{display:none!important}
+.grid article{background-image:url('../frames-sheet.jpg')!important;background-size:400% 200%!important;background-repeat:no-repeat!important;background-color:transparent!important;box-shadow:none!important;border-radius:0!important;padding:7.5%!important}
+.grid article.frame-1{background-position:0% 0%!important}.grid article.frame-2{background-position:33.333% 0%!important}.grid article.frame-3{background-position:66.666% 0%!important}.grid article.frame-4{background-position:100% 0%!important}.grid article.frame-5{background-position:0% 100%!important}.grid article.frame-6{background-position:33.333% 100%!important}.grid article.frame-7{background-position:66.666% 100%!important}.grid article.frame-8{background-position:100% 100%!important}
