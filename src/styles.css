@@ -115,3 +115,21 @@ main{background-image:url('../forest-background.jpg')!important;background-size:
 .cb-home .heart svg{display:none!important}
 .grid article{background-image:url('../frames-sheet.jpg')!important;background-size:400% 200%!important;background-repeat:no-repeat!important;background-color:transparent!important;box-shadow:none!important;border-radius:0!important;padding:7.5%!important}
 .grid article.frame-1{background-position:0% 0%!important}.grid article.frame-2{background-position:33.333% 0%!important}.grid article.frame-3{background-position:66.666% 0%!important}.grid article.frame-4{background-position:100% 0%!important}.grid article.frame-5{background-position:0% 100%!important}.grid article.frame-6{background-position:33.333% 100%!important}.grid article.frame-7{background-position:66.666% 100%!important}.grid article.frame-8{background-position:100% 100%!important}
+
+/* Asset compositing correction: never paint white behind supplied artwork */
+html,body,#root,main{min-height:100%;background-color:#183b2e}
+.cb-floral,.cb-header,.cb-header nav,.cb-header .search,.cb-home,.content,.grid{background-color:transparent!important}
+.cb-floral{height:190px!important;overflow:visible!important}
+.cb-floral img{top:0!important;width:100vw!important;max-width:none!important}
+.cb-header{margin-top:-115px!important;padding-top:0!important;min-height:265px!important}
+.cb-header .nav-art{z-index:0!important;top:30px!important;width:min(1180px,96vw)!important}
+.cb-header .logo{position:relative!important;z-index:2!important;height:88px!important}
+.cb-header nav{position:relative!important;z-index:3!important;margin-top:4px!important}
+.cb-header .search{position:relative!important;z-index:3!important}
+.cb-header nav button{color:transparent!important;text-shadow:none!important}
+.cb-header nav button:hover,.cb-header .nav-active{background:transparent!important}
+.cb-header .search input{color:#493c2e!important}
+.cb-home{position:relative!important;z-index:2!important}
+.cb-home .wood-menu{background-color:transparent!important;background-size:100% 100%!important;background-repeat:no-repeat!important}
+.paper,.bigpaper,.coloring-img,.bigpaper .coloring-img{background-color:transparent!important}
+.grid article{background-color:transparent!important}
