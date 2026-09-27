@@ -8,23 +8,14 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
-import floralTop from '../floral-top.png';
-import colorBloomLogo from '../colorbloom-logo.png';
-import navigationSearch from '../navigation-search.jpg';
-import categoryPanel from '../category-panel.jpg';
-import heartArt from '../heart.jpg';
-import settingsArt from '../settings.jpg';
-import coloring01 from '../coloring-01.jpg';
-import coloring02 from '../coloring-02.jpg';
-import coloring03 from '../coloring-03.jpg';
-import coloring04 from '../coloring-04.jpg';
+import floralTop from '../assets/floral-top.png';
+import colorBloomLogo from '../assets/colorbloom-logo.png';
+import navigationSearch from '../assets/navigation-search.jpg';
+import categoryPanel from '../assets/category-panel.jpg';
+import heartArt from '../assets/heart.jpg';
+import settingsArt from '../assets/settings.jpg';
 
-const fallbackDrawings = [
-  { id: 'fallback-1', slug: 'portrait-au-ruban', title: 'Portrait au ruban', cat: ['Fille'], likes: 184, image: coloring01, imagePath: coloring01 },
-  { id: 'fallback-2', slug: 'jeune-fille-aux-grands-yeux', title: 'Jeune fille aux grands yeux', cat: ['Fille'], likes: 263, image: coloring02, imagePath: coloring02 },
-  { id: 'fallback-3', slug: 'jeune-fille-souriante', title: 'Jeune fille souriante', cat: ['Fille'], likes: 151, image: coloring03, imagePath: coloring03 },
-  { id: 'fallback-4', slug: 'petit-chat-au-chapeau', title: 'Petit chat au chapeau', cat: ['Animaux', 'Chats'], likes: 209, image: coloring04, imagePath: coloring04 },
-];
+const fallbackDrawings = [];
 
 const nav = ['Accueil', 'Catégories', 'Favoris', 'Nouveautés', 'Infos', 'Profil'];
 const avatars = ['🧚', '🧝', '🧙', '🧝‍♀️', '🧙‍♂️', '🍄', '🌿', '🧑‍🌾'];
