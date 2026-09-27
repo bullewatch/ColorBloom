@@ -345,7 +345,7 @@ function App() {
             {shown.length ? (
               <div className="grid">
                 {shown.map((d, i) => (
-                  <article className={'frame frame-' + ((i % 10) + 1)} key={d.id} onClick={() => setOpen(d)}>
+                  <article className={'frame frame-' + ((i % 8) + 1)} key={d.id} onClick={() => setOpen(d)}>
                     <div className="paper"><img className="coloring-img" src={d.image} alt={d.title} /></div>
                     <button className={'heart ' + (favs.has(d.id) ? 'liked' : '')} onClick={e => { e.stopPropagation(); heart(d.id); }} aria-label="Favori">
                       <Heart fill={favs.has(d.id) ? 'currentColor' : 'none'} />
