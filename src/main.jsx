@@ -8,12 +8,19 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
+import floralTop from '../floral-top.png';
+import colorBloomLogo from '../colorbloom-logo.png';
+import navigationSearch from '../navigation-search.jpg';
+import coloring01 from '../coloring-01.jpg';
+import coloring02 from '../coloring-02.jpg';
+import coloring03 from '../coloring-03.jpg';
+import coloring04 from '../coloring-04.jpg';
 
 const fallbackDrawings = [
-  { id: 'fallback-1', slug: 'portrait-au-ruban', title: 'Portrait au ruban', cat: ['Fille'], likes: 184, image: '/coloring-01.jpg', imagePath: '/coloring-01.jpg' },
-  { id: 'fallback-2', slug: 'jeune-fille-aux-grands-yeux', title: 'Jeune fille aux grands yeux', cat: ['Fille'], likes: 263, image: '/coloring-02.jpg', imagePath: '/coloring-02.jpg' },
-  { id: 'fallback-3', slug: 'jeune-fille-souriante', title: 'Jeune fille souriante', cat: ['Fille'], likes: 151, image: '/coloring-03.jpg', imagePath: '/coloring-03.jpg' },
-  { id: 'fallback-4', slug: 'petit-chat-au-chapeau', title: 'Petit chat au chapeau', cat: ['Animaux', 'Chats'], likes: 209, image: '/coloring-04.jpg', imagePath: '/coloring-04.jpg' },
+  { id: 'fallback-1', slug: 'portrait-au-ruban', title: 'Portrait au ruban', cat: ['Fille'], likes: 184, image: coloring01, imagePath: coloring01 },
+  { id: 'fallback-2', slug: 'jeune-fille-aux-grands-yeux', title: 'Jeune fille aux grands yeux', cat: ['Fille'], likes: 263, image: coloring02, imagePath: coloring02 },
+  { id: 'fallback-3', slug: 'jeune-fille-souriante', title: 'Jeune fille souriante', cat: ['Fille'], likes: 151, image: coloring03, imagePath: coloring03 },
+  { id: 'fallback-4', slug: 'petit-chat-au-chapeau', title: 'Petit chat au chapeau', cat: ['Animaux', 'Chats'], likes: 209, image: coloring04, imagePath: coloring04 },
 ];
 
 const nav = ['Accueil', 'Catégories', 'Favoris', 'Nouveautés', 'Infos', 'Profil'];
@@ -235,11 +242,11 @@ function App() {
 
   return (
     <main className={'theme-' + theme}>
-      <div className="cb-floral"><img src="/floral-top.png" alt="" /></div>
+      <div className="cb-floral"><img src={floralTop} alt="" /></div>
 
       <header className="cb-header">
-        <img className="nav-art" src="/navigation-search.jpg" alt="" />
-        <div className="logo" aria-label="ColorBloom"><img src="/colorbloom-logo.png" alt="ColorBloom" /></div>
+        <img className="nav-art" src={navigationSearch} alt="" />
+        <div className="logo" aria-label="ColorBloom"><img src={colorBloomLogo} alt="ColorBloom" /></div>
 
         <nav>
           {nav.map(x => (
