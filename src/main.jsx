@@ -11,6 +11,9 @@ import { supabase, coloringImageUrl } from './supabase';
 import floralTop from '../floral-top.png';
 import colorBloomLogo from '../colorbloom-logo.png';
 import navigationSearch from '../navigation-search.jpg';
+import categoryPanel from '../category-panel.jpg';
+import heartArt from '../heart.jpg';
+import settingsArt from '../settings.jpg';
 import coloring01 from '../coloring-01.jpg';
 import coloring02 from '../coloring-02.jpg';
 import coloring03 from '../coloring-03.jpg';
@@ -259,7 +262,7 @@ function App() {
         <div className="search">
           <Search />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Rechercher..." />
-          <button className="settings-btn" onClick={() => setSettings(!settings)}><Settings /></button>
+          <button className="settings-btn" style={{backgroundImage:`url(${settingsArt})`}} onClick={() => setSettings(!settings)}><Settings /></button>
         </div>
 
         {settings && (
@@ -321,7 +324,7 @@ function App() {
         </section>
       ) : (
         <section className="layout cb-home">
-          <aside className="wood-menu">
+          <aside className="wood-menu" style={{backgroundImage:`url(${categoryPanel})`}}>
             <h3>Trier par</h3>
             <select value={sort} onChange={e => setSort(e.target.value)}>
               <option value="recent">Ajoutés récemment</option>
@@ -347,7 +350,7 @@ function App() {
                 {shown.map((d, i) => (
                   <article className={'frame frame-' + ((i % 8) + 1)} key={d.id} onClick={() => setOpen(d)}>
                     <div className="paper"><img className="coloring-img" src={d.image} alt={d.title} /></div>
-                    <button className={'heart ' + (favs.has(d.id) ? 'liked' : '')} onClick={e => { e.stopPropagation(); heart(d.id); }} aria-label="Favori">
+                    <button style={{backgroundImage:`url(${heartArt})`}} className={'heart ' + (favs.has(d.id) ? 'liked' : '')} onClick={e => { e.stopPropagation(); heart(d.id); }} aria-label="Favori">
                       <Heart fill={favs.has(d.id) ? 'currentColor' : 'none'} />
                       <span>{d.likes}</span>
                     </button>
