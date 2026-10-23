@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import { createRoot } from 'react-dom/client';
 import {
@@ -6,14 +6,13 @@ import {
   LogIn, Mail, Send, ShieldCheck, Plus, FolderOpen, Tags,
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
-  PackageCheck, TrendingUp, ThumbsUp, CheckCheck
+  PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
 
-import floralComposition from '../assets/floral-composition.png';
-import logoArt from '../assets/logo-tight.png';
+import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
 import likeArt from '../assets/like-tight.png';
 import favorisArt from '../assets/favoris-tight.png';
@@ -103,6 +102,48 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  // Responsive Grid Density setting (base default: 2 drawings per row)
+  const [gridDensity, setGridDensity] = useState(() => localStorage.getItem('cb-grid-density') || '2');
+
+  // Auto-hiding tabs strip state on scroll (mobile)
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const searchInputRef = useRef(null);
+  const lastScrollYRef = useRef(0);
+
+  // Scroll listener: hides categories bar on scroll down, instantly re-shows on scroll up
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          const diff = currentY - lastScrollYRef.current;
+
+          if (currentY > 60) {
+            if (diff > 8) {
+              setHeaderVisible(false);
+            } else if (diff < -3) {
+              setHeaderVisible(true);
+            }
+          } else {
+            setHeaderVisible(true);
+          }
+
+          lastScrollYRef.current = currentY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('cb-grid-density', gridDensity);
+  }, [gridDensity]);
 
   // Left categories list without POM
   const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules'];
@@ -367,24 +408,19 @@ function App() {
 
   return (
     <main className={'theme-' + theme}>
-      {/* Top Floral Composition Canopy */}
-      <div className="cb-floral-canopy">
-        <img src={floralComposition} alt="" aria-hidden="true" />
-      </div>
-
       {/* Main Header */}
       <header className="cb-header">
         <div className="cb-header-top">
-          {/* Centered Large COLORBLOOM Banner nestled close to the flowers */}
-          <div className="cb-logo-wrap" onClick={() => { setPage('Accueil'); setOwnerOpen(false); }}>
-            <img src={logoArt} alt="ColorBloom" className="cb-logo" />
+          {/* Unified Colorblop Floral Banner replacing old separate canopy & logo */}
+          <div className="cb-bandeau-wrap" onClick={() => { setPage('Accueil'); setOwnerOpen(false); }}>
+            <img src={colorblopBandeau} alt="ColorBloom" className="cb-bandeau-img" />
           </div>
 
-          {/* Top-Right: Favoris, Avatar & Settings */}
+          {/* Top-Right: Favoris (desktop), Avatar & Settings (Always visible on mobile) */}
           <div className="cb-top-actions">
-            {/* Favoris Button */}
+            {/* Desktop Favoris Button */}
             <button
-              className={`cb-top-btn cb-fav-top-btn ${page === 'Favoris' ? 'active' : ''}`}
+              className={`cb-top-btn cb-fav-top-btn cb-desktop-only ${page === 'Favoris' ? 'active' : ''}`}
               onClick={() => { setPage('Favoris'); setOwnerOpen(false); }}
               title="Mes Favoris"
               aria-label="Mes Favoris"
@@ -415,10 +451,10 @@ function App() {
           </div>
         </div>
 
-        {/* UNIFIED BROWN WOODEN BLOCK ENGLOBING BOTH CATEGORY TABS AND SEARCH BAR */}
-        <div className="cb-nav-search-block">
-          {/* Category Tabs Row (Accueil, Catégories, Favoris, Nouveautés, À propos) */}
-          <nav className="cb-nav-tabs-row">
+        {/* UNIFIED BROWN WOODEN BLOCK ENGLOBING TABS AND SEARCH BAR (Smart hide on scroll down on mobile) */}
+        <div className={`cb-nav-search-block ${!headerVisible ? 'cb-mobile-hidden' : ''}`}>
+          {/* Desktop Navigation Tabs */}
+          <nav className="cb-nav-tabs-row cb-desktop-only">
             {navItems.map(({ id, label, icon: Icon, badge }) => (
               <button
                 key={id}
@@ -441,11 +477,46 @@ function App() {
             ))}
           </nav>
 
+          {/* Mobile All Category Tabs (Horizontal Scroll Strip at the top of the screen) */}
+          <div className="cb-mobile-cats-row cb-mobile-only" aria-label="Catégories de coloriage">
+            {cats.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`cb-mobile-cat-pill ${cat === c && page === 'Accueil' ? 'active' : ''}`}
+                onClick={() => {
+                  setCat(c);
+                  setPage('Accueil');
+                  setOwnerOpen(false);
+                }}
+              >
+                <span>{c}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="cb-mobile-cat-pill"
+              onClick={() => setNouveautesOpen(true)}
+            >
+              <Sparkles size={14} />
+              <span>Nouveautés</span>
+            </button>
+            <button
+              type="button"
+              className={`cb-mobile-cat-pill ${page === 'APropos' ? 'active' : ''}`}
+              onClick={() => { setPage('APropos'); setOwnerOpen(false); }}
+            >
+              <Info size={14} />
+              <span>À propos</span>
+            </button>
+          </div>
+
           {/* Search Bar Row inside the same brown wooden frame */}
           <div className="cb-search-bar-inner">
             <div className="cb-search-field">
               <Search className="cb-loupe-icon" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={q}
                 onChange={e => setQ(e.target.value)}
@@ -491,6 +562,37 @@ function App() {
                   <option value="DE">Deutsch (DE)</option>
                 </select>
               </label>
+            </div>
+
+            {/* Drawing Grid Size / Density Selector */}
+            <div className="setting-section">
+              <b><LayoutGrid className="settings-head-icon" /> Affichage des dessins</b>
+              <p className="setting-subtext">Choisis la taille et le nombre de dessins affichés par ligne :</p>
+              <div className="cb-grid-density-picker">
+                {[
+                  { id: '1', num: '1', label: 'Grand', desc: '1 dessin par ligne (très grand)' },
+                  { id: '2', num: '2', label: 'Base', desc: '2 dessins par ligne (recommandé)' },
+                  { id: '3', num: '3', label: 'Compact', desc: '3 dessins par ligne' },
+                  { id: '4', num: '4', label: 'Mini', desc: '4 dessins par ligne' }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`cb-density-btn ${gridDensity === opt.id ? 'active' : ''}`}
+                    onClick={() => setGridDensity(opt.id)}
+                    title={opt.desc}
+                  >
+                    <span className="cb-density-num">{opt.num}</span>
+                    <span className="cb-density-label">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+              <small className="setting-hint">
+                {gridDensity === '1' && "Grand format : 1 dessin par ligne pour apprécier tous les détails."}
+                {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (recommandé pour mobiles et tablettes)."}
+                {gridDensity === '3' && "Compact : 3 dessins par ligne pour voir plus de choix."}
+                {gridDensity === '4' && "Panorama : 4 dessins par ligne (idéal tablettes et ordinateurs)."}
+              </small>
             </div>
 
             {/* How It Works & Print Help */}
@@ -665,7 +767,7 @@ function App() {
           {/* Center Gallery: Grid of Wooden Boards with Pinned Drawings */}
           <section className="cb-gallery">
             {shown.length ? (
-              <div className="cb-boards-grid">
+              <div className={`cb-boards-grid cb-grid-cols-${gridDensity}`}>
                 {shown.map((d) => (
                   <article className="cb-board-item" key={d.id} onClick={() => setOpen(d)}>
                     {/* The Wooden Board Frame Background */}
@@ -816,6 +918,66 @@ function App() {
         }}
         heartDrawing={heart}
       />
+
+      {/* INSTAGRAM-STYLE MOBILE BOTTOM NAVIGATION BAR */}
+      <nav className="cb-mobile-bottom-bar" aria-label="Navigation principale mobile">
+        {/* Maison / Accueil */}
+        <button
+          type="button"
+          className={`cb-bottom-nav-item ${page === 'Accueil' && !ownerOpen ? 'active' : ''}`}
+          onClick={() => {
+            setPage('Accueil');
+            setCat('Tous');
+            setOwnerOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          aria-label="Accueil"
+        >
+          <Home className="cb-bottom-nav-icon" />
+          <span className="cb-bottom-nav-label">Accueil</span>
+        </button>
+
+        {/* Loupe / Recherche */}
+        <button
+          type="button"
+          className="cb-bottom-nav-item"
+          onClick={() => {
+            setHeaderVisible(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus();
+              }
+            }, 250);
+          }}
+          aria-label="Recherche"
+        >
+          <Search className="cb-bottom-nav-icon" />
+          <span className="cb-bottom-nav-label">Recherche</span>
+        </button>
+
+        {/* Cœur / Favoris */}
+        <button
+          type="button"
+          className={`cb-bottom-nav-item ${page === 'Favoris' ? 'active' : ''}`}
+          onClick={() => {
+            setPage('Favoris');
+            setOwnerOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          aria-label="Favoris"
+        >
+          <div className="cb-bottom-heart-wrap">
+            <Heart
+              className="cb-bottom-nav-icon"
+              fill={favs.size > 0 ? '#d9534f' : 'none'}
+              color={favs.size > 0 ? '#d9534f' : 'currentColor'}
+            />
+            {favs.size > 0 && <span className="cb-bottom-badge">{favs.size}</span>}
+          </div>
+          <span className="cb-bottom-nav-label">Favoris</span>
+        </button>
+      </nav>
     </main>
   );
 }
