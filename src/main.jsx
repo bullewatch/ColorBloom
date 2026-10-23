@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { createRoot } from 'react-dom/client';
 import {
   Search, Heart, Settings, Download, X, Leaf, Globe2, Moon, Sun,
-  LogIn, Mail, Send, ShieldCheck, BarChart3, Plus, FolderOpen, Tags,
-  Megaphone, UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
-  Home, Sparkles, Info, BookOpen, HelpCircle, Bell, FileCode, Check,
-  Clock, PackageCheck, Eye, TrendingUp, ThumbsUp, ArrowRight, CheckCheck
+  LogIn, Mail, Send, ShieldCheck, Plus, FolderOpen, Tags,
+  UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
+  Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
+  PackageCheck, TrendingUp, ThumbsUp, CheckCheck
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -18,7 +18,6 @@ import boardArt from '../assets/board-tight.png';
 import likeArt from '../assets/like-tight.png';
 import favorisArt from '../assets/favoris-tight.png';
 import settingsArt from '../assets/settings-tight.png';
-import pomCardArt from '../assets/pom-card.png';
 
 import avatar1 from '../assets/avatar-1.png';
 import avatar2 from '../assets/avatar-2.png';
@@ -37,13 +36,12 @@ import mailboxNew from '../assets/mailbox/mailbox-new.png';
 
 const avatarList = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar7, avatar8];
 
+// Navigation tabs: Accueil, Catégories, Favoris, Nouveautés, À propos (VIP et POM retirés)
 const navItems = [
   { id: 'Accueil', label: 'Accueil', icon: Home },
   { id: 'Catégorie', label: 'Catégories', icon: Leaf },
   { id: 'Favoris', label: 'Favoris', icon: Heart },
-  { id: 'VIP', label: 'VIP', icon: Sparkles, badge: 'Bientôt' },
-  { id: 'POM', label: 'POM', icon: BookOpen, badge: 'Livre' },
-  { id: 'Messages', label: 'Messages', icon: Mail, badge: '1' },
+  { id: 'Nouveautes', label: 'Nouveautés', icon: Sparkles, badge: '1' },
   { id: 'APropos', label: 'À propos', icon: Info },
 ];
 
@@ -96,8 +94,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('cb-theme') || 'day');
   const [lang, setLang] = useState('FR');
-  const [messagesOpen, setMessagesOpen] = useState(false);
-  const [vipOpen, setVipOpen] = useState(false);
+  const [nouveautesOpen, setNouveautesOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
   const [downloading, setDownloading] = useState(null);
   const [adminView, setAdminView] = useState('stats');
@@ -107,7 +104,8 @@ function App() {
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
-  const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'POM'];
+  // Left categories list without POM
+  const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules'];
 
   // Check if current user is owner/admin
   const isOwner = Boolean(
@@ -257,7 +255,6 @@ function App() {
     setDownloading(format);
     const safe = slugify(open.title) || 'coloriage';
 
-    // Track download in analytics & increment count in Supabase
     supabase.from('site_analytics').insert({
       event_type: 'download',
       metadata: {
@@ -361,7 +358,6 @@ function App() {
       d.title.toLowerCase().includes(q.toLowerCase())
     );
     if (page === 'Favoris') result = result.filter(d => favs.has(d.id));
-    if (page === 'POM') result = result.filter(d => d.cat.some(c => c.toLowerCase() === 'pom'));
     if (sort === 'liked') result = [...result].sort((a, b) => b.likes - a.likes);
     if (sort === 'recent') result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     return result;
@@ -379,7 +375,7 @@ function App() {
       {/* Main Header */}
       <header className="cb-header">
         <div className="cb-header-top">
-          {/* Centered Large COLORBLOOM Banner */}
+          {/* Centered Large COLORBLOOM Banner nestled close to the flowers */}
           <div className="cb-logo-wrap" onClick={() => { setPage('Accueil'); setOwnerOpen(false); }}>
             <img src={logoArt} alt="ColorBloom" className="cb-logo" />
           </div>
@@ -419,37 +415,17 @@ function App() {
           </div>
         </div>
 
-        {/* UNIFIED NAV & SEARCH ASSEMBLY (GLUED TOGETHER WITH DRAPING FLOWERS) */}
-        <div className="cb-nav-search-assembly">
-          {/* Decorative Floral Overlays on the Sides and Joint */}
-          <div className="cb-assembly-flower-left" aria-hidden="true">
-            <svg viewBox="0 0 40 40" width="36" height="36">
-              <path d="M12,22 C6,18 4,10 12,6 C20,2 24,12 20,20 Z" fill="#4d723b" />
-              <circle cx="24" cy="22" r="10" fill="#fff" stroke="#4a3018" strokeWidth="2" />
-              <circle cx="24" cy="22" r="4" fill="#f7b731" />
-            </svg>
-          </div>
-          <div className="cb-assembly-flower-right" aria-hidden="true">
-            <svg viewBox="0 0 40 40" width="36" height="36">
-              <path d="M28,22 C34,18 36,10 28,6 C20,2 16,12 20,20 Z" fill="#4d723b" />
-              <circle cx="16" cy="22" r="10" fill="#fff" stroke="#4a3018" strokeWidth="2" />
-              <circle cx="16" cy="22" r="4" fill="#f7b731" />
-            </svg>
-          </div>
-
-          {/* Navigation Categories Row (Upper Part of the Assembly) */}
-          <nav className="cb-nav-plank">
+        {/* UNIFIED BROWN WOODEN BLOCK ENGLOBING BOTH CATEGORY TABS AND SEARCH BAR */}
+        <div className="cb-nav-search-block">
+          {/* Category Tabs Row (Accueil, Catégories, Favoris, Nouveautés, À propos) */}
+          <nav className="cb-nav-tabs-row">
             {navItems.map(({ id, label, icon: Icon, badge }) => (
               <button
                 key={id}
                 className={`cb-nav-tab ${page === id && !ownerOpen ? 'active' : ''}`}
                 onClick={() => {
-                  if (id === 'Messages') {
-                    setMessagesOpen(true);
-                    return;
-                  }
-                  if (id === 'VIP') {
-                    setVipOpen(true);
+                  if (id === 'Nouveautes') {
+                    setNouveautesOpen(true);
                     return;
                   }
                   setPage(id);
@@ -465,8 +441,8 @@ function App() {
             ))}
           </nav>
 
-          {/* Search Bar Log (Lower Part of the Assembly, Seamlessly Glued) */}
-          <div className="cb-search-log">
+          {/* Search Bar Row inside the same brown wooden frame */}
+          <div className="cb-search-bar-inner">
             <div className="cb-search-field">
               <Search className="cb-loupe-icon" />
               <input
@@ -483,7 +459,7 @@ function App() {
               )}
             </div>
 
-            {/* Medallion Heart on the Right of the Search Bar */}
+            {/* Medallion Heart on the Right */}
             <button
               className={`cb-search-heart-medallion ${favs.size > 0 ? 'active' : ''}`}
               onClick={() => { setPage('Favoris'); setOwnerOpen(false); }}
@@ -617,12 +593,6 @@ function App() {
               </div>
 
               <div className="cb-about-card">
-                <div className="cb-about-card-icon">🍄</div>
-                <h3>Les aventures de POM</h3>
-                <p>Découvrez également l'univers attachant de <b>POM</b>, le petit personnage bienveillant de nos livres illustrés pour les tout-petits, disponible sur Amazon & Kindle avec ses histoires et coloriages exclusifs.</p>
-              </div>
-
-              <div className="cb-about-card">
                 <div className="cb-about-card-icon">💌</div>
                 <h3>La Boîte à dessin participative</h3>
                 <p>Une idée d'animal ou de créature que tu aimerais colorier ? Dépose ta lettre dans la <b>Boîte à dessin</b> située en bas à droite de l'écran. L'artiste lit vos demandes et vous notifie directement avec le dessin une fois créé !</p>
@@ -638,7 +608,7 @@ function App() {
         </section>
       ) : (
         <section className="layout cb-home">
-          {/* Left Sidebar: PURE CSS HAND-CARVED WOODEN PANEL */}
+          {/* Left Sidebar: PURE CSS STICKY WOODEN PANEL (SUIT LE SCROLL) */}
           <aside className="cb-panel-aside">
             <div className="cb-css-panel">
               {/* Antique Corner Nails */}
@@ -657,7 +627,7 @@ function App() {
                   </select>
                 </div>
 
-                {/* Categories Wooden Planks */}
+                {/* Categories Wooden Planks (POM remplacé par Favoris au bas) */}
                 <div className="cb-categories-planks">
                   <span className="cb-plank-label">Catégories</span>
                   {cats.map(catName => (
@@ -674,6 +644,19 @@ function App() {
                       {catName === 'Animaux' && <span className="cb-plank-pill">126</span>}
                     </button>
                   ))}
+
+                  {/* Bouton Cœur pour accéder aux Favoris à la place de POM */}
+                  <button
+                    className={`cb-css-plank cb-plank-favs ${page === 'Favoris' ? 'active' : ''}`}
+                    onClick={() => {
+                      setPage('Favoris');
+                    }}
+                    title="Voir tous mes favoris"
+                  >
+                    <span className="cb-plank-nail" aria-hidden="true" />
+                    <span className="cb-plank-title">❤️ Mes Favoris</span>
+                    {favs.size > 0 && <span className="cb-plank-pill">{favs.size}</span>}
+                  </button>
                 </div>
               </div>
             </div>
@@ -719,11 +702,9 @@ function App() {
             ) : (
               <div className="cb-empty-board">
                 <Heart />
-                <h2>{page === 'POM' ? 'Le coin de Pom' : page === 'Favoris' ? 'Aucun favori pour le moment' : 'Ce jardin est encore vide'}</h2>
+                <h2>{page === 'Favoris' ? 'Aucun favori pour le moment' : 'Ce jardin est encore vide'}</h2>
                 <p>
-                  {page === 'POM'
-                    ? 'Les coloriages officiels de Pom arrivent très bientôt ! Découvre déjà le premier livre de Pom ci-contre.'
-                    : page === 'Favoris'
+                  {page === 'Favoris'
                     ? 'Clique sur le cœur d’un coloriage pour le retrouver ici à tout moment !'
                     : 'Aucun dessin ne correspond à ta sélection.'}
                 </p>
@@ -739,19 +720,25 @@ function App() {
             )}
           </section>
 
-          {/* Right Sidebar: Pom Book Banner */}
+          {/* Right Sidebar: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) */}
           <aside className="cb-ad-sidebar">
-            <div className="cb-pom-box">
-              <img src={pomCardArt} alt="Découvre la nature avec POM" className="cb-pom-banner" />
-              <a
-                href="https://www.amazon.fr"
-                target="_blank"
-                rel="noreferrer"
-                className="cb-pom-click"
-                title="Découvrir le livre Pom et le papillon sur Amazon & Kindle"
-              >
-                <span className="sr-only">Voir le livre Pom</span>
-              </a>
+            <div className="cb-ad-container" id="colorbloom-ad-slot">
+              <span className="cb-ad-label">Espace Publicitaire</span>
+              <div className="cb-ad-empty-box">
+                {/* Standard Google Ad Tag ready */}
+                <ins
+                  className="adsbygoogle"
+                  style={{ display: 'block' }}
+                  data-ad-client="ca-pub-0000000000000000"
+                  data-ad-slot="0000000000"
+                  data-ad-format="auto"
+                  data-full-width-responsive="true"
+                />
+                <div className="cb-ad-placeholder-note">
+                  <Sparkles size={20} />
+                  <span>Emplacement réservé Google Ad</span>
+                </div>
+              </div>
             </div>
           </aside>
         </section>
@@ -793,13 +780,13 @@ function App() {
         </div>
       )}
 
-      {/* Official Notifications / Messages Modal */}
-      {messagesOpen && (
-        <div className="modal" onClick={() => setMessagesOpen(false)}>
+      {/* Nouveautés / Notifications Modal */}
+      {nouveautesOpen && (
+        <div className="modal" onClick={() => setNouveautesOpen(false)}>
           <div className="letter" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setMessagesOpen(false)}><X /></button>
+            <button className="close" onClick={() => setNouveautesOpen(false)}><X /></button>
             <Bell className="letter-icon" />
-            <h2>Messages & Notifications</h2>
+            <h2>Nouveautés & Annonces</h2>
             <div className="notification-list">
               <div className="notif-item">
                 <span className="notif-date">Nouveau</span>
@@ -816,20 +803,7 @@ function App() {
         </div>
       )}
 
-      {/* VIP Announcement Modal */}
-      {vipOpen && (
-        <div className="modal" onClick={() => setVipOpen(false)}>
-          <div className="letter" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setVipOpen(false)}><X /></button>
-            <Sparkles className="letter-icon" />
-            <h2>Espace VIP en préparation</h2>
-            <p>L'espace VIP vous offrira bientôt des coloriages exclusifs en très haute résolution, un accès en avant-première aux nouveaux tomes de POM et des fonctionnalités inédites !</p>
-            <button className="send" onClick={() => setVipOpen(false)}>Compris !</button>
-          </div>
-        </div>
-      )}
-
-      {/* 4-STAGE INTERACTIVE MAILBOX WIDGET (IN BOTTOM-RIGHT CORNER) */}
+      {/* 4-STAGE OFFICIAL DRAWING MAILBOX COMPONENT */}
       <OfficialDrawingMailbox
         isOwner={isOwner}
         pendingRequestsCount={pendingRequestsCount}
@@ -888,7 +862,6 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
     return () => clearInterval(interval);
   }, [session]);
 
-  // Determine which image to show
   const hasOwnerMail = isOwner && pendingRequestsCount > 0;
   const hasUserValidatedMail = !isOwner && validatedRequests.length > 0;
   const showNewMailVisual = hasOwnerMail || hasUserValidatedMail;
@@ -983,7 +956,6 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
           className="cb-mailbox-img"
         />
 
-        {/* Small sparkling alert badge when new mail is present */}
         {showNewMailVisual && (
           <span className="cb-mailbox-alert-badge">
             ✉️ {hasOwnerMail ? pendingRequestsCount : validatedRequests.length}
@@ -991,18 +963,20 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
         )}
       </div>
 
-      {/* STAGE 3 : "VISUEL CLIC" - INTERACTIVE WRITING SHEET */}
+      {/* STAGE 3 : "VISUEL CLIC" - INTERACTIVE WRITING SHEET WITH CLEAN PARCHMENT */}
       {isClickOpen && (
         <div className="modal" onClick={() => setIsClickOpen(false)}>
           <div className="cb-click-sheet-card" onClick={e => e.stopPropagation()}>
             <button className="close" onClick={() => setIsClickOpen(false)} aria-label="Fermer"><X /></button>
 
-            {/* The Visual Clic Artwork */}
+            {/* The Visual Clic Artwork without printed ghost text underneath */}
             <div className="cb-sheet-artwork-wrapper">
-              <img src={mailboxClick} alt="Fais une demande de dessin ici" className="cb-sheet-artwork" />
+              <img src={mailboxClick} alt="Fais une demande de dessin" className="cb-sheet-artwork" />
 
-              {/* Seamless Interactive Form Overlay directly on the lined writing box */}
+              {/* Clean Interactive Form Overlay */}
               <form onSubmit={handleSendRequest} className="cb-sheet-interactive-overlay">
+                <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+
                 <input
                   type="text"
                   required
@@ -1035,7 +1009,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                   disabled={submitting}
                   title="Glisser dans la boîte aux lettres"
                 >
-                  <Send size={18} />
+                  <Send size={16} />
                   <span>{submitting ? 'Envoi…' : 'Envoyer'}</span>
                 </button>
               </form>
@@ -1066,7 +1040,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                   const matched = drawings.find(d => d.slug === req.completed_drawing_slug);
                   return (
                     <div className="cb-new-drawing-item" key={req.id}>
-                      {/* Miniature thumbnail that directly leads to the drawing modal */}
+                      {/* Miniature thumbnail that directly leads to the drawing download */}
                       <div
                         className="cb-drawing-mini-thumb"
                         onClick={() => {
@@ -1239,7 +1213,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [librarySearch, setLibrarySearch] = useState('');
   const [libraryCatFilter, setLibraryCatFilter] = useState('Tous');
 
-  const availableCategories = ['Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'POM', 'VIP', 'Divers'];
+  const availableCategories = ['Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'VIP', 'Divers'];
 
   async function loadRequests() {
     setLoadingRequests(true);
@@ -1385,7 +1359,6 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
       return;
     }
 
-    // If drawing exists in Supabase coloring_pages
     if (!String(d.id).startsWith('cb-svg-')) {
       const { error } = await supabase
         .from('coloring_pages')
@@ -1570,12 +1543,11 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
         </div>
       )}
 
-      {/* VIEW 2 : GÉRER LES DESSINS (PANEL AVEC RENOMMAGE ET RANGEMENT PAR CATÉGORIES) */}
+      {/* VIEW 2 : GÉRER LES DESSINS */}
       {view === 'library' && (
         <div className="cb-owner-view-library">
           {/* Header Action Bar */}
           <div className="cb-library-actions-bar">
-            {/* Big Prominent + Button */}
             <button
               className="cb-btn-add-primary"
               onClick={() => { resetForm(); setView('add'); }}
@@ -1583,7 +1555,6 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
               <Plus size={18} /> Ajouter un coloriage
             </button>
 
-            {/* Quick Search */}
             <div className="cb-library-search">
               <Search size={16} />
               <input
@@ -1595,7 +1566,6 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
               {librarySearch && <button onClick={() => setLibrarySearch('')}><X size={14} /></button>}
             </div>
 
-            {/* Quick Category Filter */}
             <div className="cb-library-cat-filter">
               <span>Catégorie :</span>
               <select

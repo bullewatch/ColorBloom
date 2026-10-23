@@ -38,7 +38,7 @@ button, input, select, textarea {
   border: 0;
 }
 
-/* === Top Floral Composition (COMPACTÉ POUR LAISSER PLACE AUX DESSINS) === */
+/* === Top Floral Composition (COMPACTÉE) === */
 .cb-floral-canopy {
   width: 100%;
   max-width: 1300px;
@@ -63,7 +63,7 @@ button, input, select, textarea {
   position: relative;
   z-index: 4;
   max-width: 1150px;
-  margin: 0 auto 10px;
+  margin: 0 auto 8px;
   padding: 0 16px;
   text-align: center;
 }
@@ -73,7 +73,7 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 72px;
+  min-height: 70px;
   margin-bottom: 2px;
 }
 
@@ -87,7 +87,7 @@ button, input, select, textarea {
   transform: scale(1.02);
 }
 
-/* Logo ColorBloom niché au plus près des fleurs */
+/* Logo ColorBloom niché tout contre les fleurs */
 .cb-logo {
   width: min(440px, 78vw);
   max-width: 440px;
@@ -175,52 +175,34 @@ button, input, select, textarea {
   display: block;
 }
 
-/* === UNIFIED NAVIGATION & SEARCH ASSEMBLY === */
-.cb-nav-search-assembly {
-  position: relative;
-  max-width: 740px;
+/* === CADRE MARRON UNIQUE QUI ENGLOBE ONGLETS ET BARRE DE RECHERCHE (SANS FLEURS AJOUTÉES) === */
+.cb-nav-search-block {
+  max-width: 680px;
+  width: 100%;
   margin: -6px auto 16px;
+  background: linear-gradient(135deg, #442611 0%, #2e1708 50%, #442611 100%);
+  border: 5px solid #200f04;
+  border-radius: 20px;
+  padding: 8px 12px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 5;
 }
 
-/* Decorative side flowers */
-.cb-assembly-flower-left {
-  position: absolute;
-  top: -10px;
-  left: -12px;
-  z-index: 6;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4));
-}
-
-.cb-assembly-flower-right {
-  position: absolute;
-  top: -10px;
-  right: -12px;
-  z-index: 6;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4));
-}
-
-/* === ONGLETS EN MARRON COMME LE PANEL DES CATÉGORIES === */
-.cb-nav-plank {
-  display: inline-flex;
+/* Ligne supérieure des onglets (Accueil, Catégories, Favoris, Nouveautés, À propos) */
+.cb-nav-tabs-row {
+  display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  background: linear-gradient(135deg, #442611 0%, #2e1708 50%, #442611 100%);
-  border: 4px solid #200f04;
-  border-bottom: 2px solid #200f04;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 4px 14px 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.15);
-  margin-bottom: -2px;
-  position: relative;
-  z-index: 2;
+  gap: 6px;
+  width: 100%;
+  border-bottom: 1.5px dashed rgba(237, 217, 180, 0.25);
+  padding-bottom: 6px;
 }
 
 .cb-nav-tab {
@@ -271,19 +253,12 @@ button, input, select, textarea {
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 
-/* === BARRE DE RECHERCHE CONSERVÉE TELLE QUELLE (BOIS CLAIR PARCHEMIN) === */
-.cb-search-log {
+/* Ligne inférieure : barre de recherche dans le même cadre */
+.cb-search-bar-inner {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(180deg, #f4e3be 0%, #ddbe88 100%);
-  border: 4px solid #5a381d;
-  border-radius: 24px;
-  padding: 4px 8px 4px 14px;
-  box-shadow: 0 5px 0 #361f0e, 0 8px 18px rgba(0, 0, 0, 0.45);
-  position: relative;
-  z-index: 1;
 }
 
 .cb-search-field {
@@ -335,13 +310,13 @@ button, input, select, textarea {
   height: 15px;
 }
 
-/* Medallion Heart Button on the Right of Search Bar */
+/* Medallion Heart Button on the Right */
 .cb-search-heart-medallion {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 3px solid #583318;
+  border: 2.5px solid #583318;
   background: radial-gradient(circle, #f9eed7 0%, #cf9c58 100%);
   display: grid;
   place-items: center;
@@ -356,8 +331,8 @@ button, input, select, textarea {
 }
 
 .cb-search-heart-medallion svg {
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
 }
 
 .cb-medallion-count {
@@ -546,9 +521,12 @@ button, input, select, textarea {
   align-items: start;
 }
 
-/* === PURE CSS LEFT WOODEN PANEL === */
+/* === LEFT SIDEBAR: PURE CSS STICKY WOODEN PANEL (SUIT LE SCROLL) === */
 .cb-panel-aside {
+  position: sticky;
+  top: 16px;
   align-self: start;
+  z-index: 25;
 }
 
 .cb-css-panel {
@@ -556,7 +534,7 @@ button, input, select, textarea {
   background: linear-gradient(135deg, #442611 0%, #2e1708 50%, #442611 100%);
   border: 5px solid #200f04;
   border-radius: 18px;
-  padding: 18px 12px 20px;
+  padding: 16px 12px 18px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.12);
 }
 
@@ -577,7 +555,7 @@ button, input, select, textarea {
 .cb-panel-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cb-plank-label {
@@ -645,6 +623,12 @@ button, input, select, textarea {
   border-color: #7b4b1a;
   text-shadow: none;
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Bouton Favoris au bas du panneau */
+.cb-plank-favs {
+  background: linear-gradient(180deg, #7c3a22 0%, #522212 100%);
+  border-color: #3b1408;
 }
 
 .cb-plank-nail {
@@ -850,62 +834,55 @@ button, input, select, textarea {
   background: #5e8c4e;
 }
 
-/* === RIGHT SIDEBAR: REAL GOOGLE ADSENSE READY BANNER SLOT === */
+/* === RIGHT SIDEBAR: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) === */
 .cb-ad-sidebar {
   align-self: start;
 }
 
 .cb-ad-container {
   width: 100%;
-  background: #fbf5e6;
-  border: 4px solid #5a381d;
+  min-height: 440px;
+  background: rgba(28, 17, 8, 0.65);
+  border: 3px dashed #6b4324;
   border-radius: 14px;
-  padding: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .cb-ad-label {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #8c6843;
-  margin-bottom: 8px;
+  color: #eed5a7;
+  margin-bottom: 10px;
 }
 
-.cb-ad-content {
-  min-height: 250px;
+.cb-ad-empty-box {
+  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
 }
 
-.cb-pom-box {
-  position: relative;
-  width: 100%;
-  border-radius: 10px;
-  overflow: hidden;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
-  transition: transform 0.2s ease;
-}
-
-.cb-pom-box:hover {
-  transform: scale(1.02);
-}
-
-.cb-pom-banner {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.cb-pom-click {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+.cb-ad-placeholder-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #bfa585;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
 }
 
 /* === 4-STAGE OFFICIAL MAILBOX WIDGET (BOTTOM-RIGHT CORNER) === */
@@ -972,10 +949,10 @@ button, input, select, textarea {
   filter: drop-shadow(0 14px 40px rgba(0, 0, 0, 0.75));
 }
 
-/* Interactive Form Layer mapped directly onto the lined sheet */
+/* Formulaire épuré sans texte fantôme en fond */
 .cb-sheet-interactive-overlay {
   position: absolute;
-  top: 56%;
+  top: 55%;
   left: 10%;
   width: 74%;
   height: 38%;
@@ -984,36 +961,49 @@ button, input, select, textarea {
   gap: 5px;
 }
 
+.cb-click-sheet-title {
+  display: block;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  color: #3b200b;
+  text-align: center;
+  margin-bottom: 2px;
+  line-height: 1.1;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
 .cb-sheet-input-pseudo {
   width: 100%;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1.5px solid #a88358;
+  background: #fffdf8;
+  border: 1.5px solid #9e754a;
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 13px;
   font-weight: 700;
   color: #3b2210;
   outline: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .cb-sheet-textarea {
   flex: 1;
   width: 100%;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1.5px solid #a88358;
+  background: #fffdf8;
+  border: 1.5px solid #9e754a;
   border-radius: 6px;
   padding: 6px 8px;
-  font-size: 13px;
   font-family: 'Patrick Hand', cursive;
   font-size: 16px;
   color: #2e1708;
   resize: none;
   outline: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .cb-sheet-input-email {
   width: 100%;
-  background: rgba(255, 255, 255, 0.85);
+  background: #fffdf8;
   border: 1px dashed #b89872;
   border-radius: 6px;
   padding: 3px 8px;
@@ -1205,7 +1195,7 @@ button, input, select, textarea {
   font-size: 16px;
 }
 
-/* === OWNER SPACE STYLES (TABLEAU DE BORD, STATS, GÉRER LES DESSINS) === */
+/* === OWNER SPACE STYLES === */
 .cb-owner-space {
   max-width: 1100px;
   margin: 15px auto 50px;
@@ -1462,7 +1452,7 @@ button, input, select, textarea {
   border-radius: 4px;
 }
 
-/* Owner Library View (Gérer les Dessins) */
+/* Owner Library View */
 .cb-library-actions-bar {
   display: flex;
   flex-wrap: wrap;
@@ -2074,20 +2064,38 @@ button, input, select, textarea {
   font-weight: 700;
 }
 
+/* BOUTON FERMER PARFAITEMENT CENTRÉ */
 .close {
   position: absolute;
-  right: -14px;
-  top: -14px;
-  border: 4px solid #60412d;
+  right: -10px;
+  top: -10px;
+  border: 3.5px solid #60412d;
   background: #f7e6c4;
   color: #55351f;
   border-radius: 50%;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  z-index: 20;
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  margin: 0 auto;
+}
+
+.close:hover {
+  transform: scale(1.1);
+  background: #fff0d4;
 }
 
 .actions {
@@ -2392,11 +2400,8 @@ footer {
   .cb-header-top {
     flex-direction: column;
   }
-  .cb-nav-plank {
-    border-radius: 14px;
-    padding: 3px 6px;
+  .cb-nav-tabs-row {
     overflow-x: auto;
-    max-width: 100%;
     justify-content: flex-start;
   }
   .cb-nav-tab {
@@ -2408,6 +2413,7 @@ footer {
     padding: 0 12px 35px;
   }
   .cb-panel-aside {
+    position: static;
     margin-bottom: 16px;
   }
   .cb-categories-planks {
