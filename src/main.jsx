@@ -4,20 +4,31 @@ import { createRoot } from 'react-dom/client';
 import {
   Search, Heart, Settings, Download, X, Leaf, Globe2, Moon, Sun,
   LogIn, Mail, Send, ShieldCheck, BarChart3, Plus, FolderOpen, Tags,
-  Megaphone, UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus
+  Megaphone, UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
+  Home, Sparkles, Info, User
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import floralTop from '../assets/floral-top.png';
 import colorBloomLogo from '../assets/colorbloom-logo.png';
-import navigationSearch from '../assets/navigation-search.jpg';
-import categoryPanel from '../assets/category-panel.jpg';
-import heartArt from '../assets/heart.jpg';
-import settingsArt from '../assets/settings.jpg';
+import categoryPanel from '../assets/category-panel.png';
+import heartArt from '../assets/heart.png';
+import settingsArt from '../assets/settings.png';
+import woodFrameArt from '../assets/wood-frame-window.png';
+import avatarFairy from '../assets/avatar-fairy.png';
+import pomCardArt from '../assets/pom-card.png';
 
 const fallbackDrawings = [];
 
-const nav = ['Accueil', 'Catégories', 'Favoris', 'Nouveautés', 'Infos', 'Profil'];
+const navItems = [
+  { name: 'Accueil', icon: Home },
+  { name: 'Catégories', icon: Leaf },
+  { name: 'Favoris', icon: Heart },
+  { name: 'Nouveautés', icon: Sparkles },
+  { name: 'Infos', icon: Info },
+  { name: 'Profil', icon: User },
+];
+
 const avatars = ['🧚', '🧝', '🧙', '🧝‍♀️', '🧙‍♂️', '🍄', '🌿', '🧑‍🌾'];
 
 function toDrawing(row) {
@@ -63,7 +74,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
-  const cats = ['Tous', 'Fées', 'Halloween', 'Fille', 'Garçon', 'Véhicules', 'Dinosaures', 'Animaux', 'Chats', 'Noël'];
+  const cats = ['Tous', 'Fées', 'Halloween', 'Fille', 'Garçon', 'Véhicules', 'Dinosaures', 'Animaux', 'Chats'];
 
   const admin = Boolean(profile?.is_admin);
 
@@ -129,13 +140,23 @@ function App() {
 
   async function heart(id) {
     const wasFavorite = favs.has(id);
+    const delta = wasFavorite ? -1 : 1;
+
     setFavs(current => {
       const next = new Set(current);
       wasFavorite ? next.delete(id) : next.add(id);
       return next;
     });
-    setDrawings(current => current.map(d => d.id === id ? { ...d, likes: Math.max(0, d.likes + (wasFavorite ? -1 : 1)) } : d));
-    setOpen(current => current?.id === id ? { ...current, likes: Math.max(0, current.likes + (wasFavorite ? -1 : 1)) } : current);
+
+    setDrawings(current => current.map(d => d.id === id ? { ...d, likes: Math.max(0, d.likes + delta) } : d));
+    setOpen(current => current?.id === id ? { ...current, likes: Math.max(0, current.likes + delta) } : current);
+
+    // Update persistent likes count in Supabase
+    const targetDrawing = drawings.find(d => d.id === id);
+    if (targetDrawing) {
+      const newLikes = Math.max(0, (targetDrawing.likes || 0) + delta);
+      supabase.from('coloring_pages').update({ likes_count: newLikes }).eq('id', id).then();
+    }
 
     if (!session?.user) return;
 
@@ -147,7 +168,6 @@ function App() {
     if (error) {
       await loadAccount(session);
       await loadDrawings();
-      alert('Impossible de synchroniser ce favori pour le moment.');
     }
   }
 
@@ -236,28 +256,88 @@ function App() {
 
   return (
     <main className={'theme-' + theme}>
-      <div className="cb-floral"><img src={floralTop} alt="" /></div>
+      {/* Top floral canopy */}
+      <div className="cb-floral-canopy">
+        <img src={floralTop} alt="" aria-hidden="true" />
+      </div>
 
+      {/* Main Header */}
       <header className="cb-header">
-        <img className="nav-art" src={navigationSearch} alt="" />
-        <div className="logo" aria-label="ColorBloom"><img src={colorBloomLogo} alt="ColorBloom" /></div>
+        <div className="cb-header-top">
+          <div className="cb-logo-wrap" aria-label="ColorBloom">
+            <img src={colorBloomLogo} alt="ColorBloom" className="cb-logo" />
+          </div>
 
-        <nav>
-          {nav.map(x => (
-            <button className={page === x && !ownerOpen ? 'nav-active' : ''} onClick={() => { setPage(x); setOwnerOpen(false); }} key={x}>
-              {x}
+          {/* Top-Right Profile Avatar & Settings Button */}
+          <div className="cb-top-actions">
+            <button
+              className="cb-avatar-btn"
+              onClick={() => { setPage('Profil'); setOwnerOpen(false); }}
+              title="Mon profil"
+              aria-label="Mon profil"
+            >
+              <img src={avatarFairy} alt="Profil" />
+            </button>
+            <button
+              className="cb-settings-btn"
+              onClick={() => setSettings(!settings)}
+              title="Réglages"
+              aria-label="Réglages"
+            >
+              <img src={settingsArt} alt="Réglages" />
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <nav className="cb-nav">
+          {navItems.map(({ name, icon: Icon }) => (
+            <button
+              key={name}
+              className={`cb-nav-tab ${page === name && !ownerOpen ? 'active' : ''}`}
+              onClick={() => {
+                setPage(name);
+                setOwnerOpen(false);
+                if (name === 'Catégories') setCat('Tous');
+              }}
+            >
+              <Icon className="cb-tab-icon" />
+              <span>{name}</span>
             </button>
           ))}
         </nav>
 
-        <div className="search">
-          <Search />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Rechercher..." />
-          <button className="settings-btn" style={{backgroundImage:`url(${settingsArt})`}} onClick={() => setSettings(!settings)}><Settings /></button>
+        {/* Search Bar with Heart badge */}
+        <div className="cb-search-bar">
+          <div className="cb-search-input-wrap">
+            <Search className="cb-search-icon" />
+            <input
+              type="text"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Rechercher..."
+              aria-label="Rechercher des coloriages"
+            />
+            {q && (
+              <button className="cb-search-clear" onClick={() => setQ('')} aria-label="Effacer la recherche">
+                <X />
+              </button>
+            )}
+          </div>
+          <button
+            className={`cb-search-heart ${page === 'Favoris' ? 'active' : ''}`}
+            onClick={() => { setPage('Favoris'); setOwnerOpen(false); }}
+            title="Voir mes favoris"
+            aria-label="Voir mes favoris"
+          >
+            <img src={heartArt} alt="" />
+            {favs.size > 0 && <span className="cb-search-fav-count">{favs.size}</span>}
+          </button>
         </div>
 
+        {/* Settings Dropdown */}
         {settings && (
-          <div className="settings">
+          <div className="cb-settings-modal">
             <b>Réglages</b>
             <label>
               <Globe2 /> Langue
@@ -289,6 +369,7 @@ function App() {
         )}
       </header>
 
+      {/* Main Content Area */}
       {ownerOpen && admin ? (
         <AdminPanel
           view={adminView}
@@ -310,69 +391,141 @@ function App() {
       ) : page === 'Infos' ? (
         <section className="info">
           <h1>Comment ça marche ?</h1>
-          <p>Choisis un coloriage, ouvre-le en grand puis télécharge-le en PNG ou PDF A4.</p>
-          <p>Avec un compte, tes favoris et ton profil sont synchronisés entre tes appareils.</p>
+          <p>Choisis un coloriage, ouvre-le en grand puis télécharge-le en PNG ou PDF A4 gratuit.</p>
+          <p>Avec un compte, tes favoris et ton profil sont synchronisés entre tous tes appareils.</p>
         </section>
       ) : (
         <section className="layout cb-home">
-          <aside className="wood-menu" style={{backgroundImage:`url(${categoryPanel})`}}>
-            <h3>Trier par</h3>
-            <select value={sort} onChange={e => setSort(e.target.value)}>
-              <option value="recent">Ajoutés récemment</option>
-              <option value="liked">Les plus aimés</option>
-            </select>
-            <h3>Catégories</h3>
-            <div className="cats">
-              {cats.map(catName => (
-                <button
-                  className={cat === catName ? 'active' : ''}
-                  onClick={() => { setCat(catName); setPage('Accueil'); }}
-                  key={catName}
-                >
-                  {catName}
-                </button>
-              ))}
+          {/* Left Sidebar: Wooden Category Panel */}
+          <aside className="cb-wood-panel" style={{ backgroundImage: `url(${categoryPanel})` }}>
+            <div className="cb-wood-content">
+              <h3 className="cb-wood-title">Trier par</h3>
+              <div className="cb-sort-pill">
+                <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Trier par">
+                  <option value="recent">Ajoutés récemment</option>
+                  <option value="liked">Les plus aimés</option>
+                </select>
+              </div>
+
+              <h3 className="cb-wood-title cb-cats-title">Catégories</h3>
+              <div className="cb-cats-list">
+                {cats.map(catName => (
+                  <button
+                    key={catName}
+                    className={`cb-cat-btn ${cat === catName && page === 'Accueil' ? 'active' : ''}`}
+                    onClick={() => {
+                      setCat(catName);
+                      setPage('Accueil');
+                    }}
+                  >
+                    {catName}
+                  </button>
+                ))}
+              </div>
             </div>
           </aside>
 
-          <section className="content">
+          {/* Center Gallery: 5-Column Grid of Empty / Populated Wooden Frames */}
+          <section className="cb-gallery">
             {shown.length ? (
-              <div className="grid">
-                {shown.map((d, i) => (
-                  <article className={'frame frame-' + ((i % 8) + 1)} key={d.id} onClick={() => setOpen(d)}>
-                    <div className="paper"><img className="coloring-img" src={d.image} alt={d.title} /></div>
-                    <button style={{backgroundImage:`url(${heartArt})`}} className={'heart ' + (favs.has(d.id) ? 'liked' : '')} onClick={e => { e.stopPropagation(); heart(d.id); }} aria-label="Favori">
-                      <Heart fill={favs.has(d.id) ? 'currentColor' : 'none'} />
-                      <span>{d.likes}</span>
+              <div className="cb-grid">
+                {shown.map((d) => (
+                  <article className="cb-card" key={d.id} onClick={() => setOpen(d)}>
+                    <div className="cb-card-frame">
+                      {/* Parchment background + coloring image */}
+                      <div className="cb-card-canvas">
+                        {d.image ? (
+                          <img src={d.image} alt={d.title} className="cb-coloring-thumb" loading="lazy" />
+                        ) : (
+                          <div className="cb-coloring-empty">
+                            <span>{d.title}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Corner hanging vine detail */}
+                      <div className="cb-corner-hanger" />
+
+                      {/* Overlaid wooden frame with transparent window */}
+                      <img src={woodFrameArt} alt="" className="cb-wood-frame-border" aria-hidden="true" />
+                    </div>
+
+                    {/* OVERLAID HEART BUTTON CALQUE AU-DESSUS */}
+                    <button
+                      className={`cb-heart-overlay ${favs.has(d.id) ? 'liked' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        heart(d.id);
+                      }}
+                      aria-label="Ajouter aux favoris"
+                      title={`${d.likes} favoris`}
+                    >
+                      <img src={heartArt} alt="" aria-hidden="true" />
+                      <span className="cb-heart-count">{d.likes}</span>
                     </button>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="empty"><Heart /><h2>Ce jardin est encore vide</h2></div>
+              <div className="cb-empty">
+                <Heart />
+                <h2>Ce jardin est encore vide</h2>
+                <p>Aucun coloriage ne correspond à ta recherche ou à tes filtres.</p>
+                {(q || cat !== 'Tous' || page !== 'Accueil') && (
+                  <button
+                    className="cb-reset-filters"
+                    onClick={() => { setQ(''); setCat('Tous'); setPage('Accueil'); }}
+                  >
+                    Réinitialiser les filtres
+                  </button>
+                )}
+              </div>
             )}
           </section>
 
-          <aside className="ad">
-            <span>PUBLICITÉ</span>
-            <div className="book">POM<br /><b>et le papillon</b><i>Une douce aventure</i></div>
+          {/* Right Sidebar: Pom Book Promotion Card */}
+          <aside className="cb-ad-sidebar">
+            <div className="cb-pom-card">
+              <img src={pomCardArt} alt="Découvre la nature avec POM" className="cb-pom-img" />
+              <a
+                href="https://www.amazon.fr"
+                target="_blank"
+                rel="noreferrer"
+                className="cb-pom-link"
+                title="Découvrir le livre Pom et le papillon"
+              >
+                <span className="sr-only">Voir le livre Pom</span>
+              </a>
+            </div>
           </aside>
         </section>
       )}
 
       <footer>ColorBloom • Des coloriages pour laisser fleurir l'imagination</footer>
 
+      {/* Drawing Modal (En grand & Téléchargement) */}
       {open && (
         <div className="modal" onClick={() => setOpen(null)}>
           <div className="modalbox" onClick={e => e.stopPropagation()}>
             <button className="close" onClick={() => setOpen(null)}><X /></button>
-            <div className="bigpaper"><img className="coloring-img big" src={open.image} alt={open.title} /></div>
+            <div className="bigpaper">
+              <img className="coloring-img big" src={open.image} alt={open.title} />
+            </div>
             <h2>{open.title}</h2>
             <p>{open.cat.join(' • ')}</p>
             <div className="actions">
-              <button onClick={() => heart(open.id)}><Heart fill={favs.has(open.id) ? 'currentColor' : 'none'} /> {open.likes}</button>
-              <button onClick={() => download('PNG')}><Download /> {downloading === 'PNG' ? 'Préparation…' : 'PNG'}</button>
-              <button onClick={() => download('PDF')}><Download /> {downloading === 'PDF' ? 'Préparation…' : 'PDF A4'}</button>
+              <button
+                className={`modal-heart-btn ${favs.has(open.id) ? 'liked' : ''}`}
+                onClick={() => heart(open.id)}
+              >
+                <Heart fill={favs.has(open.id) ? 'currentColor' : 'none'} /> {open.likes}
+              </button>
+              <button onClick={() => download('PNG')}>
+                <Download /> {downloading === 'PNG' ? 'Préparation…' : 'PNG'}
+              </button>
+              <button onClick={() => download('PDF')}>
+                <Download /> {downloading === 'PDF' ? 'Préparation…' : 'PDF A4'}
+              </button>
             </div>
             <small className="download-note">
               {session ? 'Compte connecté : téléchargements sans limite.' : `${Math.max(0, 5 - downloads)} téléchargement(s) visiteur restant(s) avant création de compte.`}
