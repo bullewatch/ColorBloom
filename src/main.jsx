@@ -685,7 +685,7 @@ function App() {
 
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">✂️</div>
-                <h3>126 Dessins en SVG Vectoriel</h3>
+                <h3>{animalCatalog.length} Dessins en SVG Vectoriel</h3>
                 <p>Nouveau sur ColorBloom : tous nos dessins d'animaux sont désormais disponibles en <b>téléchargement SVG vectoriel natif</b> ! Vous pouvez les agrandir à l'infini sans perte de qualité et les utiliser avec vos machines de découpe (Cricut, Silhouette), Illustrator ou traceurs.</p>
               </div>
 
@@ -744,7 +744,7 @@ function App() {
                     >
                       <span className="cb-plank-nail" aria-hidden="true" />
                       <span className="cb-plank-title">{catName}</span>
-                      {catName === 'Animaux' && <span className="cb-plank-pill">126</span>}
+                      {catName === 'Animaux' && <span className="cb-plank-pill">{animalCatalog.length}</span>}
                     </button>
                   ))}
 
@@ -893,7 +893,7 @@ function App() {
             <div className="notification-list">
               <div className="notif-item">
                 <span className="notif-date">Nouveau</span>
-                <b>126 dessins d'animaux en SVG vectoriel ajoutés !</b>
+                <b>{animalCatalog.length} dessins d'animaux en SVG vectoriel ajoutés !</b>
                 <p>Découvre la nouvelle collection d'animaux disponibles en téléchargement direct en SVG (idéal pour découpe et retouche), PNG et PDF A4.</p>
               </div>
               <div className="notif-item">
