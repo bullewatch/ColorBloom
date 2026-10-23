@@ -564,16 +564,15 @@ function App() {
               </label>
             </div>
 
-            {/* Drawing Grid Size / Density Selector */}
+            {/* Mobile Drawing Grid Size Selector */}
             <div className="setting-section">
-              <b><LayoutGrid className="settings-head-icon" /> Affichage des dessins</b>
-              <p className="setting-subtext">Choisis la taille et le nombre de dessins affichés par ligne :</p>
+              <b><LayoutGrid className="settings-head-icon" /> Affichage sur mobile (par ligne)</b>
+              <p className="setting-subtext">Choisis la taille des coloriages sur smartphone & tablette :</p>
               <div className="cb-grid-density-picker">
                 {[
                   { id: '1', num: '1', label: 'Grand', desc: '1 dessin par ligne (très grand)' },
-                  { id: '2', num: '2', label: 'Base', desc: '2 dessins par ligne (recommandé)' },
-                  { id: '3', num: '3', label: 'Compact', desc: '3 dessins par ligne' },
-                  { id: '4', num: '4', label: 'Mini', desc: '4 dessins par ligne' }
+                  { id: '2', num: '2', label: 'Base', desc: '2 dessins par ligne (affichage recommandé)' },
+                  { id: '3', num: '3', label: 'Compact', desc: '3 dessins par ligne' }
                 ].map(opt => (
                   <button
                     key={opt.id}
@@ -588,10 +587,12 @@ function App() {
                 ))}
               </div>
               <small className="setting-hint">
-                {gridDensity === '1' && "Grand format : 1 dessin par ligne pour apprécier tous les détails."}
-                {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (recommandé pour mobiles et tablettes)."}
-                {gridDensity === '3' && "Compact : 3 dessins par ligne pour voir plus de choix."}
-                {gridDensity === '4' && "Panorama : 4 dessins par ligne (idéal tablettes et ordinateurs)."}
+                {gridDensity === '1' && "Grand format : 1 dessin par ligne sur mobile pour admirer les moindres détails."}
+                {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (idéal sur téléphone portable)."}
+                {gridDensity === '3' && "Compact : 3 dessins par ligne pour parcourir la collection plus vite."}
+                <span style={{ display: 'block', marginTop: '4px', opacity: 0.85 }}>
+                  ℹ️ Sur ordinateur, l'affichage conserve automatiquement sa grille parfaite à 4 colonnes.
+                </span>
               </small>
             </div>
 
