@@ -1010,67 +1010,63 @@ button, input, select, textarea {
   filter: drop-shadow(0 14px 40px rgba(0, 0, 0, 0.75));
 }
 
-/* Formulaire épuré sans texte fantôme en fond sur nouveau visuel */
+/* Formulaire épuré sans pseudo ni e-mail (liés automatiquement au compte) */
 .cb-sheet-interactive-overlay {
   position: absolute;
-  top: 48%;
+  top: 54%;
   left: 11%;
   width: 71%;
-  height: 44%;
+  height: 38%;
   display: flex;
   flex-direction: column;
+}
+
+.cb-sheet-form-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   gap: 6px;
 }
 
 .cb-click-sheet-title {
   display: block;
   font-family: 'Patrick Hand', cursive;
-  font-size: 21px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: #3b200b;
   text-align: center;
   margin-bottom: 2px;
-  line-height: 1.1;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.85);
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
-.cb-sheet-input-pseudo {
-  width: 100%;
-  background: rgba(255, 253, 248, 0.94);
-  border: 1.5px solid #a4784a;
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #3b2210;
-  outline: 0;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+.cb-sheet-author-tag {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #6a4425;
+  text-align: center;
+  margin-top: -2px;
+  margin-bottom: 4px;
+}
+
+.cb-sheet-author-tag b {
+  color: #2e1708;
 }
 
 .cb-sheet-textarea {
   flex: 1;
   width: 100%;
-  background: rgba(255, 253, 248, 0.92);
+  background: rgba(255, 253, 248, 0.95);
   border: 1.5px solid #a4784a;
-  border-radius: 8px;
-  padding: 6px 10px;
+  border-radius: 9px;
+  padding: 10px 12px;
   font-family: 'Patrick Hand', cursive;
-  font-size: 16.5px;
+  font-size: 18px;
   color: #2e1708;
   resize: none;
   outline: 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.cb-sheet-input-email {
-  width: 100%;
-  background: rgba(255, 253, 248, 0.94);
-  border: 1px dashed #b89872;
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  color: #55341a;
-  outline: 0;
+  min-height: 95px;
 }
 
 .cb-sheet-send-btn {
@@ -1079,8 +1075,8 @@ button, input, select, textarea {
   color: #fff;
   border: 2px solid #1a3316;
   border-radius: 20px;
-  padding: 6px 18px;
-  font-size: 13.5px;
+  padding: 7px 22px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   display: inline-flex;
@@ -1088,6 +1084,55 @@ button, input, select, textarea {
   gap: 6px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   transition: transform 0.15s ease, filter 0.15s ease;
+  margin-top: 2px;
+}
+
+.cb-sheet-send-btn:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* Auth Gate si visiteur non connecté */
+.cb-sheet-auth-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  padding: 8px 12px;
+  gap: 10px;
+}
+
+.cb-sheet-auth-text {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  color: #4a2c13;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.cb-sheet-login-btn {
+  background: linear-gradient(180deg, #5b3e26 0%, #3a2211 100%);
+  color: #f7e2b7;
+  border: 2px solid #221207;
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.cb-sheet-login-btn:hover {
+  transform: scale(1.04);
+  filter: brightness(1.15);
+  color: #fff;
 }
 
 .cb-sheet-send-btn:hover {

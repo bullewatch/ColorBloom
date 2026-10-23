@@ -912,6 +912,12 @@ function App() {
         pendingRequestsCount={pendingRequestsCount}
         drawings={drawings}
         session={session}
+        profile={profile}
+        onOpenProfile={() => {
+          setPage('Profil');
+          setOwnerOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         onOpenDrawing={(d) => setOpen(d)}
         onOpenOwnerRequests={() => {
           setOwnerOpen(true);
@@ -984,16 +990,16 @@ function App() {
 }
 
 /* === 4-STAGE OFFICIAL DRAWING MAILBOX COMPONENT === */
-function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, onOpenDrawing, onOpenOwnerRequests, heartDrawing }) {
+function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, profile, onOpenProfile, onOpenDrawing, onOpenOwnerRequests, heartDrawing }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isClickOpen, setIsClickOpen] = useState(false);
   const [isNewMailOpen, setIsNewMailOpen] = useState(false);
-  const [pseudo, setPseudo] = useState(() => localStorage.getItem('cb-user-pseudo') || '');
-  const [email, setEmail] = useState(() => session?.user?.email || '');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [validatedRequests, setValidatedRequests] = useState([]);
   const [thankedNotice, setThankedNotice] = useState(false);
+
+  const senderPseudo = session ? (profile?.display_name || session.user.user_metadata?.pseudo || session.user.email?.split('@')[0] || 'Ami de ColorBloom') : '';
 
   // Check for validated requests destined for this visitor
   useEffect(() => {
@@ -1047,20 +1053,30 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
 
   async function handleSendRequest(e) {
     e.preventDefault();
+    if (!session?.user) {
+      setIsClickOpen(false);
+      onOpenProfile();
+      return;
+    }
+
     if (description.trim().length < 3) {
       alert('Écris quelques mots pour décrire ton coloriage.');
       return;
     }
 
     setSubmitting(true);
-    const finalPseudo = pseudo.trim() || 'Ami de ColorBloom';
-    localStorage.setItem('cb-user-pseudo', finalPseudo);
+    const finalPseudo =
+      profile?.display_name ||
+      session.user.user_metadata?.pseudo ||
+      session.user.email?.split('@')[0] ||
+      'Ami de ColorBloom';
+    const finalEmail = session.user.email || null;
 
     try {
       const { data, error } = await supabase.from('coloring_requests').insert({
-        user_id: session?.user?.id || null,
+        user_id: session.user.id,
         pseudo: finalPseudo,
-        email: email.trim() || null,
+        email: finalEmail,
         description: description.trim(),
         status: 'pending'
       }).select().single();
@@ -1136,46 +1152,54 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
             <div className="cb-sheet-artwork-wrapper">
               <img src={mailboxClick} alt="Fais une demande de dessin" className="cb-sheet-artwork" />
 
-              {/* Clean Interactive Form Overlay */}
-              <form onSubmit={handleSendRequest} className="cb-sheet-interactive-overlay">
-                <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+              {/* Clean Interactive Form Overlay (No pseudo/email fields - Account required) */}
+              <div className="cb-sheet-interactive-overlay">
+                {!session ? (
+                  <div className="cb-sheet-auth-gate">
+                    <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+                    <p className="cb-sheet-auth-text">
+                      Pour glisser une lettre dans la boîte et recevoir ton coloriage, crée ton compte gratuit ou connecte-toi !
+                    </p>
+                    <button
+                      type="button"
+                      className="cb-sheet-login-btn"
+                      onClick={() => {
+                        setIsClickOpen(false);
+                        onOpenProfile();
+                      }}
+                    >
+                      <LogIn size={18} />
+                      <span>Se connecter / Créer un compte</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSendRequest} className="cb-sheet-form-inner">
+                    <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+                    <div className="cb-sheet-author-tag">
+                      Signé par : <b>{senderPseudo}</b>
+                    </div>
 
-                <input
-                  type="text"
-                  required
-                  value={pseudo}
-                  onChange={e => setPseudo(e.target.value)}
-                  placeholder="Ton prénom ou pseudo…"
-                  className="cb-sheet-input-pseudo"
-                />
+                    <textarea
+                      required
+                      rows="4"
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder="Décris le dessin que tu aimerais : un animal, une fée, une scène magique…"
+                      className="cb-sheet-textarea"
+                    />
 
-                <textarea
-                  required
-                  rows="3"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Décris le dessin que tu aimerais : un animal, une fée, une scène magique…"
-                  className="cb-sheet-textarea"
-                />
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Ton e-mail (optionnel, pour te prévenir)"
-                  className="cb-sheet-input-email"
-                />
-
-                <button
-                  type="submit"
-                  className="cb-sheet-send-btn"
-                  disabled={submitting}
-                  title="Glisser dans la boîte aux lettres"
-                >
-                  <Send size={16} />
-                  <span>{submitting ? 'Envoi…' : 'Envoyer'}</span>
-                </button>
-              </form>
+                    <button
+                      type="submit"
+                      className="cb-sheet-send-btn"
+                      disabled={submitting}
+                      title="Glisser dans la boîte aux lettres"
+                    >
+                      <Send size={16} />
+                      <span>{submitting ? 'Envoi…' : 'Envoyer'}</span>
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         </div>
