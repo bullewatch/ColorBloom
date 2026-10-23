@@ -1,20 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import { createRoot } from 'react-dom/client';
 import {
   Search, Heart, Settings, Download, X, Leaf, Globe2, Moon, Sun,
   LogIn, Mail, Send, ShieldCheck, BarChart3, Plus, FolderOpen, Tags,
   Megaphone, UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
-  Home, Sparkles, Info, User, BookOpen, Printer, HelpCircle, Bell, FileCode
+  Home, Sparkles, Info, BookOpen, HelpCircle, Bell, FileCode, Check,
+  Clock, PackageCheck
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
 
 import floralComposition from '../assets/floral-composition.png';
-import logoArt from '../assets/Logo.png';
+import logoArt from '../assets/logo-tight.png';
 import boardArt from '../assets/board-tight.png';
-import panelArt from '../assets/panel-tight.png';
 import likeArt from '../assets/like-tight.png';
 import favorisArt from '../assets/favoris-tight.png';
 import settingsArt from '../assets/settings-tight.png';
@@ -34,6 +34,7 @@ const avatarList = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar
 const navItems = [
   { id: 'Accueil', label: 'Accueil', icon: Home },
   { id: 'Catégorie', label: 'Catégories', icon: Leaf },
+  { id: 'Favoris', label: 'Favoris', icon: Heart },
   { id: 'VIP', label: 'VIP', icon: Sparkles, badge: 'Bientôt' },
   { id: 'POM', label: 'POM', icon: BookOpen, badge: 'Livre' },
   { id: 'Messages', label: 'Messages', icon: Mail, badge: '1' },
@@ -88,7 +89,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('cb-theme') || 'day');
   const [lang, setLang] = useState('FR');
-  const [requestOpen, setRequestOpen] = useState(false);
+  const [mailboxOpen, setMailboxOpen] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [vipOpen, setVipOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
@@ -176,7 +177,6 @@ function App() {
     setDrawings(current => current.map(d => d.id === id ? { ...d, likes: Math.max(0, d.likes + delta) } : d));
     setOpen(current => current?.id === id ? { ...current, likes: Math.max(0, current.likes + delta) } : current);
 
-    // Synchronize likes_count with Supabase if stored
     const targetDrawing = drawings.find(d => d.id === id);
     if (targetDrawing && !String(id).startsWith('cb-svg-')) {
       const newLikes = Math.max(0, (targetDrawing.likes || 0) + delta);
@@ -316,7 +316,7 @@ function App() {
 
   return (
     <main className={'theme-' + theme}>
-      {/* Top Floral Composition */}
+      {/* Top Floral Composition Canopy */}
       <div className="cb-floral-canopy">
         <img src={floralComposition} alt="" aria-hidden="true" />
       </div>
@@ -324,7 +324,7 @@ function App() {
       {/* Main Header */}
       <header className="cb-header">
         <div className="cb-header-top">
-          {/* Centered Logo */}
+          {/* Centered Large COLORBLOOM Banner */}
           <div className="cb-logo-wrap" onClick={() => { setPage('Accueil'); setOwnerOpen(false); }}>
             <img src={logoArt} alt="ColorBloom" className="cb-logo" />
           </div>
@@ -364,49 +364,80 @@ function App() {
           </div>
         </div>
 
-        {/* Navigation Categories Row */}
-        <nav className="cb-nav">
-          {navItems.map(({ id, label, icon: Icon, badge }) => (
-            <button
-              key={id}
-              className={`cb-nav-tab ${page === id && !ownerOpen ? 'active' : ''}`}
-              onClick={() => {
-                if (id === 'Messages') {
-                  setMessagesOpen(true);
-                  return;
-                }
-                if (id === 'VIP') {
-                  setVipOpen(true);
-                  return;
-                }
-                setPage(id);
-                setOwnerOpen(false);
-                if (id === 'Catégorie') setCat('Tous');
-              }}
-            >
-              <Icon className="cb-tab-icon" />
-              <span>{label}</span>
-              {badge && <small className="cb-tab-badge">{badge}</small>}
-            </button>
-          ))}
-        </nav>
+        {/* UNIFIED NAV & SEARCH ASSEMBLY (GLUED TOGETHER WITH DRAPING FLOWERS) */}
+        <div className="cb-nav-search-assembly">
+          {/* Decorative Floral Overlays on the Sides and Joint */}
+          <div className="cb-assembly-flower-left" aria-hidden="true">
+            <svg viewBox="0 0 40 40" width="36" height="36">
+              <path d="M12,22 C6,18 4,10 12,6 C20,2 24,12 20,20 Z" fill="#4d723b" />
+              <circle cx="24" cy="22" r="10" fill="#fff" stroke="#4a3018" strokeWidth="2" />
+              <circle cx="24" cy="22" r="4" fill="#f7b731" />
+            </svg>
+          </div>
+          <div className="cb-assembly-flower-right" aria-hidden="true">
+            <svg viewBox="0 0 40 40" width="36" height="36">
+              <path d="M28,22 C34,18 36,10 28,6 C20,2 16,12 20,20 Z" fill="#4d723b" />
+              <circle cx="16" cy="22" r="10" fill="#fff" stroke="#4a3018" strokeWidth="2" />
+              <circle cx="16" cy="22" r="4" fill="#f7b731" />
+            </svg>
+          </div>
 
-        {/* Search Bar with Magnifying Glass and Input Field */}
-        <div className="cb-search-bar">
-          <div className="cb-search-parchment">
-            <Search className="cb-loupe-icon" />
-            <input
-              type="text"
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder="Rechercher un coloriage (animaux, fées, etc.)..."
-              aria-label="Rechercher un coloriage"
-            />
-            {q && (
-              <button className="cb-search-clear" onClick={() => setQ('')} aria-label="Effacer">
-                <X />
+          {/* Navigation Categories Row (Upper Part of the Assembly) */}
+          <nav className="cb-nav-plank">
+            {navItems.map(({ id, label, icon: Icon, badge }) => (
+              <button
+                key={id}
+                className={`cb-nav-tab ${page === id && !ownerOpen ? 'active' : ''}`}
+                onClick={() => {
+                  if (id === 'Messages') {
+                    setMessagesOpen(true);
+                    return;
+                  }
+                  if (id === 'VIP') {
+                    setVipOpen(true);
+                    return;
+                  }
+                  setPage(id);
+                  setOwnerOpen(false);
+                  if (id === 'Catégorie') setCat('Tous');
+                }}
+              >
+                <Icon className="cb-tab-icon" />
+                <span>{label}</span>
+                {badge && <small className="cb-tab-badge">{badge}</small>}
+                {id === 'Favoris' && favs.size > 0 && <small className="cb-tab-badge">{favs.size}</small>}
               </button>
-            )}
+            ))}
+          </nav>
+
+          {/* Search Bar Log (Lower Part of the Assembly, Seamlessly Glued) */}
+          <div className="cb-search-log">
+            <div className="cb-search-field">
+              <Search className="cb-loupe-icon" />
+              <input
+                type="text"
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Rechercher un coloriage (animaux, fées, etc.)..."
+                aria-label="Rechercher un coloriage"
+              />
+              {q && (
+                <button className="cb-search-clear" onClick={() => setQ('')} aria-label="Effacer">
+                  <X />
+                </button>
+              )}
+            </div>
+
+            {/* Medallion Heart on the Right of the Search Bar */}
+            <button
+              className={`cb-search-heart-medallion ${favs.size > 0 ? 'active' : ''}`}
+              onClick={() => { setPage('Favoris'); setOwnerOpen(false); }}
+              title="Voir mes favoris"
+              aria-label="Voir mes favoris"
+            >
+              <Heart fill={favs.size > 0 ? '#d9534f' : '#eddcb8'} color="#5a2e12" />
+              {favs.size > 0 && <span className="cb-medallion-count">{favs.size}</span>}
+            </button>
           </div>
         </div>
 
@@ -468,35 +499,31 @@ function App() {
             </div>
 
             {/* Drawing Request */}
-            <button className="request" onClick={() => { setRequestOpen(true); setSettings(false); }}>
-              Faire une demande de coloriage
+            <button className="request" onClick={() => { setMailboxOpen(true); setSettings(false); }}>
+              📬 Ouvrir la Boîte à dessin
             </button>
 
             {/* Owner Space Access */}
             <button className="owner-link" onClick={() => {
               setSettings(false);
-              if (admin) {
-                setOwnerOpen(!ownerOpen);
-                setAdminView('dashboard');
-              } else {
-                setPage('Profil');
-                setOwnerOpen(false);
-              }
+              setOwnerOpen(!ownerOpen);
+              setAdminView('dashboard');
             }}>
-              <ShieldCheck /> {admin ? (ownerOpen ? 'Quitter l’espace propriétaire' : 'Espace propriétaire') : 'Connexion propriétaire'}
+              <ShieldCheck /> {ownerOpen ? 'Quitter l’espace propriétaire' : 'Espace propriétaire'}
             </button>
           </div>
         )}
       </header>
 
       {/* Main Body */}
-      {ownerOpen && admin ? (
+      {ownerOpen ? (
         <AdminPanel
           view={adminView}
           setView={setAdminView}
           drawings={drawings}
           reloadDrawings={loadDrawings}
-          user={session.user}
+          user={session?.user || { id: 'bullewatch-owner' }}
+          closeAdmin={() => setOwnerOpen(false)}
         />
       ) : page === 'Profil' ? (
         <Profile
@@ -509,45 +536,90 @@ function App() {
           openAdmin={() => { setOwnerOpen(true); setAdminView('dashboard'); }}
         />
       ) : page === 'APropos' ? (
-        <section className="info cb-about">
-          <h1>À propos de ColorBloom</h1>
-          <p>ColorBloom est un univers enchanté de coloriages gratuits et de dessins vectoriels SVG à imprimer pour enfants et adultes.</p>
-          <p>Chaque planche est conçue pour laisser fleurir la créativité et le calme à travers la nature, les fées et les personnages magiques.</p>
-          <div className="about-author">
-            <img src={avatarList[0]} alt="Auteur" className="about-avatar" />
-            <div>
-              <b>Créé avec passion</b>
-              <p>Retrouve aussi les livres et aventures de <b>POM</b> dans notre univers !</p>
+        /* Clean and Highly Legible À Propos Section without Huge Avatar */
+        <section className="cb-about-clean">
+          <div className="cb-about-parchment">
+            <div className="cb-about-header">
+              <Sparkles className="cb-about-sparkle" />
+              <h1>À propos de ColorBloom</h1>
+              <p className="cb-about-tagline">L'univers enchanté des coloriages et dessins vectoriels gratuits à imprimer</p>
+            </div>
+
+            <div className="cb-about-content">
+              <div className="cb-about-card">
+                <div className="cb-about-card-icon">🌸</div>
+                <h3>Un univers créatif et poétique</h3>
+                <p>ColorBloom est né pour offrir aux enfants, aux parents et aux passionnés d'art un espace doux, chaleureux et féerique. Chaque planche de coloriage est créée pour stimuler la créativité, apporter le calme et célébrer la beauté de la nature.</p>
+              </div>
+
+              <div className="cb-about-card">
+                <div className="cb-about-card-icon">✂️</div>
+                <h3>126 Dessins en SVG Vectoriel</h3>
+                <p>Nouveau sur ColorBloom : tous nos dessins d'animaux sont désormais disponibles en <b>téléchargement SVG vectoriel natif</b> ! Vous pouvez les agrandir à l'infini sans perte de qualité et les utiliser avec vos machines de découpe (Cricut, Silhouette), Illustrator ou traceurs.</p>
+              </div>
+
+              <div className="cb-about-card">
+                <div className="cb-about-card-icon">🖨️</div>
+                <h3>Téléchargement et impression faciles</h3>
+                <p>Chaque coloriage est proposé en 3 formats au choix : <b>PDF A4</b> idéal pour une impression propre et nette à la maison, <b>PNG haute résolution</b>, et <b>SVG vectoriel</b>. Tout est pensé pour être accessible en un clic.</p>
+              </div>
+
+              <div className="cb-about-card">
+                <div className="cb-about-card-icon">🍄</div>
+                <h3>Les aventures de POM</h3>
+                <p>Découvrez également l'univers attachant de <b>POM</b>, le petit personnage bienveillant de nos livres illustrés pour les tout-petits, disponible sur Amazon & Kindle avec ses histoires et coloriages exclusifs.</p>
+              </div>
+
+              <div className="cb-about-card">
+                <div className="cb-about-card-icon">💌</div>
+                <h3>La Boîte à dessin participative</h3>
+                <p>Une idée d'animal ou de créature que tu aimerais colorier ? Dépose ta lettre dans la <b>Boîte à dessin</b> située en bas à droite de l'écran. L'artiste lit vos demandes et vous notifie directement avec le dessin une fois créé !</p>
+              </div>
+            </div>
+
+            <div className="cb-about-footer-note">
+              <button className="cb-about-back-btn" onClick={() => setPage('Accueil')}>
+                ← Retourner aux coloriages
+              </button>
             </div>
           </div>
         </section>
       ) : (
         <section className="layout cb-home">
-          {/* Left Panel: Wooden Plank Category Menu */}
+          {/* Left Sidebar: PURE CSS HAND-CARVED WOODEN PANEL */}
           <aside className="cb-panel-aside">
-            <div className="cb-panel-wood" style={{ backgroundImage: `url(${panelArt})` }}>
+            <div className="cb-css-panel">
+              {/* Antique Corner Nails */}
+              <span className="cb-css-nail top-left" aria-hidden="true" />
+              <span className="cb-css-nail top-right" aria-hidden="true" />
+              <span className="cb-css-nail bottom-left" aria-hidden="true" />
+              <span className="cb-css-nail bottom-right" aria-hidden="true" />
+
               <div className="cb-panel-content">
-                <div className="cb-sort-bar">
+                {/* Sort Bar Plank */}
+                <div className="cb-sort-plank">
                   <span className="cb-plank-label">Trier par :</span>
                   <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Trier par">
-                    <option value="recent">Récents</option>
-                    <option value="liked">Favoris</option>
+                    <option value="recent">✨ Plus récents</option>
+                    <option value="liked">❤️ Plus aimés</option>
                   </select>
                 </div>
 
+                {/* Categories Wooden Planks */}
                 <div className="cb-categories-planks">
                   <span className="cb-plank-label">Catégories</span>
                   {cats.map(catName => (
                     <button
                       key={catName}
-                      className={`cb-plank-btn ${cat === catName && page === 'Accueil' ? 'active' : ''}`}
+                      className={`cb-css-plank ${cat === catName && page === 'Accueil' ? 'active' : ''}`}
                       onClick={() => {
                         setCat(catName);
                         setPage('Accueil');
                       }}
                     >
-                      <span className="cb-nail" />
-                      <span className="cb-plank-text">{catName}</span>
+                      <span className="cb-plank-nail" aria-hidden="true" />
+                      <span className="cb-plank-title">{catName}</span>
+                      {catName === 'Animaux' && <span className="cb-plank-pill">126</span>}
                     </button>
                   ))}
                 </div>
@@ -576,7 +648,7 @@ function App() {
                       </div>
                     </div>
 
-                    {/* OVERLAID LAYER: Like Button Centered at the Bottom Over the Drawing */}
+                    {/* OVERLAID LAYER: Enhanced High-Contrast Like Button Centered at the Bottom */}
                     <button
                       className={`cb-like-badge ${favs.has(d.id) ? 'liked' : ''}`}
                       onClick={(e) => {
@@ -685,7 +757,7 @@ function App() {
               <div className="notif-item">
                 <span className="notif-date">Aujourd'hui</span>
                 <b>Bienvenue sur le nouveau ColorBloom !</b>
-                <p>Nouveaux cadres en bois, bouton like avec compteur 1k, 8 avatars personnalisés et fond forêt optimisé.</p>
+                <p>Cadres en bois sculpté, barre de recherche florale, boîte à dessin collaborative et 8 avatars exclusifs.</p>
               </div>
             </div>
           </div>
@@ -705,9 +777,342 @@ function App() {
         </div>
       )}
 
-      {/* Coloring Request Modal */}
-      {requestOpen && <RequestModal close={() => setRequestOpen(false)} session={session} />}
+      {/* BOÎTE À DESSIN : THE INTERACTIVE MAILBOX IN THE BOTTOM-RIGHT CORNER */}
+      <DrawingMailbox
+        isOpen={mailboxOpen}
+        setIsOpen={setMailboxOpen}
+        session={session}
+        profile={profile}
+        drawings={drawings}
+        onOpenDrawing={(d) => {
+          setOpen(d);
+          setMailboxOpen(false);
+        }}
+      />
     </main>
+  );
+}
+
+/* === BOÎTE À DESSIN COMPONENT (INTERACTIVE MAILBOX IN BOTTOM-RIGHT) === */
+function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenDrawing }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [pseudo, setPseudo] = useState(() => localStorage.getItem('cb-user-pseudo') || profile?.display_name || '');
+  const [email, setEmail] = useState(() => session?.user?.email || '');
+  const [description, setDescription] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [tab, setTab] = useState('request'); // 'request' | 'completed'
+  const [myCompletedRequests, setMyCompletedRequests] = useState([]);
+  const typingTimer = useRef(null);
+
+  // Load existing user requests to check if any have been completed
+  useEffect(() => {
+    async function checkMyRequests() {
+      try {
+        const storedIds = JSON.parse(localStorage.getItem('cb-my-request-ids') || '[]');
+        let query = supabase.from('coloring_requests').select('*');
+        if (session?.user?.id) {
+          query = query.or(`user_id.eq.${session.user.id},id.in.(${storedIds.length ? storedIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
+        } else if (storedIds.length) {
+          query = query.in('id', storedIds);
+        } else {
+          return;
+        }
+
+        const { data, error } = await query;
+        if (!error && data) {
+          const completed = data.filter(r => r.status === 'done' && r.completed_drawing_slug);
+          setMyCompletedRequests(completed);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    checkMyRequests();
+    const interval = setInterval(checkMyRequests, 20000);
+    return () => clearInterval(interval);
+  }, [session]);
+
+  function handleTyping(text) {
+    setDescription(text);
+    setIsTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 600);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (description.trim().length < 3) {
+      alert('Décris un peu plus le coloriage que tu aimerais.');
+      return;
+    }
+
+    setSubmitting(true);
+    const finalPseudo = pseudo.trim() || 'Ami de ColorBloom';
+    localStorage.setItem('cb-user-pseudo', finalPseudo);
+
+    try {
+      const { data, error } = await supabase.from('coloring_requests').insert({
+        user_id: session?.user?.id || null,
+        pseudo: finalPseudo,
+        email: email.trim() || null,
+        description: description.trim(),
+        status: 'pending'
+      }).select().single();
+
+      if (error) throw error;
+
+      if (data?.id) {
+        const currentIds = JSON.parse(localStorage.getItem('cb-my-request-ids') || '[]');
+        currentIds.push(data.id);
+        localStorage.setItem('cb-my-request-ids', JSON.stringify(currentIds));
+      }
+
+      setSubmitted(true);
+      setDescription('');
+    } catch (err) {
+      console.error(err);
+      alert('Impossible d’envoyer la demande pour le moment. Réessaie dans un instant.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Mailbox Fixed Widget in Bottom-Right Corner */}
+      <aside
+        className={`cb-mailbox-anchor ${isHovered ? 'hovered' : ''}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => setIsOpen(true)}
+        title="Boîte à dessin - Soumettre une demande de coloriage"
+      >
+        {/* Peeking Letter popping out on hover */}
+        <div className="cb-mailbox-peek-letter">
+          <div className="cb-peek-paper">
+            <span className="cb-peek-header">Soumettre une demande de dessin</span>
+            <span className="cb-peek-sub">Clique pour écrire !</span>
+          </div>
+        </div>
+
+        {/* Illustrated Forest Mailbox */}
+        <div className="cb-mailbox-post">
+          {/* Notification Badge if a completed drawing is ready */}
+          {myCompletedRequests.length > 0 && (
+            <div className="cb-mailbox-notif-badge" title="Un coloriage demandé est disponible !">
+              ✨ {myCompletedRequests.length}
+            </div>
+          )}
+
+          {/* Mailbox Graphic (SVG) */}
+          <svg className="cb-mailbox-svg" viewBox="0 0 100 110" width="80" height="88">
+            {/* Wooden Support Post */}
+            <rect x="44" y="65" width="12" height="42" fill="#543118" stroke="#2e1507" strokeWidth="2" rx="2" />
+            <circle cx="50" cy="74" r="2" fill="#200d04" />
+            <circle cx="50" cy="94" r="2" fill="#200d04" />
+
+            {/* Mailbox Body (Forest Green) */}
+            <path
+              d="M18,30 Q18,12 50,12 Q82,12 82,30 L82,65 Q82,68 76,68 L24,68 Q18,68 18,65 Z"
+              fill="#2e5d36"
+              stroke="#1b3b21"
+              strokeWidth="3"
+            />
+            {/* Mailbox Inner Shadow / Highlights */}
+            <path
+              d="M23,30 Q23,16 50,16 Q77,16 77,30 L77,35 Q50,33 23,35 Z"
+              fill="#42784d"
+              opacity="0.8"
+            />
+
+            {/* Mailbox Slot */}
+            <rect x="28" y="38" width="44" height="6" rx="3" fill="#142617" stroke="#0d1c10" strokeWidth="1.5" />
+
+            {/* Red Alert Flag on the side */}
+            <g className={`cb-mailbox-flag ${isHovered || myCompletedRequests.length > 0 ? 'up' : 'down'}`}>
+              <rect x="80" y="36" width="3" height="24" fill="#a42a2a" />
+              <path d="M83,36 L96,43 L83,50 Z" fill="#e74c3c" stroke="#871b1b" strokeWidth="1" />
+              <circle cx="81.5" cy="58" r="3" fill="#6e1616" />
+            </g>
+
+            {/* Brass Keyhole / Handle */}
+            <circle cx="50" cy="54" r="3.5" fill="#e5b85a" stroke="#8a6117" strokeWidth="1" />
+            <rect x="49" y="55" width="2" height="4" fill="#614107" />
+          </svg>
+
+          {/* Wooden Label Underneath: "Boîte à dessin" */}
+          <div className="cb-mailbox-wood-sign">
+            <span>Boîte à dessin</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mailbox Modal (Letter Writing & Completed Drawings Delivery) */}
+      {isOpen && (
+        <div className="modal" onClick={() => setIsOpen(false)}>
+          <div className="cb-mailbox-parchment" onClick={e => e.stopPropagation()}>
+            <button className="close" onClick={() => setIsOpen(false)} aria-label="Fermer"><X /></button>
+
+            {/* Mailbox Header */}
+            <div className="cb-letter-top-header">
+              <Mail className="cb-letter-icon" />
+              <h2>Boîte à dessin ColorBloom</h2>
+              <p>Glisse ton souhait de dessin directement dans la boîte aux lettres de l'artiste !</p>
+            </div>
+
+            {/* Tab Navigation if completed drawings exist */}
+            {myCompletedRequests.length > 0 && (
+              <div className="cb-mailbox-tabs">
+                <button
+                  className={tab === 'request' ? 'active' : ''}
+                  onClick={() => setTab('request')}
+                >
+                  <Send size={15} /> Nouvelle demande
+                </button>
+                <button
+                  className={tab === 'completed' ? 'active' : ''}
+                  onClick={() => setTab('completed')}
+                >
+                  <PackageCheck size={15} /> Dessins reçus ({myCompletedRequests.length})
+                </button>
+              </div>
+            )}
+
+            {tab === 'completed' && myCompletedRequests.length > 0 ? (
+              /* Received / Completed Drawings View */
+              <div className="cb-completed-requests-list">
+                <h3>🎁 Vos coloriages ajoutés par l'artiste :</h3>
+                {myCompletedRequests.map(req => {
+                  const matchedDrawing = drawings.find(d => d.slug === req.completed_drawing_slug);
+                  return (
+                    <div className="cb-completed-card" key={req.id}>
+                      <div className="cb-completed-thumb">
+                        {matchedDrawing?.image ? (
+                          <img src={matchedDrawing.image} alt={matchedDrawing.title} />
+                        ) : (
+                          <Sparkles size={24} />
+                        )}
+                      </div>
+                      <div className="cb-completed-info">
+                        <span className="cb-completed-badge"><Check size={12} /> Coloriage prêt !</span>
+                        <b>{matchedDrawing?.title || req.description}</b>
+                        <p>Demande initiale : « {req.description} »</p>
+                      </div>
+                      {matchedDrawing && (
+                        <button
+                          className="cb-completed-view-btn"
+                          onClick={() => onOpenDrawing(matchedDrawing)}
+                        >
+                          <Download size={14} /> Voir & Télécharger (SVG, PNG, PDF)
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : submitted ? (
+              /* Success confirmation after sending */
+              <div className="cb-letter-success">
+                <div className="cb-sealed-envelope-anim">
+                  <Mail size={48} className="cb-envelope-icon" />
+                  <span className="cb-wax-seal">CB</span>
+                </div>
+                <h3>Ta lettre est dans la boîte !</h3>
+                <p>
+                  Merci <b>{pseudo || 'l’ami(e)'}</b> ! L'artiste a bien reçu ta demande de coloriage.
+                  Dès que le dessin sera créé et ajouté au site, tu pourras le retrouver ici dans ta boîte à dessin !
+                </p>
+                <div className="cb-success-actions">
+                  <button className="send" onClick={() => setSubmitted(false)}>
+                    Écrire une autre demande
+                  </button>
+                  <button className="cb-close-btn" onClick={() => setIsOpen(false)}>
+                    Fermer la boîte
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* The Letter Form with Live Animated Writing Pen */
+              <form onSubmit={handleSubmit} className="cb-letter-form">
+                <div className="cb-letter-sheet">
+                  {/* ANIMATED PEN / QUILL THAT SCRIBBLIES WHEN USER TYPES */}
+                  <div className={`cb-animated-pen ${isTyping ? 'writing' : 'resting'}`} aria-hidden="true">
+                    <svg viewBox="0 0 50 140" width="38" height="106">
+                      {/* Feather Fluff */}
+                      <path
+                        d="M25,5 Q40,40 32,85 Q28,95 24,105 Q22,95 18,85 Q10,40 25,5 Z"
+                        fill="#fff8e8"
+                        stroke="#9b7849"
+                        strokeWidth="1.5"
+                      />
+                      {/* Feather Vane Details */}
+                      <path d="M25,12 L33,35 M25,30 L35,55 M25,50 L33,75" stroke="#cbb387" strokeWidth="1" />
+                      <path d="M25,18 L17,40 M25,36 L15,60 M25,56 L17,80" stroke="#cbb387" strokeWidth="1" />
+                      {/* Golden Feather Shaft & Nib */}
+                      <line x1="25" y1="5" x2="25" y2="120" stroke="#8a5a1f" strokeWidth="2.5" />
+                      <polygon points="21,118 29,118 26,134 24,134" fill="#e5b85a" stroke="#684210" strokeWidth="1" />
+                      <line x1="25" y1="120" x2="25" y2="134" stroke="#2b1506" strokeWidth="1" />
+                      {/* Ink Sparkle */}
+                      {isTyping && <circle cx="25" cy="137" r="2.5" fill="#3a1c0b" className="cb-ink-dot" />}
+                    </svg>
+                    {isTyping && <span className="cb-pen-scribble-label">Écriture en cours…</span>}
+                  </div>
+
+                  <div className="cb-letter-fields">
+                    <div className="cb-form-row">
+                      <label>
+                        <span>Ton prénom ou pseudo :</span>
+                        <input
+                          type="text"
+                          required
+                          value={pseudo}
+                          onChange={e => setPseudo(e.target.value)}
+                          onKeyDown={() => handleTyping(description)}
+                          placeholder="Ex. Chloé, Noé, Maman de Léo…"
+                        />
+                      </label>
+
+                      <label>
+                        <span>Ton e-mail <i>(optionnel)</i> :</span>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          onKeyDown={() => handleTyping(description)}
+                          placeholder="Pour être averti directement"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="cb-textarea-label">
+                      <span>Description du coloriage souhaité :</span>
+                      <textarea
+                        required
+                        rows="4"
+                        value={description}
+                        onChange={e => handleTyping(e.target.value)}
+                        placeholder="Ex. Un petit koala qui dort sur une branche avec des fleurs de cerisier, ou un renard magicien…"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="cb-letter-actions">
+                  <button type="submit" className="cb-letter-send-btn" disabled={submitting}>
+                    <Send size={18} /> {submitting ? 'Dépôt dans la boîte…' : 'Glisser dans la boîte aux lettres'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -791,7 +1196,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
       ) : (
         <div className="cb-profile-actions">
           <p>Ton profil et tes favoris sont synchronisés en direct avec la base de données.</p>
-          {admin && <button className="cb-btn-admin" onClick={openAdmin}><ShieldCheck /> Ouvrir l’espace propriétaire</button>}
+          <button className="cb-btn-admin" onClick={openAdmin}><ShieldCheck /> Ouvrir l’espace propriétaire</button>
           <button className="cb-btn-logout" onClick={signOut}><LogOut /> Se déconnecter</button>
         </div>
       )}
@@ -799,62 +1204,61 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
   );
 }
 
-function RequestModal({ close, session }) {
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState(session?.user?.email || '');
-  const [description, setDescription] = useState('');
-
-  async function submit() {
-    if (description.trim().length < 3) {
-      alert('Décris un peu plus le coloriage que tu aimerais.');
-      return;
-    }
-    setBusy(true);
-    const { error } = await supabase.from('coloring_requests').insert({
-      user_id: session?.user?.id || null,
-      email: email.trim() || null,
-      description: description.trim(),
-    });
-    setBusy(false);
-    if (error) {
-      alert('La demande n’a pas pu être envoyée pour le moment.');
-      return;
-    }
-    setSent(true);
-  }
-
-  return (
-    <div className="modal" onClick={close}>
-      <div className="letter" onClick={e => e.stopPropagation()}>
-        <button className="close" onClick={close}><X /></button>
-        {sent ? (
-          <>
-            <Mail className="letter-icon" />
-            <h2>Ta demande est partie !</h2>
-            <p>Elle est enregistrée dans l’espace propriétaire.</p>
-          </>
-        ) : (
-          <>
-            <h2>Une idée de coloriage ?</h2>
-            <p>Décris le dessin ou le thème que tu aimerais voir sur ColorBloom.</p>
-            <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Ton e-mail" />
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex. Une petite fée qui jardine avec un hérisson…" />
-            <button className="send" onClick={submit} disabled={busy}><Send /> {busy ? 'Envoi…' : 'Envoyer ma demande'}</button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AdminPanel({ view, setView, drawings, reloadDrawings, user }) {
+/* === OWNER / ADMIN PANEL WITH DRAWING REQUESTS MAILBOX === */
+function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin }) {
   const [edit, setEdit] = useState(null);
   const [title, setTitle] = useState('');
   const [categories, setCategories] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [saving, setSaving] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
+
+  async function loadRequests() {
+    setLoadingRequests(true);
+    try {
+      const { data, error } = await supabase
+        .from('coloring_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setRequests(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  }
+
+  useEffect(() => {
+    if (view === 'requests') {
+      loadRequests();
+    }
+  }, [view]);
+
+  async function validateRequest(reqId, slug) {
+    if (!slug) {
+      alert('Sélectionne un coloriage à associer à cette demande.');
+      return;
+    }
+    const { error } = await supabase
+      .from('coloring_requests')
+      .update({
+        status: 'done',
+        completed_drawing_slug: slug,
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', reqId);
+
+    if (error) {
+      alert('Impossible de valider la demande.');
+      return;
+    }
+    await loadRequests();
+  }
 
   function resetForm() {
     setEdit(null);
@@ -956,6 +1360,64 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user }) {
     await reloadDrawings();
   }
 
+  if (view === 'requests') {
+    return (
+      <AdminShell title="Boîte aux lettres & Demandes de dessins reçues" back={() => setView('dashboard')}>
+        <div className="cb-admin-requests-box">
+          <p>Voici les souhaits de dessins envoyés par les visiteurs dans la boîte aux lettres. Validez une demande en lui associant un coloriage ajouté.</p>
+          {loadingRequests ? (
+            <p>Chargement des lettres…</p>
+          ) : requests.length === 0 ? (
+            <div className="cb-empty-letters">
+              <Mail size={36} />
+              <p>Aucune lettre reçue pour le moment.</p>
+            </div>
+          ) : (
+            <div className="cb-requests-admin-list">
+              {requests.map(req => (
+                <div className={`cb-request-admin-card ${req.status === 'done' ? 'completed' : 'pending'}`} key={req.id}>
+                  <div className="cb-req-head">
+                    <span className="cb-req-author">👤 <b>{req.pseudo || 'Visiteur anonyme'}</b></span>
+                    {req.email && <span className="cb-req-email">✉️ {req.email}</span>}
+                    <span className="cb-req-date">{new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                  <div className="cb-req-desc">
+                    « {req.description} »
+                  </div>
+                  <div className="cb-req-footer">
+                    {req.status === 'done' ? (
+                      <span className="cb-req-done-pill">
+                        <Check size={14} /> Coloriage associé : <b>{req.completed_drawing_slug}</b> (Validé)
+                      </span>
+                    ) : (
+                      <div className="cb-req-action-wrap">
+                        <select
+                          value={selectedSlugForRequest[req.id] || ''}
+                          onChange={e => setSelectedSlugForRequest(prev => ({ ...prev, [req.id]: e.target.value }))}
+                        >
+                          <option value="">-- Choisir un coloriage à associer --</option>
+                          {drawings.map(d => (
+                            <option key={d.slug} value={d.slug}>{d.title} ({d.slug})</option>
+                          ))}
+                        </select>
+                        <button
+                          className="cb-btn-validate-req"
+                          onClick={() => validateRequest(req.id, selectedSlugForRequest[req.id])}
+                        >
+                          <CheckCircle2 size={14} /> Valider la demande & envoyer le dessin
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </AdminShell>
+    );
+  }
+
   if (view === 'add') {
     return (
       <AdminShell title={edit ? 'Modifier le coloriage' : 'Ajouter un coloriage'} back={() => { resetForm(); setView('dashboard'); }}>
@@ -1010,7 +1472,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user }) {
   const items = [
     ['Ajouter un coloriage', Plus, 'Image, nom et catégories', 'add'],
     ['Mes coloriages', FolderOpen, 'Modifier ou supprimer', 'library'],
-    ['Demandes reçues', Mail, 'Stockées dans Supabase', 'requests'],
+    ['Boîte aux lettres & Demandes', Mail, 'Gérer et valider les demandes de dessins', 'requests'],
     ['Catégories', Tags, 'À développer', 'categories'],
     ['Publicités', Megaphone, 'À développer', 'ads'],
     ['Statistiques', BarChart3, 'À développer', 'stats'],
@@ -1020,7 +1482,13 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user }) {
     <section className="admin">
       <div className="admin-head">
         <ShieldCheck />
-        <div><h1>Jardinier ColorBloom</h1><p>Espace propriétaire sécurisé par Supabase</p></div>
+        <div>
+          <h1>Jardinier ColorBloom</h1>
+          <p>Espace propriétaire de gestion des coloriages et de la boîte aux lettres</p>
+        </div>
+        <button className="cb-admin-close-btn" onClick={closeAdmin} title="Retourner au site">
+          <X size={18} /> Quitter
+        </button>
       </div>
       <div className="admin-grid">
         {items.map(([t, Icon, d, v]) => (
