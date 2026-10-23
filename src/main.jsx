@@ -6,7 +6,7 @@ import {
   LogIn, Mail, Send, ShieldCheck, BarChart3, Plus, FolderOpen, Tags,
   Megaphone, UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, BookOpen, HelpCircle, Bell, FileCode, Check,
-  Clock, PackageCheck
+  Clock, PackageCheck, Eye, TrendingUp, ThumbsUp, ArrowRight, CheckCheck
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -28,6 +28,12 @@ import avatar5 from '../assets/avatar-5.png';
 import avatar6 from '../assets/avatar-6.png';
 import avatar7 from '../assets/avatar-7.png';
 import avatar8 from '../assets/avatar-8.png';
+
+// Official 4 Mailbox Assets
+import mailboxBase from '../assets/mailbox/mailbox-base.png';
+import mailboxHover from '../assets/mailbox/mailbox-hover.png';
+import mailboxClick from '../assets/mailbox/mailbox-click.png';
+import mailboxNew from '../assets/mailbox/mailbox-new.png';
 
 const avatarList = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar7, avatar8];
 
@@ -60,6 +66,7 @@ function toDrawing(row) {
     title: row.title,
     cat: row.categories || [],
     likes: row.likes_count || 0,
+    downloads: row.downloads_count || 0,
     imagePath: row.image_path,
     image: coloringImageUrl(row.image_path),
     isSvg,
@@ -89,24 +96,29 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('cb-theme') || 'day');
   const [lang, setLang] = useState('FR');
-  const [mailboxOpen, setMailboxOpen] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [vipOpen, setVipOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
   const [downloading, setDownloading] = useState(null);
-  const [adminView, setAdminView] = useState('dashboard');
+  const [adminView, setAdminView] = useState('stats');
   const [ownerOpen, setOwnerOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
-  const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules'];
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
-  const admin = Boolean(profile?.is_admin);
+  const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'POM'];
+
+  // Check if current user is owner/admin
+  const isOwner = Boolean(
+    profile?.is_admin ||
+    session?.user?.email?.toLowerCase().includes('bullewatch')
+  );
 
   async function loadDrawings() {
     const { data, error } = await supabase
       .from('coloring_pages')
-      .select('id,slug,title,categories,image_path,likes_count,is_published,created_at')
+      .select('id,slug,title,categories,image_path,likes_count,downloads_count,is_published,created_at')
       .order('created_at', { ascending: false });
 
     const dbDrawings = (data || []).map(toDrawing);
@@ -118,6 +130,20 @@ function App() {
 
     setDatabaseReady(!error);
     setDrawings(combined);
+  }
+
+  async function checkPendingRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('coloring_requests')
+        .select('id')
+        .eq('status', 'pending');
+      if (!error && data) {
+        setPendingRequestsCount(data.length);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function loadAccount(activeSession) {
@@ -142,6 +168,13 @@ function App() {
 
   useEffect(() => {
     loadDrawings();
+    checkPendingRequests();
+
+    // Log site visit in analytics
+    supabase.from('site_analytics').insert({
+      event_type: 'visit',
+      metadata: { path: window.location.pathname }
+    }).then();
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -153,7 +186,12 @@ function App() {
       loadAccount(nextSession);
     });
 
-    return () => authListener.subscription.unsubscribe();
+    const interval = setInterval(checkPendingRequests, 30000);
+
+    return () => {
+      authListener.subscription.unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -218,6 +256,23 @@ function App() {
 
     setDownloading(format);
     const safe = slugify(open.title) || 'coloriage';
+
+    // Track download in analytics & increment count in Supabase
+    supabase.from('site_analytics').insert({
+      event_type: 'download',
+      metadata: {
+        drawing_id: open.id,
+        slug: open.slug,
+        title: open.title,
+        format,
+      }
+    }).then();
+
+    if (!String(open.id).startsWith('cb-svg-')) {
+      const nextDownloads = (open.downloads || 0) + 1;
+      supabase.from('coloring_pages').update({ downloads_count: nextDownloads }).eq('id', open.id).then();
+      setDrawings(prev => prev.map(d => d.id === open.id ? { ...d, downloads: nextDownloads } : d));
+    }
 
     try {
       if (format === 'SVG') {
@@ -498,16 +553,11 @@ function App() {
               </div>
             </div>
 
-            {/* Drawing Request */}
-            <button className="request" onClick={() => { setMailboxOpen(true); setSettings(false); }}>
-              📬 Ouvrir la Boîte à dessin
-            </button>
-
             {/* Owner Space Access */}
             <button className="owner-link" onClick={() => {
               setSettings(false);
               setOwnerOpen(!ownerOpen);
-              setAdminView('dashboard');
+              setAdminView('stats');
             }}>
               <ShieldCheck /> {ownerOpen ? 'Quitter l’espace propriétaire' : 'Espace propriétaire'}
             </button>
@@ -522,8 +572,10 @@ function App() {
           setView={setAdminView}
           drawings={drawings}
           reloadDrawings={loadDrawings}
-          user={session?.user || { id: 'bullewatch-owner' }}
+          user={session?.user || { id: 'bullewatch-owner', email: 'bullewatch+colorbloom@gmail.com' }}
           closeAdmin={() => setOwnerOpen(false)}
+          pendingRequestsCount={pendingRequestsCount}
+          refreshPendingRequests={checkPendingRequests}
         />
       ) : page === 'Profil' ? (
         <Profile
@@ -532,8 +584,8 @@ function App() {
           selectedAvatar={selectedAvatar}
           updateAvatar={updateAvatar}
           databaseReady={databaseReady}
-          admin={admin}
-          openAdmin={() => { setOwnerOpen(true); setAdminView('dashboard'); }}
+          isOwner={isOwner}
+          openAdmin={() => { setOwnerOpen(true); setAdminView('stats'); }}
         />
       ) : page === 'APropos' ? (
         /* Clean and Highly Legible À Propos Section without Huge Avatar */
@@ -777,40 +829,41 @@ function App() {
         </div>
       )}
 
-      {/* BOÎTE À DESSIN : THE INTERACTIVE MAILBOX IN THE BOTTOM-RIGHT CORNER */}
-      <DrawingMailbox
-        isOpen={mailboxOpen}
-        setIsOpen={setMailboxOpen}
-        session={session}
-        profile={profile}
+      {/* 4-STAGE INTERACTIVE MAILBOX WIDGET (IN BOTTOM-RIGHT CORNER) */}
+      <OfficialDrawingMailbox
+        isOwner={isOwner}
+        pendingRequestsCount={pendingRequestsCount}
         drawings={drawings}
-        onOpenDrawing={(d) => {
-          setOpen(d);
-          setMailboxOpen(false);
+        session={session}
+        onOpenDrawing={(d) => setOpen(d)}
+        onOpenOwnerRequests={() => {
+          setOwnerOpen(true);
+          setAdminView('requests');
         }}
+        heartDrawing={heart}
       />
     </main>
   );
 }
 
-/* === BOÎTE À DESSIN COMPONENT (INTERACTIVE MAILBOX IN BOTTOM-RIGHT) === */
-function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenDrawing }) {
+/* === 4-STAGE OFFICIAL DRAWING MAILBOX COMPONENT === */
+function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, onOpenDrawing, onOpenOwnerRequests, heartDrawing }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [pseudo, setPseudo] = useState(() => localStorage.getItem('cb-user-pseudo') || profile?.display_name || '');
+  const [isClickOpen, setIsClickOpen] = useState(false);
+  const [isNewMailOpen, setIsNewMailOpen] = useState(false);
+  const [pseudo, setPseudo] = useState(() => localStorage.getItem('cb-user-pseudo') || '');
   const [email, setEmail] = useState(() => session?.user?.email || '');
   const [description, setDescription] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [tab, setTab] = useState('request'); // 'request' | 'completed'
-  const [myCompletedRequests, setMyCompletedRequests] = useState([]);
-  const typingTimer = useRef(null);
+  const [validatedRequests, setValidatedRequests] = useState([]);
+  const [thankedNotice, setThankedNotice] = useState(false);
 
-  // Load existing user requests to check if any have been completed
+  // Check for validated requests destined for this visitor
   useEffect(() => {
-    async function checkMyRequests() {
+    async function checkValidatedRequests() {
       try {
         const storedIds = JSON.parse(localStorage.getItem('cb-my-request-ids') || '[]');
+        const thankedIds = new Set(JSON.parse(localStorage.getItem('cb-thanked-requests') || '[]'));
         let query = supabase.from('coloring_requests').select('*');
         if (session?.user?.id) {
           query = query.or(`user_id.eq.${session.user.id},id.in.(${storedIds.length ? storedIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
@@ -822,32 +875,44 @@ function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenD
 
         const { data, error } = await query;
         if (!error && data) {
-          const completed = data.filter(r => r.status === 'done' && r.completed_drawing_slug);
-          setMyCompletedRequests(completed);
+          const validated = data.filter(r => r.status === 'done' && r.completed_drawing_slug && !thankedIds.has(r.id));
+          setValidatedRequests(validated);
         }
       } catch (err) {
         console.error(err);
       }
     }
 
-    checkMyRequests();
-    const interval = setInterval(checkMyRequests, 20000);
+    checkValidatedRequests();
+    const interval = setInterval(checkValidatedRequests, 20000);
     return () => clearInterval(interval);
   }, [session]);
 
-  function handleTyping(text) {
-    setDescription(text);
-    setIsTyping(true);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(() => {
-      setIsTyping(false);
-    }, 600);
+  // Determine which image to show
+  const hasOwnerMail = isOwner && pendingRequestsCount > 0;
+  const hasUserValidatedMail = !isOwner && validatedRequests.length > 0;
+  const showNewMailVisual = hasOwnerMail || hasUserValidatedMail;
+
+  const currentVisual = showNewMailVisual
+    ? mailboxNew
+    : isHovered
+    ? mailboxHover
+    : mailboxBase;
+
+  function handleMailboxClick() {
+    if (hasOwnerMail) {
+      onOpenOwnerRequests();
+    } else if (hasUserValidatedMail) {
+      setIsNewMailOpen(true);
+    } else {
+      setIsClickOpen(true);
+    }
   }
 
-  async function handleSubmit(e) {
+  async function handleSendRequest(e) {
     e.preventDefault();
     if (description.trim().length < 3) {
-      alert('Décris un peu plus le coloriage que tu aimerais.');
+      alert('Écris quelques mots pour décrire ton coloriage.');
       return;
     }
 
@@ -867,13 +932,14 @@ function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenD
       if (error) throw error;
 
       if (data?.id) {
-        const currentIds = JSON.parse(localStorage.getItem('cb-my-request-ids') || '[]');
-        currentIds.push(data.id);
-        localStorage.setItem('cb-my-request-ids', JSON.stringify(currentIds));
+        const stored = JSON.parse(localStorage.getItem('cb-my-request-ids') || '[]');
+        stored.push(data.id);
+        localStorage.setItem('cb-my-request-ids', JSON.stringify(stored));
       }
 
-      setSubmitted(true);
       setDescription('');
+      setIsClickOpen(false);
+      alert('🌸 Ta lettre a été déposée dans la boîte ! L’artiste prépare tes futurs coloriages.');
     } catch (err) {
       console.error(err);
       alert('Impossible d’envoyer la demande pour le moment. Réessaie dans un instant.');
@@ -882,232 +948,174 @@ function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenD
     }
   }
 
+  function handleThankYou(reqId, drawingId) {
+    if (drawingId) heartDrawing(drawingId);
+    const thanked = JSON.parse(localStorage.getItem('cb-thanked-requests') || '[]');
+    thanked.push(reqId);
+    localStorage.setItem('cb-thanked-requests', JSON.stringify(thanked));
+    setValidatedRequests(prev => prev.filter(r => r.id !== reqId));
+    setThankedNotice(true);
+    setTimeout(() => {
+      setThankedNotice(false);
+      setIsNewMailOpen(false);
+    }, 2400);
+  }
+
   return (
     <>
-      {/* Mailbox Fixed Widget in Bottom-Right Corner */}
-      <aside
-        className={`cb-mailbox-anchor ${isHovered ? 'hovered' : ''}`}
+      {/* Corner Mailbox Icon */}
+      <div
+        className={`cb-corner-mailbox ${showNewMailVisual ? 'has-new' : ''}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={() => setIsOpen(true)}
-        title="Boîte à dessin - Soumettre une demande de coloriage"
+        onClick={handleMailboxClick}
+        title={
+          hasOwnerMail
+            ? `Espace Propriétaire : ${pendingRequestsCount} nouvelle(s) demande(s) !`
+            : hasUserValidatedMail
+            ? 'Nouveau courrier ! Ton dessin demandé est prêt !'
+            : 'Faire une demande de dessin'
+        }
       >
-        {/* Peeking Letter popping out on hover */}
-        <div className="cb-mailbox-peek-letter">
-          <div className="cb-peek-paper">
-            <span className="cb-peek-header">Soumettre une demande de dessin</span>
-            <span className="cb-peek-sub">Clique pour écrire !</span>
+        <img
+          src={currentVisual}
+          alt="Boîte aux lettres ColorBloom"
+          className="cb-mailbox-img"
+        />
+
+        {/* Small sparkling alert badge when new mail is present */}
+        {showNewMailVisual && (
+          <span className="cb-mailbox-alert-badge">
+            ✉️ {hasOwnerMail ? pendingRequestsCount : validatedRequests.length}
+          </span>
+        )}
+      </div>
+
+      {/* STAGE 3 : "VISUEL CLIC" - INTERACTIVE WRITING SHEET */}
+      {isClickOpen && (
+        <div className="modal" onClick={() => setIsClickOpen(false)}>
+          <div className="cb-click-sheet-card" onClick={e => e.stopPropagation()}>
+            <button className="close" onClick={() => setIsClickOpen(false)} aria-label="Fermer"><X /></button>
+
+            {/* The Visual Clic Artwork */}
+            <div className="cb-sheet-artwork-wrapper">
+              <img src={mailboxClick} alt="Fais une demande de dessin ici" className="cb-sheet-artwork" />
+
+              {/* Seamless Interactive Form Overlay directly on the lined writing box */}
+              <form onSubmit={handleSendRequest} className="cb-sheet-interactive-overlay">
+                <input
+                  type="text"
+                  required
+                  value={pseudo}
+                  onChange={e => setPseudo(e.target.value)}
+                  placeholder="Ton prénom ou pseudo…"
+                  className="cb-sheet-input-pseudo"
+                />
+
+                <textarea
+                  required
+                  rows="3"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Décris le dessin que tu aimerais : un animal, une fée, une scène magique…"
+                  className="cb-sheet-textarea"
+                />
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Ton e-mail (optionnel, pour te prévenir)"
+                  className="cb-sheet-input-email"
+                />
+
+                <button
+                  type="submit"
+                  className="cb-sheet-send-btn"
+                  disabled={submitting}
+                  title="Glisser dans la boîte aux lettres"
+                >
+                  <Send size={18} />
+                  <span>{submitting ? 'Envoi…' : 'Envoyer'}</span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Illustrated Forest Mailbox */}
-        <div className="cb-mailbox-post">
-          {/* Notification Badge if a completed drawing is ready */}
-          {myCompletedRequests.length > 0 && (
-            <div className="cb-mailbox-notif-badge" title="Un coloriage demandé est disponible !">
-              ✨ {myCompletedRequests.length}
-            </div>
-          )}
+      {/* STAGE 4 : "VISUEL NOUVEAU COURRIER" - RECEPTION DES DESSINS VALIDÉS */}
+      {isNewMailOpen && validatedRequests.length > 0 && (
+        <div className="modal" onClick={() => setIsNewMailOpen(false)}>
+          <div className="cb-new-mail-card" onClick={e => e.stopPropagation()}>
+            <button className="close" onClick={() => setIsNewMailOpen(false)} aria-label="Fermer"><X /></button>
 
-          {/* Mailbox Graphic (SVG) */}
-          <svg className="cb-mailbox-svg" viewBox="0 0 100 110" width="80" height="88">
-            {/* Wooden Support Post */}
-            <rect x="44" y="65" width="12" height="42" fill="#543118" stroke="#2e1507" strokeWidth="2" rx="2" />
-            <circle cx="50" cy="74" r="2" fill="#200d04" />
-            <circle cx="50" cy="94" r="2" fill="#200d04" />
-
-            {/* Mailbox Body (Forest Green) */}
-            <path
-              d="M18,30 Q18,12 50,12 Q82,12 82,30 L82,65 Q82,68 76,68 L24,68 Q18,68 18,65 Z"
-              fill="#2e5d36"
-              stroke="#1b3b21"
-              strokeWidth="3"
-            />
-            {/* Mailbox Inner Shadow / Highlights */}
-            <path
-              d="M23,30 Q23,16 50,16 Q77,16 77,30 L77,35 Q50,33 23,35 Z"
-              fill="#42784d"
-              opacity="0.8"
-            />
-
-            {/* Mailbox Slot */}
-            <rect x="28" y="38" width="44" height="6" rx="3" fill="#142617" stroke="#0d1c10" strokeWidth="1.5" />
-
-            {/* Red Alert Flag on the side */}
-            <g className={`cb-mailbox-flag ${isHovered || myCompletedRequests.length > 0 ? 'up' : 'down'}`}>
-              <rect x="80" y="36" width="3" height="24" fill="#a42a2a" />
-              <path d="M83,36 L96,43 L83,50 Z" fill="#e74c3c" stroke="#871b1b" strokeWidth="1" />
-              <circle cx="81.5" cy="58" r="3" fill="#6e1616" />
-            </g>
-
-            {/* Brass Keyhole / Handle */}
-            <circle cx="50" cy="54" r="3.5" fill="#e5b85a" stroke="#8a6117" strokeWidth="1" />
-            <rect x="49" y="55" width="2" height="4" fill="#614107" />
-          </svg>
-
-          {/* Wooden Label Underneath: "Boîte à dessin" */}
-          <div className="cb-mailbox-wood-sign">
-            <span>Boîte à dessin</span>
-          </div>
-        </div>
-      </aside>
-
-      {/* Mailbox Modal (Letter Writing & Completed Drawings Delivery) */}
-      {isOpen && (
-        <div className="modal" onClick={() => setIsOpen(false)}>
-          <div className="cb-mailbox-parchment" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setIsOpen(false)} aria-label="Fermer"><X /></button>
-
-            {/* Mailbox Header */}
-            <div className="cb-letter-top-header">
-              <Mail className="cb-letter-icon" />
-              <h2>Boîte à dessin ColorBloom</h2>
-              <p>Glisse ton souhait de dessin directement dans la boîte aux lettres de l'artiste !</p>
+            <div className="cb-new-mail-header">
+              <Sparkles className="cb-new-mail-sparkle" />
+              <h2>Nouveau courrier dans ta boîte !</h2>
+              <p>L’artiste a réalisé et ajouté ton coloriage sur ColorBloom :</p>
             </div>
 
-            {/* Tab Navigation if completed drawings exist */}
-            {myCompletedRequests.length > 0 && (
-              <div className="cb-mailbox-tabs">
-                <button
-                  className={tab === 'request' ? 'active' : ''}
-                  onClick={() => setTab('request')}
-                >
-                  <Send size={15} /> Nouvelle demande
-                </button>
-                <button
-                  className={tab === 'completed' ? 'active' : ''}
-                  onClick={() => setTab('completed')}
-                >
-                  <PackageCheck size={15} /> Dessins reçus ({myCompletedRequests.length})
-                </button>
+            {thankedNotice ? (
+              <div className="cb-thank-you-msg">
+                🌸 <b>De rien !</b> Merci pour ton message, amuse-toi bien avec ton coloriage !
               </div>
-            )}
-
-            {tab === 'completed' && myCompletedRequests.length > 0 ? (
-              /* Received / Completed Drawings View */
-              <div className="cb-completed-requests-list">
-                <h3>🎁 Vos coloriages ajoutés par l'artiste :</h3>
-                {myCompletedRequests.map(req => {
-                  const matchedDrawing = drawings.find(d => d.slug === req.completed_drawing_slug);
+            ) : (
+              <div className="cb-new-drawings-list">
+                {validatedRequests.map(req => {
+                  const matched = drawings.find(d => d.slug === req.completed_drawing_slug);
                   return (
-                    <div className="cb-completed-card" key={req.id}>
-                      <div className="cb-completed-thumb">
-                        {matchedDrawing?.image ? (
-                          <img src={matchedDrawing.image} alt={matchedDrawing.title} />
+                    <div className="cb-new-drawing-item" key={req.id}>
+                      {/* Miniature thumbnail that directly leads to the drawing modal */}
+                      <div
+                        className="cb-drawing-mini-thumb"
+                        onClick={() => {
+                          if (matched) {
+                            onOpenDrawing(matched);
+                            setIsNewMailOpen(false);
+                          }
+                        }}
+                        title="Cliquer pour voir et télécharger ce dessin"
+                      >
+                        {matched?.image ? (
+                          <img src={matched.image} alt={matched.title} />
                         ) : (
-                          <Sparkles size={24} />
+                          <Sparkles size={32} />
                         )}
+                        <span className="cb-thumb-zoom-tag">🔍 Télécharger</span>
                       </div>
-                      <div className="cb-completed-info">
-                        <span className="cb-completed-badge"><Check size={12} /> Coloriage prêt !</span>
-                        <b>{matchedDrawing?.title || req.description}</b>
-                        <p>Demande initiale : « {req.description} »</p>
+
+                      <div className="cb-new-drawing-details">
+                        <b>{matched?.title || req.completed_drawing_slug}</b>
+                        <p>Ton souhait initial : « {req.description} »</p>
+
+                        <div className="cb-new-drawing-actions">
+                          {matched && (
+                            <button
+                              className="cb-btn-open-direct"
+                              onClick={() => {
+                                onOpenDrawing(matched);
+                                setIsNewMailOpen(false);
+                              }}
+                            >
+                              <Download size={14} /> Page de téléchargement (SVG, PNG, PDF)
+                            </button>
+                          )}
+
+                          {/* The Clickable "Merci !" button */}
+                          <button
+                            className="cb-btn-merci"
+                            onClick={() => handleThankYou(req.id, matched?.id)}
+                            title="Remercier l'artiste et ajouter un cœur au dessin"
+                          >
+                            <Heart size={14} fill="#e74c3c" color="#9b1b1b" /> Dire Merci !
+                          </button>
+                        </div>
                       </div>
-                      {matchedDrawing && (
-                        <button
-                          className="cb-completed-view-btn"
-                          onClick={() => onOpenDrawing(matchedDrawing)}
-                        >
-                          <Download size={14} /> Voir & Télécharger (SVG, PNG, PDF)
-                        </button>
-                      )}
                     </div>
                   );
                 })}
               </div>
-            ) : submitted ? (
-              /* Success confirmation after sending */
-              <div className="cb-letter-success">
-                <div className="cb-sealed-envelope-anim">
-                  <Mail size={48} className="cb-envelope-icon" />
-                  <span className="cb-wax-seal">CB</span>
-                </div>
-                <h3>Ta lettre est dans la boîte !</h3>
-                <p>
-                  Merci <b>{pseudo || 'l’ami(e)'}</b> ! L'artiste a bien reçu ta demande de coloriage.
-                  Dès que le dessin sera créé et ajouté au site, tu pourras le retrouver ici dans ta boîte à dessin !
-                </p>
-                <div className="cb-success-actions">
-                  <button className="send" onClick={() => setSubmitted(false)}>
-                    Écrire une autre demande
-                  </button>
-                  <button className="cb-close-btn" onClick={() => setIsOpen(false)}>
-                    Fermer la boîte
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* The Letter Form with Live Animated Writing Pen */
-              <form onSubmit={handleSubmit} className="cb-letter-form">
-                <div className="cb-letter-sheet">
-                  {/* ANIMATED PEN / QUILL THAT SCRIBBLIES WHEN USER TYPES */}
-                  <div className={`cb-animated-pen ${isTyping ? 'writing' : 'resting'}`} aria-hidden="true">
-                    <svg viewBox="0 0 50 140" width="38" height="106">
-                      {/* Feather Fluff */}
-                      <path
-                        d="M25,5 Q40,40 32,85 Q28,95 24,105 Q22,95 18,85 Q10,40 25,5 Z"
-                        fill="#fff8e8"
-                        stroke="#9b7849"
-                        strokeWidth="1.5"
-                      />
-                      {/* Feather Vane Details */}
-                      <path d="M25,12 L33,35 M25,30 L35,55 M25,50 L33,75" stroke="#cbb387" strokeWidth="1" />
-                      <path d="M25,18 L17,40 M25,36 L15,60 M25,56 L17,80" stroke="#cbb387" strokeWidth="1" />
-                      {/* Golden Feather Shaft & Nib */}
-                      <line x1="25" y1="5" x2="25" y2="120" stroke="#8a5a1f" strokeWidth="2.5" />
-                      <polygon points="21,118 29,118 26,134 24,134" fill="#e5b85a" stroke="#684210" strokeWidth="1" />
-                      <line x1="25" y1="120" x2="25" y2="134" stroke="#2b1506" strokeWidth="1" />
-                      {/* Ink Sparkle */}
-                      {isTyping && <circle cx="25" cy="137" r="2.5" fill="#3a1c0b" className="cb-ink-dot" />}
-                    </svg>
-                    {isTyping && <span className="cb-pen-scribble-label">Écriture en cours…</span>}
-                  </div>
-
-                  <div className="cb-letter-fields">
-                    <div className="cb-form-row">
-                      <label>
-                        <span>Ton prénom ou pseudo :</span>
-                        <input
-                          type="text"
-                          required
-                          value={pseudo}
-                          onChange={e => setPseudo(e.target.value)}
-                          onKeyDown={() => handleTyping(description)}
-                          placeholder="Ex. Chloé, Noé, Maman de Léo…"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Ton e-mail <i>(optionnel)</i> :</span>
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          onKeyDown={() => handleTyping(description)}
-                          placeholder="Pour être averti directement"
-                        />
-                      </label>
-                    </div>
-
-                    <label className="cb-textarea-label">
-                      <span>Description du coloriage souhaité :</span>
-                      <textarea
-                        required
-                        rows="4"
-                        value={description}
-                        onChange={e => handleTyping(e.target.value)}
-                        placeholder="Ex. Un petit koala qui dort sur une branche avec des fleurs de cerisier, ou un renard magicien…"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="cb-letter-actions">
-                  <button type="submit" className="cb-letter-send-btn" disabled={submitting}>
-                    <Send size={18} /> {submitting ? 'Dépôt dans la boîte…' : 'Glisser dans la boîte aux lettres'}
-                  </button>
-                </div>
-              </form>
             )}
           </div>
         </div>
@@ -1116,7 +1124,7 @@ function DrawingMailbox({ isOpen, setIsOpen, session, profile, drawings, onOpenD
   );
 }
 
-function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, admin, openAdmin }) {
+function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1183,8 +1191,8 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
 
       {!session ? (
         <div className="auth-card">
-          <p>Connecte-toi pour sauvegarder tes favoris et ton profil sur tous tes appareils :</p>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Ton e-mail" autoComplete="email" />
+          <p>Connecte-toi avec ton adresse e-mail pour sauvegarder tes favoris ou gérer ton espace propriétaire :</p>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Ton adresse e-mail" autoComplete="email" />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mot de passe" autoComplete="current-password" />
           <div className="auth-actions">
             <button onClick={signIn} disabled={busy}><LogIn /> Se connecter</button>
@@ -1195,8 +1203,12 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
         </div>
       ) : (
         <div className="cb-profile-actions">
-          <p>Ton profil et tes favoris sont synchronisés en direct avec la base de données.</p>
-          <button className="cb-btn-admin" onClick={openAdmin}><ShieldCheck /> Ouvrir l’espace propriétaire</button>
+          <p>Ton profil et tes favoris sont synchronisés en direct avec la base de données Supabase.</p>
+          {isOwner && (
+            <button className="cb-btn-admin" onClick={openAdmin}>
+              <ShieldCheck /> Accéder à mon espace propriétaire
+            </button>
+          )}
           <button className="cb-btn-logout" onClick={signOut}><LogOut /> Se déconnecter</button>
         </div>
       )}
@@ -1204,17 +1216,30 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
   );
 }
 
-/* === OWNER / ADMIN PANEL WITH DRAWING REQUESTS MAILBOX === */
-function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin }) {
+/* === OWNER / ADMIN SPACE CONNECTED TO SUPABASE WITH STATS & DRAWINGS MANAGEMENT === */
+function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
+  const [analyticsEvents, setAnalyticsEvents] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Form for adding drawing
   const [edit, setEdit] = useState(null);
   const [title, setTitle] = useState('');
   const [categories, setCategories] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [saving, setSaving] = useState(false);
-  const [requests, setRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
-  const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
+
+  // Quick edit for renaming & categories in library
+  const [editingDrawingId, setEditingDrawingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingCats, setEditingCats] = useState([]);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryCatFilter, setLibraryCatFilter] = useState('Tous');
+
+  const availableCategories = ['Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'POM', 'VIP', 'Divers'];
 
   async function loadRequests() {
     setLoadingRequests(true);
@@ -1233,10 +1258,27 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin 
     }
   }
 
-  useEffect(() => {
-    if (view === 'requests') {
-      loadRequests();
+  async function loadStats() {
+    setLoadingStats(true);
+    try {
+      const { data, error } = await supabase
+        .from('site_analytics')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(300);
+      if (!error && data) {
+        setAnalyticsEvents(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingStats(false);
     }
+  }
+
+  useEffect(() => {
+    if (view === 'requests') loadRequests();
+    if (view === 'stats') loadStats();
   }, [view]);
 
   async function validateRequest(reqId, slug) {
@@ -1258,6 +1300,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin 
       return;
     }
     await loadRequests();
+    if (refreshPendingRequests) refreshPendingRequests();
   }
 
   function resetForm() {
@@ -1273,15 +1316,6 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin 
     if (!selected) return;
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
-  }
-
-  function begin(d) {
-    setEdit(d);
-    setTitle(d.title);
-    setCategories(d.cat.join(', '));
-    setFile(null);
-    setPreview(d.image);
-    setView('add');
   }
 
   async function save() {
@@ -1308,10 +1342,10 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin 
         imagePath = uploadedPath;
       }
 
-      const cats = categories.split(',').map(x => x.trim()).filter(Boolean);
+      const catsList = categories.split(',').map(x => x.trim()).filter(Boolean);
       const payload = {
         title: title.trim(),
-        categories: cats.length ? cats : ['Divers'],
+        categories: catsList.length ? catsList : ['Divers'],
         image_path: imagePath,
       };
 
@@ -1339,174 +1373,462 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin 
     } catch (error) {
       console.error(error);
       if (uploadedPath) await supabase.storage.from('colorings').remove([uploadedPath]);
-      alert('Impossible d’enregistrer ce coloriage. Vérifie les droits Supabase puis réessaie.');
+      alert('Impossible d’enregistrer ce coloriage. Vérifie les droits Supabase.');
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(drawing) {
-    if (!confirm('Supprimer ce coloriage ?')) return;
-
-    const { error } = await supabase.from('coloring_pages').delete().eq('id', drawing.id);
-    if (error) {
-      alert('Impossible de supprimer ce coloriage.');
+  async function saveQuickEdit(d) {
+    if (!editingTitle.trim()) {
+      alert('Le nom ne peut pas être vide.');
       return;
     }
 
-    if (drawing.imagePath && !drawing.imagePath.startsWith('/')) {
-      await supabase.storage.from('colorings').remove([drawing.imagePath]);
+    // If drawing exists in Supabase coloring_pages
+    if (!String(d.id).startsWith('cb-svg-')) {
+      const { error } = await supabase
+        .from('coloring_pages')
+        .update({
+          title: editingTitle.trim(),
+          categories: editingCats.length ? editingCats : ['Divers']
+        })
+        .eq('id', d.id);
+
+      if (error) {
+        alert('Impossible de mettre à jour le dessin dans Supabase.');
+        return;
+      }
     }
+
+    setEditingDrawingId(null);
     await reloadDrawings();
   }
 
-  if (view === 'requests') {
-    return (
-      <AdminShell title="Boîte aux lettres & Demandes de dessins reçues" back={() => setView('dashboard')}>
-        <div className="cb-admin-requests-box">
-          <p>Voici les souhaits de dessins envoyés par les visiteurs dans la boîte aux lettres. Validez une demande en lui associant un coloriage ajouté.</p>
+  async function removeDrawing(drawing) {
+    if (!confirm(`Supprimer le coloriage « ${drawing.title} » ?`)) return;
+
+    if (!String(drawing.id).startsWith('cb-svg-')) {
+      const { error } = await supabase.from('coloring_pages').delete().eq('id', drawing.id);
+      if (error) {
+        alert('Impossible de supprimer ce coloriage.');
+        return;
+      }
+      if (drawing.imagePath && !drawing.imagePath.startsWith('/')) {
+        await supabase.storage.from('colorings').remove([drawing.imagePath]);
+      }
+    }
+
+    await reloadDrawings();
+  }
+
+  // Compute aggregated stats
+  const totalDownloads = drawings.reduce((acc, d) => acc + (d.downloads || 0), 0) +
+    analyticsEvents.filter(e => e.event_type === 'download').length;
+  const totalLikes = drawings.reduce((acc, d) => acc + (d.likes || 0), 0);
+  const totalColorings = drawings.length;
+  const topDrawings = [...drawings].sort((a, b) => b.likes - a.likes).slice(0, 8);
+
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    drawings.forEach(d => {
+      d.cat.forEach(c => {
+        counts[c] = (counts[c] || 0) + 1;
+      });
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [drawings]);
+
+  // Filtered drawings in Library
+  const filteredLibraryDrawings = useMemo(() => {
+    return drawings.filter(d => {
+      const matchCat = libraryCatFilter === 'Tous' || d.cat.includes(libraryCatFilter);
+      const matchQ = d.title.toLowerCase().includes(librarySearch.toLowerCase());
+      return matchCat && matchQ;
+    });
+  }, [drawings, libraryCatFilter, librarySearch]);
+
+  return (
+    <section className="cb-owner-space">
+      {/* Top Header of Owner Space */}
+      <div className="cb-owner-header">
+        <div className="cb-owner-brand">
+          <ShieldCheck className="cb-owner-shield" />
+          <div>
+            <h1>Espace Propriétaire ColorBloom</h1>
+            <p>Connecté avec Supabase • {user.email || 'bullewatch+colorbloom@gmail.com'}</p>
+          </div>
+        </div>
+
+        {/* Navigation tabs inside Owner Space */}
+        <nav className="cb-owner-nav-tabs">
+          <button
+            className={`cb-owner-tab ${view === 'stats' ? 'active' : ''}`}
+            onClick={() => setView('stats')}
+          >
+            <TrendingUp size={16} /> Statistiques & Tendances
+          </button>
+          <button
+            className={`cb-owner-tab ${view === 'library' ? 'active' : ''}`}
+            onClick={() => setView('library')}
+          >
+            <FolderOpen size={16} /> Gérer les Dessins ({drawings.length})
+          </button>
+          <button
+            className={`cb-owner-tab ${view === 'requests' ? 'active' : ''}`}
+            onClick={() => setView('requests')}
+          >
+            <Mail size={16} /> Demandes de dessins
+            {pendingRequestsCount > 0 && <span className="cb-tab-pill">{pendingRequestsCount}</span>}
+          </button>
+          <button
+            className={`cb-owner-tab ${view === 'add' ? 'active' : ''}`}
+            onClick={() => { resetForm(); setView('add'); }}
+          >
+            <Plus size={16} /> Ajouter un coloriage
+          </button>
+        </nav>
+
+        <button className="cb-owner-exit-btn" onClick={closeAdmin}>
+          <X size={16} /> Quitter l'espace
+        </button>
+      </div>
+
+      {/* VIEW 1 : STATISTIQUES & TENDANCES */}
+      {view === 'stats' && (
+        <div className="cb-owner-view-stats">
+          {/* Key KPI Cards */}
+          <div className="cb-stats-kpi-grid">
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon downloads"><Download size={22} /></span>
+              <div className="cb-kpi-val">{totalDownloads}</div>
+              <div className="cb-kpi-label">Téléchargements totaux</div>
+            </div>
+
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon likes"><Heart size={22} fill="#e74c3c" color="#e74c3c" /></span>
+              <div className="cb-kpi-val">{formatLikes(totalLikes)}</div>
+              <div className="cb-kpi-label">J'aimes comptabilisés</div>
+            </div>
+
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon count"><Leaf size={22} /></span>
+              <div className="cb-kpi-val">{totalColorings}</div>
+              <div className="cb-kpi-label">Coloriages actifs au catalogue</div>
+            </div>
+
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon requests"><Mail size={22} /></span>
+              <div className="cb-kpi-val">{pendingRequestsCount}</div>
+              <div className="cb-kpi-label">Demandes en attente de dessin</div>
+            </div>
+          </div>
+
+          <div className="cb-stats-columns">
+            {/* Top Most Popular Colorings */}
+            <div className="cb-stats-card">
+              <h3><ThumbsUp size={18} /> Top Coloriages les plus aimés</h3>
+              <div className="cb-top-drawings-list">
+                {topDrawings.map((d, index) => (
+                  <div className="cb-top-drawing-row" key={d.id}>
+                    <span className="cb-rank-badge">#{index + 1}</span>
+                    <img src={d.image} alt={d.title} className="cb-top-thumb" />
+                    <div className="cb-top-info">
+                      <b>{d.title}</b>
+                      <span>{d.cat.join(', ')}</span>
+                    </div>
+                    <div className="cb-top-likes">
+                      <Heart size={14} fill="#d9534f" color="#8b221d" /> {formatLikes(d.likes)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category Trends */}
+            <div className="cb-stats-card">
+              <h3><Tags size={18} /> Tendances par Catégorie</h3>
+              <p className="cb-stats-sub">Répartition des dessins et popularité :</p>
+              <div className="cb-category-trends-list">
+                {categoryCounts.map(([catName, count]) => (
+                  <div className="cb-trend-bar-row" key={catName}>
+                    <div className="cb-trend-label">
+                      <span>{catName}</span>
+                      <b>{count} dessins</b>
+                    </div>
+                    <div className="cb-trend-track">
+                      <div
+                        className="cb-trend-fill"
+                        style={{ width: `${Math.min(100, Math.round((count / totalColorings) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2 : GÉRER LES DESSINS (PANEL AVEC RENOMMAGE ET RANGEMENT PAR CATÉGORIES) */}
+      {view === 'library' && (
+        <div className="cb-owner-view-library">
+          {/* Header Action Bar */}
+          <div className="cb-library-actions-bar">
+            {/* Big Prominent + Button */}
+            <button
+              className="cb-btn-add-primary"
+              onClick={() => { resetForm(); setView('add'); }}
+            >
+              <Plus size={18} /> Ajouter un coloriage
+            </button>
+
+            {/* Quick Search */}
+            <div className="cb-library-search">
+              <Search size={16} />
+              <input
+                type="text"
+                value={librarySearch}
+                onChange={e => setLibrarySearch(e.target.value)}
+                placeholder="Rechercher parmi les dessins…"
+              />
+              {librarySearch && <button onClick={() => setLibrarySearch('')}><X size={14} /></button>}
+            </div>
+
+            {/* Quick Category Filter */}
+            <div className="cb-library-cat-filter">
+              <span>Catégorie :</span>
+              <select
+                value={libraryCatFilter}
+                onChange={e => setLibraryCatFilter(e.target.value)}
+              >
+                <option value="Tous">Toutes les catégories</option>
+                {availableCategories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <p className="cb-library-count-info">
+            Affichage de <b>{filteredLibraryDrawings.length}</b> coloriages :
+          </p>
+
+          {/* Grid of drawings with inline rename and category tag changer */}
+          <div className="cb-library-grid">
+            {filteredLibraryDrawings.map(d => {
+              const isEditing = editingDrawingId === d.id;
+              return (
+                <div className={`cb-library-card ${isEditing ? 'editing' : ''}`} key={d.id}>
+                  <div className="cb-lib-thumb">
+                    <img src={d.image} alt={d.title} />
+                    {d.isSvg && <span className="cb-svg-tag">SVG</span>}
+                  </div>
+
+                  <div className="cb-lib-body">
+                    {isEditing ? (
+                      /* Inline Rename Form */
+                      <div className="cb-lib-edit-box">
+                        <label>
+                          <span>Nom du dessin :</span>
+                          <input
+                            type="text"
+                            value={editingTitle}
+                            onChange={e => setEditingTitle(e.target.value)}
+                          />
+                        </label>
+
+                        <div className="cb-lib-cat-selector">
+                          <span>Catégories :</span>
+                          <div className="cb-cat-pills-select">
+                            {availableCategories.map(c => {
+                              const selected = editingCats.includes(c);
+                              return (
+                                <button
+                                  type="button"
+                                  key={c}
+                                  className={`cb-cat-toggle-pill ${selected ? 'active' : ''}`}
+                                  onClick={() => {
+                                    setEditingCats(prev =>
+                                      selected ? prev.filter(x => x !== c) : [...prev, c]
+                                    );
+                                  }}
+                                >
+                                  {selected ? '✓ ' : '+ '}{c}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="cb-lib-edit-actions">
+                          <button className="cb-btn-save-inline" onClick={() => saveQuickEdit(d)}>
+                            <CheckCheck size={14} /> Enregistrer
+                          </button>
+                          <button className="cb-btn-cancel-inline" onClick={() => setEditingDrawingId(null)}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Display Mode */
+                      <>
+                        <b className="cb-lib-title">{d.title}</b>
+                        <div className="cb-lib-cats">
+                          {d.cat.map(c => (
+                            <span className="cb-cat-pill" key={c}>{c}</span>
+                          ))}
+                        </div>
+                        <div className="cb-lib-meta">
+                          <span>❤️ {formatLikes(d.likes)}</span>
+                          <span>📥 {d.downloads || 0}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {!isEditing && (
+                    <div className="cb-lib-row-actions">
+                      <button
+                        className="cb-btn-quick-edit"
+                        title="Renommer et ranger par catégories"
+                        onClick={() => {
+                          setEditingDrawingId(d.id);
+                          setEditingTitle(d.title);
+                          setEditingCats([...d.cat]);
+                        }}
+                      >
+                        <Pencil size={15} /> Modifier
+                      </button>
+                      <button
+                        className="cb-btn-quick-del"
+                        title="Supprimer"
+                        onClick={() => removeDrawing(d)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 3 : BOÎTE AUX LETTRES & DEMANDES DE DESSINS */}
+      {view === 'requests' && (
+        <div className="cb-owner-view-requests">
+          <div className="cb-requests-head-bar">
+            <h2>📬 Boîte aux lettres de l'artiste</h2>
+            <p>Voici les demandes de dessins déposées par les visiteurs. Vous pouvez valider une demande en lui associant un coloriage du catalogue.</p>
+          </div>
+
           {loadingRequests ? (
             <p>Chargement des lettres…</p>
           ) : requests.length === 0 ? (
             <div className="cb-empty-letters">
-              <Mail size={36} />
+              <Mail size={42} />
               <p>Aucune lettre reçue pour le moment.</p>
             </div>
           ) : (
             <div className="cb-requests-admin-list">
-              {requests.map(req => (
-                <div className={`cb-request-admin-card ${req.status === 'done' ? 'completed' : 'pending'}`} key={req.id}>
-                  <div className="cb-req-head">
-                    <span className="cb-req-author">👤 <b>{req.pseudo || 'Visiteur anonyme'}</b></span>
-                    {req.email && <span className="cb-req-email">✉️ {req.email}</span>}
-                    <span className="cb-req-date">{new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                  </div>
-                  <div className="cb-req-desc">
-                    « {req.description} »
-                  </div>
-                  <div className="cb-req-footer">
-                    {req.status === 'done' ? (
-                      <span className="cb-req-done-pill">
-                        <Check size={14} /> Coloriage associé : <b>{req.completed_drawing_slug}</b> (Validé)
+              {requests.map(req => {
+                const matched = drawings.find(d => d.slug === req.completed_drawing_slug);
+                return (
+                  <div className={`cb-request-admin-card ${req.status === 'done' ? 'completed' : 'pending'}`} key={req.id}>
+                    <div className="cb-req-head">
+                      <span className="cb-req-author">👤 <b>{req.pseudo || 'Visiteur anonyme'}</b></span>
+                      {req.email && <span className="cb-req-email">✉️ {req.email}</span>}
+                      <span className="cb-req-date">
+                        {new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
-                    ) : (
-                      <div className="cb-req-action-wrap">
-                        <select
-                          value={selectedSlugForRequest[req.id] || ''}
-                          onChange={e => setSelectedSlugForRequest(prev => ({ ...prev, [req.id]: e.target.value }))}
-                        >
-                          <option value="">-- Choisir un coloriage à associer --</option>
-                          {drawings.map(d => (
-                            <option key={d.slug} value={d.slug}>{d.title} ({d.slug})</option>
-                          ))}
-                        </select>
-                        <button
-                          className="cb-btn-validate-req"
-                          onClick={() => validateRequest(req.id, selectedSlugForRequest[req.id])}
-                        >
-                          <CheckCircle2 size={14} /> Valider la demande & envoyer le dessin
-                        </button>
-                      </div>
-                    )}
+                    </div>
+
+                    <div className="cb-req-desc">
+                      « {req.description} »
+                    </div>
+
+                    <div className="cb-req-footer">
+                      {req.status === 'done' ? (
+                        <div className="cb-req-done-box">
+                          <span className="cb-req-done-pill">
+                            <Check size={14} /> Coloriage associé : <b>{matched?.title || req.completed_drawing_slug}</b> (Validé)
+                          </span>
+                          {matched && <img src={matched.image} alt="" className="cb-req-preview-thumb" />}
+                        </div>
+                      ) : (
+                        <div className="cb-req-action-wrap">
+                          <select
+                            value={selectedSlugForRequest[req.id] || ''}
+                            onChange={e => setSelectedSlugForRequest(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          >
+                            <option value="">-- Choisir un coloriage à associer --</option>
+                            {drawings.map(d => (
+                              <option key={d.slug} value={d.slug}>{d.title} ({d.slug})</option>
+                            ))}
+                          </select>
+                          <button
+                            className="cb-btn-validate-req"
+                            onClick={() => validateRequest(req.id, selectedSlugForRequest[req.id])}
+                          >
+                            <CheckCircle2 size={15} /> Valider la demande & envoyer le dessin
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-      </AdminShell>
-    );
-  }
+      )}
 
-  if (view === 'add') {
-    return (
-      <AdminShell title={edit ? 'Modifier le coloriage' : 'Ajouter un coloriage'} back={() => { resetForm(); setView('dashboard'); }}>
-        <div className="upload-zone">
-          <UploadCloud />
-          <b>{preview ? 'Image sélectionnée' : 'Ajoute ton coloriage'}</b>
-          <span>JPG, PNG ou WEBP</span>
-          <label className="file-pick">
-            Choisir une image
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={choose} />
-          </label>
-          {preview && <img className="admin-preview" src={preview} alt="Aperçu" />}
-        </div>
+      {/* VIEW 4 : AJOUTER UN COLORIAGE */}
+      {view === 'add' && (
+        <div className="cb-owner-view-add">
+          <h2><Plus /> Ajouter un nouveau coloriage</h2>
+          <p>Téléverse ton image (PNG, JPG, WEBP ou SVG vectoriel) directement vers Supabase Storage.</p>
 
-        <div className="admin-form">
-          <label>
-            Nom du coloriage
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex. Petite fée dans un jardin" />
-          </label>
-          <label>
-            Catégories
-            <input value={categories} onChange={e => setCategories(e.target.value)} placeholder="Fées, Nature, Enfants…" />
-          </label>
-          <button className="publish" onClick={save} disabled={saving}>
-            <CheckCircle2 /> {saving ? 'Enregistrement…' : edit ? 'Enregistrer les modifications' : 'Ajouter le coloriage'}
-          </button>
-        </div>
-      </AdminShell>
-    );
-  }
-
-  if (view === 'library') {
-    return (
-      <AdminShell title="Mes coloriages" back={() => setView('dashboard')}>
-        <button className="publish" onClick={() => { resetForm(); setView('add'); }}><Plus /> Ajouter un coloriage</button>
-        <div className="library-list">
-          {drawings.map(d => (
-            <div className="library-row" key={d.id}>
-              <div className="mini"><img src={d.image} alt={d.title} /></div>
-              <div><b>{d.title}</b><span>{d.cat.join(' • ')}</span></div>
-              <div className="row-actions">
-                <button onClick={() => begin(d)} aria-label="Modifier"><Pencil /></button>
-                <button onClick={() => remove(d)} aria-label="Supprimer"><Trash2 /></button>
-              </div>
+          <div className="cb-add-form-layout">
+            <div className="upload-zone">
+              <UploadCloud size={44} />
+              <b>{preview ? 'Fichier sélectionné' : 'Choisis ton fichier coloriage'}</b>
+              <span>PNG, JPG, SVG ou WEBP</span>
+              <label className="file-pick">
+                Parcourir les fichiers
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={choose} />
+              </label>
+              {preview && <img className="admin-preview" src={preview} alt="Aperçu" />}
             </div>
-          ))}
+
+            <div className="admin-form">
+              <label>
+                Nom du coloriage :
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Ex. Petit écureuil gourmand sous la lune"
+                />
+              </label>
+
+              <label>
+                Catégories (séparées par une virgule) :
+                <input
+                  value={categories}
+                  onChange={e => setCategories(e.target.value)}
+                  placeholder="Animaux, Forêt, Enfants…"
+                />
+              </label>
+
+              <button className="publish" onClick={save} disabled={saving}>
+                <CheckCircle2 /> {saving ? 'Enregistrement dans Supabase…' : edit ? 'Enregistrer les modifications' : 'Publier le coloriage'}
+              </button>
+            </div>
+          </div>
         </div>
-      </AdminShell>
-    );
-  }
-
-  const items = [
-    ['Ajouter un coloriage', Plus, 'Image, nom et catégories', 'add'],
-    ['Mes coloriages', FolderOpen, 'Modifier ou supprimer', 'library'],
-    ['Boîte aux lettres & Demandes', Mail, 'Gérer et valider les demandes de dessins', 'requests'],
-    ['Catégories', Tags, 'À développer', 'categories'],
-    ['Publicités', Megaphone, 'À développer', 'ads'],
-    ['Statistiques', BarChart3, 'À développer', 'stats'],
-  ];
-
-  return (
-    <section className="admin">
-      <div className="admin-head">
-        <ShieldCheck />
-        <div>
-          <h1>Jardinier ColorBloom</h1>
-          <p>Espace propriétaire de gestion des coloriages et de la boîte aux lettres</p>
-        </div>
-        <button className="cb-admin-close-btn" onClick={closeAdmin} title="Retourner au site">
-          <X size={18} /> Quitter
-        </button>
-      </div>
-      <div className="admin-grid">
-        {items.map(([t, Icon, d, v]) => (
-          <button key={t} onClick={() => setView(v)}>
-            <Icon /><b>{t}</b><span>{d}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AdminShell({ title, back, children }) {
-  return (
-    <section className="admin admin-sub">
-      <button className="back" onClick={back}>← Tableau de bord</button>
-      <h1>{title}</h1>
-      {children}
+      )}
     </section>
   );
 }
