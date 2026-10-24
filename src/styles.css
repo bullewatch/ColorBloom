@@ -1835,6 +1835,29 @@ button, input, select, textarea {
   border: 1px solid #c99300;
 }
 
+.cb-auth-helpers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.cb-btn-forgot-pwd {
+  background: none;
+  border: none;
+  color: #7b5b3d;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.cb-btn-forgot-pwd:hover {
+  color: #422610;
+}
+
 .cb-btn-resend-email {
   background: #edd9b4;
   border: 2px solid #8e6844;
@@ -1847,7 +1870,7 @@ button, input, select, textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 4px;
   width: 100%;
   justify-content: center;
   transition: background 0.2s;

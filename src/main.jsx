@@ -1391,17 +1391,41 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     setBusy(false);
     if (error) {
       if (error.message.toLowerCase().includes('user already registered')) {
-        setMessage('Un compte existe déjà avec cette adresse e-mail. Tu peux te connecter directement.');
+        setMessage('Un compte existe déjà avec cette adresse e-mail. Clique directement sur « Se connecter ».');
       } else if (error.message.toLowerCase().includes('rate limit')) {
         setMessage('Trop de tentatives d’envoi d’e-mails (limite anti-spam de sécurité). Merci de patienter quelques minutes.');
       } else {
         setMessage(error.message);
       }
+    } else if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+      setMessage('Un compte existe déjà avec cette adresse e-mail et il est déjà validé ! Clique directement sur « Se connecter » avec ton mot de passe.');
     } else if (!data.session) {
       setMessage("Compte créé avec succès ! Un e-mail de confirmation t'a été envoyé. Pense à vérifier ta boîte de réception et tes spams pour activer ton compte.");
       setCanResend(true);
     } else {
       setMessage('Compte créé et connecté !');
+    }
+  }
+
+  async function resetPassword() {
+    if (!email) {
+      setMessage('Saisis ton adresse e-mail ci-dessus pour recevoir un lien de réinitialisation de mot de passe.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    setBusy(false);
+    if (error) {
+      if (error.message.toLowerCase().includes('rate limit')) {
+        setMessage('Limite d’envoi atteinte (3 e-mails/heure max sur le service gratuit). Merci de patienter un moment.');
+      } else {
+        setMessage(`Erreur : ${error.message}`);
+      }
+    } else {
+      setMessage("Un e-mail de réinitialisation vient de t'être envoyé ! Pense à vérifier ta boîte de réception et tes spams.");
     }
   }
 
@@ -1477,11 +1501,16 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
             <button onClick={signIn} disabled={busy}><LogIn /> Se connecter</button>
             <button onClick={signUp} disabled={busy}><UserPlus /> Créer un compte</button>
           </div>
-          {canResend && (
-            <button className="cb-btn-resend-email" onClick={resendConfirmation} disabled={busy}>
-              <RefreshCw size={14} /> Renvoyer l'e-mail de confirmation
+          <div className="cb-auth-helpers">
+            <button type="button" className="cb-btn-forgot-pwd" onClick={resetPassword} disabled={busy}>
+              Mot de passe oublié ?
             </button>
-          )}
+            {canResend && (
+              <button type="button" className="cb-btn-resend-email" onClick={resendConfirmation} disabled={busy}>
+                <RefreshCw size={14} /> Renvoyer l'e-mail de confirmation
+              </button>
+            )}
+          </div>
           {message && <p className="auth-message">{message}</p>}
           {!databaseReady && <p className="auth-message">Base ColorBloom connectée.</p>}
         </div>
