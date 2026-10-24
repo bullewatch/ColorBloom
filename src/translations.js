@@ -18,8 +18,8 @@ export const translations = {
     // Search & Sort
     searchPlaceholder: 'Rechercher un coloriage (animaux, fées, etc.)...',
     sortBy: 'Trier par :',
-    sortRecent: '✨ Plus récents',
-    sortLiked: '❤️ Plus aimés',
+    sortRecent: 'Derniers ajouts',
+    sortLiked: 'Plus aimés',
     categoriesTitle: 'Catégories',
     myFavorites: 'Mes Favoris',
 
@@ -134,8 +134,8 @@ export const translations = {
     // Search & Sort
     searchPlaceholder: 'Search a coloring page (animals, fairies, etc.)...',
     sortBy: 'Sort by:',
-    sortRecent: '✨ Newest',
-    sortLiked: '❤️ Most liked',
+    sortRecent: 'Latest additions',
+    sortLiked: 'Most liked',
     categoriesTitle: 'Categories',
     myFavorites: 'My Favorites',
 
@@ -250,8 +250,8 @@ export const translations = {
     // Search & Sort
     searchPlaceholder: 'Buscar un dibujo para colorear (animales, hadas, etc.)...',
     sortBy: 'Ordenar por:',
-    sortRecent: '✨ Más recientes',
-    sortLiked: '❤️ Más populares',
+    sortRecent: 'Últimas incorporaciones',
+    sortLiked: 'Más populares',
     categoriesTitle: 'Categorías',
     myFavorites: 'Mis Favoritos',
 
@@ -366,8 +366,8 @@ export const translations = {
     // Search & Sort
     searchPlaceholder: 'Ausmalbild suchen (Tiere, Feen, usw.)...',
     sortBy: 'Sortieren nach:',
-    sortRecent: '✨ Neueste',
-    sortLiked: '❤️ Beliebteste',
+    sortRecent: 'Neueste Zugänge',
+    sortLiked: 'Beliebteste',
     categoriesTitle: 'Kategorien',
     myFavorites: 'Meine Favoriten',
 

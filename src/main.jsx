@@ -848,7 +848,7 @@ function App() {
                     </button>
                   ))}
 
-                  {/* Bouton Cœur pour accéder aux Favoris à la place de POM */}
+                  {/* Bouton Favoris au bas des catégories */}
                   <button
                     className={`cb-css-plank cb-plank-favs ${page === 'Favoris' ? 'active' : ''}`}
                     onClick={() => {
@@ -856,7 +856,7 @@ function App() {
                     }}
                     title={t.myFavorites}
                   >
-                    <span className="cb-plank-heart">💜</span>
+                    <span className="cb-plank-dot">•</span>
                     <span className="cb-plank-title">{t.myFavorites}</span>
                     {favs.size > 0 && <span className="cb-plank-pill">{favs.size}</span>}
                   </button>
