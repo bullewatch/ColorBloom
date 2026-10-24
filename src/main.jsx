@@ -1293,17 +1293,6 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                 ) : (
                   <form onSubmit={handleSendRequest} className="cb-sheet-form-inner">
                     <span className="cb-click-sheet-title">{t.mailboxTitle}</span>
-                    <div className="cb-sheet-author-tag">
-                      <img
-                        src={avatarList[profile?.avatar_index ?? session.user.user_metadata?.avatar_index ?? 0] || avatar1}
-                        alt="Avatar"
-                        className="cb-sheet-author-avatar"
-                      />
-                      <div className="cb-sheet-author-info">
-                        <span className="cb-sheet-author-pseudo">{senderPseudo}</span>
-                        <span className="cb-sheet-author-email">{session.user.email}</span>
-                      </div>
-                    </div>
 
                     <textarea
                       required
