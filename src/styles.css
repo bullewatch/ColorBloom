@@ -1410,6 +1410,23 @@ button, input, select, textarea {
   margin-bottom: 20px;
 }
 
+.cb-stats-kpi-grid.cb-kpi-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 900px) {
+  .cb-stats-kpi-grid.cb-kpi-grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .cb-stats-kpi-grid,
+  .cb-stats-kpi-grid.cb-kpi-grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .cb-kpi-card {
   background: #fff;
   border: 2px solid #d4ba8a;
@@ -1428,6 +1445,8 @@ button, input, select, textarea {
   margin: 0 auto 8px;
 }
 
+.cb-kpi-icon.users { background: #f3e8ff; color: #7e22ce; }
+.cb-kpi-icon.logins { background: #e0f2fe; color: #0284c7; }
 .cb-kpi-icon.downloads { background: #e8f4fc; color: #2980b9; }
 .cb-kpi-icon.likes { background: #fdeeed; color: #e74c3c; }
 .cb-kpi-icon.count { background: #edf7ee; color: #27ae60; }
@@ -1446,6 +1465,13 @@ button, input, select, textarea {
   font-weight: 700;
   color: #7b5b3d;
   margin-top: 4px;
+}
+
+.cb-kpi-sub {
+  display: block;
+  font-size: 11px;
+  color: #9c7a5b;
+  margin-top: 3px;
 }
 
 .cb-stats-columns {
@@ -1561,6 +1587,302 @@ button, input, select, textarea {
   height: 100%;
   background: linear-gradient(90deg, #46673d, #78a865);
   border-radius: 4px;
+}
+
+/* Second Row of Stats: Live Activity & Registered Users */
+.cb-stats-second-row {
+  margin-top: 18px;
+}
+
+.cb-recent-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cb-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fbf8f2;
+  border: 1px solid #e2d2ba;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.cb-activity-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.cb-activity-badge.download { background: #e0f2fe; color: #0284c7; }
+.cb-activity-badge.login { background: #f3e8ff; color: #7e22ce; }
+.cb-activity-badge.visit { background: #ecfdf5; color: #059669; }
+
+.cb-activity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cb-activity-info b {
+  display: block;
+  font-size: 12px;
+  color: #3b2210;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cb-activity-info span {
+  font-size: 11px;
+  color: #7d5e41;
+}
+
+.cb-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cb-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fbf8f2;
+  border: 1px solid #e2d2ba;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.cb-user-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #a37c56;
+  background: #fff;
+}
+
+.cb-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cb-user-info b {
+  display: block;
+  font-size: 13px;
+  color: #3b2210;
+}
+
+.cb-user-info span {
+  font-size: 11px;
+  color: #7d5e41;
+}
+
+.cb-badge-role {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.cb-badge-role.admin {
+  background: #ffd700;
+  color: #422610;
+  border: 1px solid #c99300;
+}
+
+.cb-badge-role.member {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.cb-empty-hint {
+  font-size: 13px;
+  color: #8e6844;
+  font-style: italic;
+  margin: 8px 0;
+}
+
+/* Format tags & pills in Library */
+.cb-png-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: #0284c7;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.cb-lib-formats-badge {
+  margin: 4px 0 3px;
+}
+
+.cb-formats-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.cb-formats-pill.svg {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.cb-formats-pill.png {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #7dd3fc;
+}
+
+/* Upload Format Detection Card */
+.cb-format-info-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.cb-format-info-card.svg-mode {
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+}
+
+.cb-format-info-card.png-mode {
+  background: #f0f9ff;
+  border: 2px solid #7dd3fc;
+}
+
+.cb-format-info-head {
+  margin-bottom: 6px;
+}
+
+.cb-format-badge-pill {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.cb-format-badge-pill.svg {
+  background: #22c55e;
+  color: #fff;
+}
+
+.cb-format-badge-pill.png {
+  background: #0284c7;
+  color: #fff;
+}
+
+.cb-format-info-desc {
+  font-size: 12px;
+  color: #334155;
+  margin: 4px 0 6px;
+}
+
+.cb-format-info-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #1e293b;
+  display: grid;
+  gap: 4px;
+}
+
+.cb-format-info-list li.disabled {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+/* Profile header status & resend email button */
+.cb-profile-header-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.cb-owner-role-pill {
+  background: linear-gradient(135deg, #ffd700, #ffae00);
+  color: #422610;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #c99300;
+}
+
+.cb-btn-resend-email {
+  background: #edd9b4;
+  border: 2px solid #8e6844;
+  border-radius: 8px;
+  color: #422610;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.cb-btn-resend-email:hover {
+  background: #e2c79a;
+}
+
+/* Owner Direct Button in Top Header */
+.cb-owner-shield-btn {
+  background: #46673d !important;
+  border-color: #ffd700 !important;
+  position: relative;
+  display: grid !important;
+  place-items: center;
+}
+
+.cb-owner-shield-btn:hover {
+  background: #35502e !important;
+  transform: translateY(-2px);
+}
+
+.cb-owner-btn-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #ffd700;
+  color: #422610;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 6px;
+  border: 1px solid #fff;
+  line-height: 1;
 }
 
 /* Owner Library View */

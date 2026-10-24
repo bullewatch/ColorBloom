@@ -6,7 +6,8 @@ import {
   LogIn, Mail, Send, ShieldCheck, Plus, FolderOpen, Tags,
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
-  PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid
+  PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
+  Users, Eye, RefreshCw, FileImage
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -151,6 +152,7 @@ function App() {
   // Check if current user is owner/admin
   const isOwner = Boolean(
     profile?.is_admin ||
+    session?.user?.email?.toLowerCase().includes('flo83') ||
     session?.user?.email?.toLowerCase().includes('bullewatch')
   );
 
@@ -223,6 +225,17 @@ function App() {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       loadAccount(nextSession);
+
+      // Track member login event in analytics
+      if (_event === 'SIGNED_IN' && nextSession?.user) {
+        supabase.from('site_analytics').insert({
+          event_type: 'login',
+          metadata: {
+            user_id: nextSession.user.id,
+            email: nextSession.user.email,
+          }
+        }).then();
+      }
     });
 
     const interval = setInterval(checkPendingRequests, 30000);
@@ -314,35 +327,42 @@ function App() {
 
     try {
       if (format === 'SVG') {
-        if (open.isSvg || open.image.endsWith('.svg')) {
-          const res = await fetch(open.image);
-          const svgContent = await res.text();
-          const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = safe + '.svg';
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        } else {
-          const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100"><image href="${open.image}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"/></svg>`;
-          const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = safe + '.svg';
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        if (!open.isSvg && !open.image.endsWith('.svg')) {
+          alert('Le format SVG n’est pas disponible pour ce dessin matriciel.');
+          return;
         }
+        const res = await fetch(open.image);
+        const svgContent = await res.text();
+        const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = safe + '.svg';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } else if (format === 'PNG') {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = open.image;
-        await img.decode();
 
+        if (open.isSvg || open.image.endsWith('.svg')) {
+          const res = await fetch(open.image);
+          const svgText = await res.text();
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+          img.src = url;
+          await img.decode();
+          URL.revokeObjectURL(url);
+        } else {
+          img.src = open.image;
+          await img.decode();
+        }
+
+        const width = img.naturalWidth && img.naturalWidth > 1200 ? img.naturalWidth : 2400;
+        const height = img.naturalHeight && img.naturalHeight > 1600 ? img.naturalHeight : 3200;
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || 1200;
-        canvas.height = img.naturalHeight || 1600;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -356,14 +376,27 @@ function App() {
         // PDF A4
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = open.image;
-        await img.decode();
 
+        if (open.isSvg || open.image.endsWith('.svg')) {
+          const res = await fetch(open.image);
+          const svgText = await res.text();
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+          img.src = url;
+          await img.decode();
+          URL.revokeObjectURL(url);
+        } else {
+          img.src = open.image;
+          await img.decode();
+        }
+
+        const width = img.naturalWidth && img.naturalWidth > 1200 ? img.naturalWidth : 2400;
+        const height = img.naturalHeight && img.naturalHeight > 1600 ? img.naturalHeight : 3200;
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || 1200;
-        canvas.height = img.naturalHeight || 1600;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -428,6 +461,19 @@ function App() {
               <img src={favorisArt} alt="Favoris" />
               {favs.size > 0 && <span className="cb-top-badge">{favs.size}</span>}
             </button>
+
+            {/* Direct Owner Space Button */}
+            {isOwner && (
+              <button
+                className="cb-top-btn cb-owner-shield-btn"
+                onClick={() => { setOwnerOpen(true); setAdminView('stats'); }}
+                title="Espace Propriétaire (Statistiques & Dessins)"
+                aria-label="Espace Propriétaire"
+              >
+                <ShieldCheck size={22} color="#ffe066" />
+                <span className="cb-owner-btn-badge">Owner</span>
+              </button>
+            )}
 
             {/* Selected Avatar Circle */}
             <button
@@ -866,13 +912,28 @@ function App() {
               >
                 <Heart fill={favs.has(open.id) ? 'currentColor' : 'none'} /> {formatLikes(open.likes)}
               </button>
-              <button onClick={() => download('SVG')} className="download-btn-svg" title="Télécharger le fichier vectoriel SVG">
-                <Download /> {downloading === 'SVG' ? 'Préparation…' : 'SVG'}
-              </button>
-              <button onClick={() => download('PNG')}>
+              {open.isSvg && (
+                <button
+                  onClick={() => download('SVG')}
+                  className="download-btn-svg"
+                  title="Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
+                  disabled={Boolean(downloading)}
+                >
+                  <Download /> {downloading === 'SVG' ? 'Préparation…' : 'SVG'}
+                </button>
+              )}
+              <button
+                onClick={() => download('PNG')}
+                title="Télécharger en image PNG haute résolution"
+                disabled={Boolean(downloading)}
+              >
                 <Download /> {downloading === 'PNG' ? 'Préparation…' : 'PNG'}
               </button>
-              <button onClick={() => download('PDF')}>
+              <button
+                onClick={() => download('PDF')}
+                title="Télécharger en document PDF A4 prêt à imprimer"
+                disabled={Boolean(downloading)}
+              >
                 <Download /> {downloading === 'PDF' ? 'Préparation…' : 'PDF A4'}
               </button>
             </div>
@@ -1290,6 +1351,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [canResend, setCanResend] = useState(false);
 
   async function signIn() {
     if (!email || !password) return;
@@ -1297,7 +1359,18 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     setMessage('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    setMessage(error ? error.message : 'Connexion réussie.');
+    if (error) {
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setMessage("Ton adresse e-mail n'a pas encore été confirmée. Clique sur le lien reçu par e-mail ou utilise le bouton ci-dessous pour renvoyer le lien d'activation.");
+        setCanResend(true);
+      } else if (error.message.toLowerCase().includes('invalid login credentials')) {
+        setMessage("Identifiants incorrects. Vérifie ton e-mail et ton mot de passe.");
+      } else {
+        setMessage(error.message);
+      }
+    } else {
+      setMessage('Connexion réussie !');
+    }
   }
 
   async function signUp() {
@@ -1310,12 +1383,52 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: email.split('@')[0] } },
+      options: {
+        data: { display_name: email.split('@')[0] },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
     setBusy(false);
-    if (error) setMessage(error.message);
-    else if (!data.session) setMessage('Compte créé. Vérifie ton e-mail pour confirmer ton inscription.');
-    else setMessage('Compte créé et connecté.');
+    if (error) {
+      if (error.message.toLowerCase().includes('user already registered')) {
+        setMessage('Un compte existe déjà avec cette adresse e-mail. Tu peux te connecter directement.');
+      } else if (error.message.toLowerCase().includes('rate limit')) {
+        setMessage('Trop de tentatives d’envoi d’e-mails (limite anti-spam de sécurité). Merci de patienter quelques minutes.');
+      } else {
+        setMessage(error.message);
+      }
+    } else if (!data.session) {
+      setMessage("Compte créé avec succès ! Un e-mail de confirmation t'a été envoyé. Pense à vérifier ta boîte de réception et tes spams pour activer ton compte.");
+      setCanResend(true);
+    } else {
+      setMessage('Compte créé et connecté !');
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!email) {
+      setMessage('Saisis ton adresse e-mail pour renvoyer le lien de confirmation.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+    setBusy(false);
+    if (error) {
+      if (error.message.toLowerCase().includes('rate limit')) {
+        setMessage('Limite d’envoi atteinte (3 e-mails/heure max sur le service de messagerie). Merci de patienter un peu avant de renvoyer ou de vérifier tes courriers indésirables.');
+      } else {
+        setMessage(`Erreur d'envoi : ${error.message}`);
+      }
+    } else {
+      setMessage("Nouvel e-mail de confirmation envoyé ! Vérifie ta boîte de réception et tes spams.");
+    }
   }
 
   async function signOut() {
@@ -1329,7 +1442,12 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
       </div>
 
       <h1>{profile?.display_name || (session ? 'Mon jardin ColorBloom' : 'Bienvenue sur ColorBloom')}</h1>
-      {session && <p className="cb-profile-email">{session.user.email}</p>}
+      {session && (
+        <div className="cb-profile-header-status">
+          <p className="cb-profile-email">{session.user.email}</p>
+          {isOwner && <span className="cb-owner-role-pill"><ShieldCheck size={14} /> Accès Propriétaire & Artiste</span>}
+        </div>
+      )}
 
       {/* 8 Custom Avatars Selection Grid */}
       <div className="cb-avatar-selection">
@@ -1359,6 +1477,11 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
             <button onClick={signIn} disabled={busy}><LogIn /> Se connecter</button>
             <button onClick={signUp} disabled={busy}><UserPlus /> Créer un compte</button>
           </div>
+          {canResend && (
+            <button className="cb-btn-resend-email" onClick={resendConfirmation} disabled={busy}>
+              <RefreshCw size={14} /> Renvoyer l'e-mail de confirmation
+            </button>
+          )}
           {message && <p className="auth-message">{message}</p>}
           {!databaseReady && <p className="auth-message">Base ColorBloom connectée.</p>}
         </div>
@@ -1383,6 +1506,8 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
   const [analyticsEvents, setAnalyticsEvents] = useState([]);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+  const [registeredUsersList, setRegisteredUsersList] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
 
   // Form for adding drawing
@@ -1391,6 +1516,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [categories, setCategories] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
+  const [detectedFormat, setDetectedFormat] = useState(null);
   const [saving, setSaving] = useState(false);
 
   // Quick edit for renaming & categories in library
@@ -1422,13 +1548,24 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   async function loadStats() {
     setLoadingStats(true);
     try {
-      const { data, error } = await supabase
-        .from('site_analytics')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(300);
-      if (!error && data) {
-        setAnalyticsEvents(data);
+      const [analyticsRes, profilesRes] = await Promise.all([
+        supabase
+          .from('site_analytics')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(300),
+        supabase
+          .from('profiles')
+          .select('id,display_name,avatar_index,is_admin,created_at', { count: 'exact' })
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (!analyticsRes.error && analyticsRes.data) {
+        setAnalyticsEvents(analyticsRes.data);
+      }
+      if (!profilesRes.error && profilesRes.data) {
+        setTotalUsersCount(profilesRes.count || profilesRes.data.length);
+        setRegisteredUsersList(profilesRes.data);
       }
     } catch (err) {
       console.error(err);
@@ -1470,6 +1607,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
     setCategories('');
     setFile(null);
     setPreview('');
+    setDetectedFormat(null);
   }
 
   function choose(e) {
@@ -1477,6 +1615,8 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
     if (!selected) return;
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
+    const isSvg = selected.name.toLowerCase().endsWith('.svg') || selected.type === 'image/svg+xml';
+    setDetectedFormat(isSvg ? 'SVG' : 'PNG');
   }
 
   async function save() {
@@ -1491,13 +1631,14 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
 
     try {
       if (file) {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
         const base = slugify(title) || 'coloriage';
         uploadedPath = `${Date.now()}-${base}.${ext}`;
+        const contentType = ext === 'svg' ? 'image/svg+xml' : (file.type || 'image/png');
 
         const { error: uploadError } = await supabase.storage
           .from('colorings')
-          .upload(uploadedPath, file, { contentType: file.type, upsert: false });
+          .upload(uploadedPath, file, { contentType, upsert: false });
 
         if (uploadError) throw uploadError;
         imagePath = uploadedPath;
@@ -1583,10 +1724,15 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   }
 
   // Compute aggregated stats
+  const totalUsers = totalUsersCount || registeredUsersList.length;
   const totalDownloads = drawings.reduce((acc, d) => acc + (d.downloads || 0), 0) +
     analyticsEvents.filter(e => e.event_type === 'download').length;
+  const totalLogins = analyticsEvents.filter(e => e.event_type === 'login').length;
+  const totalVisits = analyticsEvents.filter(e => e.event_type === 'visit').length;
   const totalLikes = drawings.reduce((acc, d) => acc + (d.likes || 0), 0);
   const totalColorings = drawings.length;
+  const totalSvgDrawings = drawings.filter(d => d.isSvg).length;
+  const totalRasterDrawings = drawings.filter(d => !d.isSvg).length;
   const topDrawings = [...drawings].sort((a, b) => b.likes - a.likes).slice(0, 8);
 
   const categoryCounts = useMemo(() => {
@@ -1615,8 +1761,8 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
         <div className="cb-owner-brand">
           <ShieldCheck className="cb-owner-shield" />
           <div>
-            <h1>Espace Propriétaire ColorBloom</h1>
-            <p>Connecté avec Supabase • {user.email || 'bullewatch+colorbloom@gmail.com'}</p>
+            <h1>Espace Propriétaire & Artiste ColorBloom</h1>
+            <p>Connecté avec Supabase • {user.email || 'flo83119@gmail.com'}</p>
           </div>
         </div>
 
@@ -1658,29 +1804,40 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
       {view === 'stats' && (
         <div className="cb-owner-view-stats">
           {/* Key KPI Cards */}
-          <div className="cb-stats-kpi-grid">
+          <div className="cb-stats-kpi-grid cb-kpi-grid-5">
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon users"><Users size={22} /></span>
+              <div className="cb-kpi-val">{totalUsers}</div>
+              <div className="cb-kpi-label">Membres inscrits</div>
+              <small className="cb-kpi-sub">{registeredUsersList.filter(u => u.is_admin).length} compte(s) admin</small>
+            </div>
+
+            <div className="cb-kpi-card">
+              <span className="cb-kpi-icon logins"><LogIn size={22} /></span>
+              <div className="cb-kpi-val">{totalLogins}</div>
+              <div className="cb-kpi-label">Connexions membres</div>
+              <small className="cb-kpi-sub">{totalVisits} visites globales</small>
+            </div>
+
             <div className="cb-kpi-card">
               <span className="cb-kpi-icon downloads"><Download size={22} /></span>
               <div className="cb-kpi-val">{totalDownloads}</div>
               <div className="cb-kpi-label">Téléchargements totaux</div>
-            </div>
-
-            <div className="cb-kpi-card">
-              <span className="cb-kpi-icon likes"><Heart size={22} fill="#e74c3c" color="#e74c3c" /></span>
-              <div className="cb-kpi-val">{formatLikes(totalLikes)}</div>
-              <div className="cb-kpi-label">J'aimes comptabilisés</div>
+              <small className="cb-kpi-sub">SVG, PNG & PDF</small>
             </div>
 
             <div className="cb-kpi-card">
               <span className="cb-kpi-icon count"><Leaf size={22} /></span>
               <div className="cb-kpi-val">{totalColorings}</div>
-              <div className="cb-kpi-label">Coloriages actifs au catalogue</div>
+              <div className="cb-kpi-label">Coloriages actifs</div>
+              <small className="cb-kpi-sub">{totalSvgDrawings} SVG • {totalRasterDrawings} PNG</small>
             </div>
 
             <div className="cb-kpi-card">
               <span className="cb-kpi-icon requests"><Mail size={22} /></span>
               <div className="cb-kpi-val">{pendingRequestsCount}</div>
-              <div className="cb-kpi-label">Demandes en attente de dessin</div>
+              <div className="cb-kpi-label">Demandes en attente</div>
+              <small className="cb-kpi-sub">Boîte aux lettres</small>
             </div>
           </div>
 
@@ -1695,7 +1852,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                     <img src={d.image} alt={d.title} className="cb-top-thumb" />
                     <div className="cb-top-info">
                       <b>{d.title}</b>
-                      <span>{d.cat.join(', ')}</span>
+                      <span>{d.cat.join(', ')} • {d.isSvg ? 'SVG vectoriel' : 'PNG raster'}</span>
                     </div>
                     <div className="cb-top-likes">
                       <Heart size={14} fill="#d9534f" color="#8b221d" /> {formatLikes(d.likes)}
@@ -1724,6 +1881,78 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2 : Dernières activités & Membres inscrits */}
+          <div className="cb-stats-columns cb-stats-second-row">
+            {/* Recent Live Activity Feed */}
+            <div className="cb-stats-card">
+              <h3><TrendingUp size={18} /> Dernières Activités en Direct</h3>
+              <p className="cb-stats-sub">Flux temps réel des connexions et téléchargements :</p>
+              <div className="cb-recent-activities-list">
+                {analyticsEvents.slice(0, 10).map((ev) => {
+                  const isDl = ev.event_type === 'download';
+                  const isLogin = ev.event_type === 'login';
+                  const timeStr = new Date(ev.created_at).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  return (
+                    <div className="cb-activity-row" key={ev.id}>
+                      <span className={`cb-activity-badge ${ev.event_type}`}>
+                        {isDl ? <Download size={14} /> : isLogin ? <LogIn size={14} /> : <Eye size={14} />}
+                      </span>
+                      <div className="cb-activity-info">
+                        <b>
+                          {isDl
+                            ? `Téléchargement : « ${ev.metadata?.title || 'Coloriage'} » (${ev.metadata?.format || 'Fichier'})`
+                            : isLogin
+                            ? `Connexion : ${ev.metadata?.email?.split('@')[0] || 'Membre'}`
+                            : `Visite sur ${ev.metadata?.path || 'le site'}`}
+                        </b>
+                        <span>{timeStr}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {analyticsEvents.length === 0 && (
+                  <p className="cb-empty-hint">Aucune activité enregistrée pour le moment.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Registered Users List */}
+            <div className="cb-stats-card">
+              <h3><Users size={18} /> Membres Inscrits ({totalUsers})</h3>
+              <p className="cb-stats-sub">Comptes enregistrés dans Supabase :</p>
+              <div className="cb-users-list">
+                {registeredUsersList.map((u) => {
+                  const avSrc = avatarList[u.avatar_index] || avatar1;
+                  const dateStr = u.created_at
+                    ? new Date(u.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : 'Récemment';
+                  return (
+                    <div className="cb-user-row" key={u.id}>
+                      <img src={avSrc} alt="" className="cb-user-thumb" />
+                      <div className="cb-user-info">
+                        <b>{u.display_name || 'Membre'}</b>
+                        <span>Inscrit le {dateStr}</span>
+                      </div>
+                      {u.is_admin ? (
+                        <span className="cb-badge-role admin">Propriétaire</span>
+                      ) : (
+                        <span className="cb-badge-role member">Membre</span>
+                      )}
+                    </div>
+                  );
+                })}
+                {registeredUsersList.length === 0 && (
+                  <p className="cb-empty-hint">Chargement des membres…</p>
+                )}
               </div>
             </div>
           </div>
@@ -1779,7 +2008,11 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                 <div className={`cb-library-card ${isEditing ? 'editing' : ''}`} key={d.id}>
                   <div className="cb-lib-thumb">
                     <img src={d.image} alt={d.title} />
-                    {d.isSvg && <span className="cb-svg-tag">SVG</span>}
+                    {d.isSvg ? (
+                      <span className="cb-svg-tag">SVG</span>
+                    ) : (
+                      <span className="cb-png-tag">PNG</span>
+                    )}
                   </div>
 
                   <div className="cb-lib-body">
@@ -1835,6 +2068,17 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                           {d.cat.map(c => (
                             <span className="cb-cat-pill" key={c}>{c}</span>
                           ))}
+                        </div>
+                        <div className="cb-lib-formats-badge">
+                          {d.isSvg ? (
+                            <span className="cb-formats-pill svg" title="Formats actifs : SVG, PNG et PDF A4">
+                              ✨ SVG • PNG • PDF
+                            </span>
+                          ) : (
+                            <span className="cb-formats-pill png" title="Formats actifs : PNG et PDF A4">
+                              🖼️ PNG • PDF
+                            </span>
+                          )}
                         </div>
                         <div className="cb-lib-meta">
                           <span>❤️ {formatLikes(d.likes)}</span>
@@ -1958,6 +2202,40 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={choose} />
               </label>
               {preview && <img className="admin-preview" src={preview} alt="Aperçu" />}
+
+              {file && (
+                <div className={`cb-format-info-card ${detectedFormat === 'SVG' ? 'svg-mode' : 'png-mode'}`}>
+                  {detectedFormat === 'SVG' ? (
+                    <>
+                      <div className="cb-format-info-head">
+                        <span className="cb-format-badge-pill svg">🌿 SVG Vectoriel Détecté</span>
+                      </div>
+                      <p className="cb-format-info-desc">
+                        Ce dessin sera automatiquement proposé aux visiteurs en <b>3 formats</b> :
+                      </p>
+                      <ul className="cb-format-info-list">
+                        <li>✨ <b>SVG :</b> Fichier vectoriel HD original (découpe Cricut & redimensionnement infini)</li>
+                        <li>🖼️ <b>PNG :</b> Image haute résolution générée automatiquement</li>
+                        <li>📄 <b>PDF :</b> Document A4 prêt à imprimer généré automatiquement</li>
+                      </ul>
+                    </>
+                  ) : (
+                    <>
+                      <div className="cb-format-info-head">
+                        <span className="cb-format-badge-pill png">🖼️ Image Raster ({detectedFormat || 'PNG'}) Détectée</span>
+                      </div>
+                      <p className="cb-format-info-desc">
+                        Ce dessin sera automatiquement proposé aux visiteurs en <b>2 formats</b> :
+                      </p>
+                      <ul className="cb-format-info-list">
+                        <li>🖼️ <b>PNG :</b> Image originale haute résolution</li>
+                        <li>📄 <b>PDF :</b> Document A4 prêt à imprimer généré automatiquement</li>
+                        <li className="disabled">❌ <b>SVG :</b> Non disponible pour les fichiers matriciels (bouton masqué)</li>
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="admin-form">
