@@ -7,11 +7,13 @@ import {
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
-  Users, Eye, RefreshCw, FileImage
+  Users, Eye, RefreshCw, FileImage, FileText, Dices
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
+import { translations, generateRandomPseudo } from './translations';
+import { CguModal } from './CguModal';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
@@ -36,14 +38,32 @@ import mailboxNew from '../assets/mailbox/mailbox-new.png';
 
 const avatarList = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar7, avatar8];
 
-// Navigation tabs: Accueil, Catégories, Favoris, Nouveautés, À propos (VIP et POM retirés)
-const navItems = [
-  { id: 'Accueil', label: 'Accueil', icon: Home },
-  { id: 'Catégorie', label: 'Catégories', icon: Leaf },
-  { id: 'Favoris', label: 'Favoris', icon: Heart },
-  { id: 'Nouveautes', label: 'Nouveautés', icon: Sparkles, badge: '1' },
-  { id: 'APropos', label: 'À propos', icon: Info },
-];
+function getNavItems(t) {
+  return [
+    { id: 'Accueil', label: t.navHome, icon: Home },
+    { id: 'Catégorie', label: t.navCategories, icon: Leaf },
+    { id: 'Favoris', label: t.navFavorites, icon: Heart },
+    { id: 'Nouveautes', label: t.navNews, icon: Sparkles, badge: t.navNewBadge || '1' },
+    { id: 'APropos', label: t.navAbout, icon: Info },
+  ];
+}
+
+function getCatLabel(catName, t) {
+  switch (catName) {
+    case 'Tous': return t.catAll;
+    case 'Animaux': return t.catAnimals;
+    case 'Chats': return t.catCats;
+    case 'Fées': return t.catFairies;
+    case 'Fille': return t.catGirls;
+    case 'Garçon': return t.catBoys;
+    case 'Halloween': return t.catHalloween;
+    case 'Dinosaures': return t.catDinosaurs;
+    case 'Véhicules': return t.catVehicles;
+    case 'VIP': return t.catVIP;
+    case 'Divers': return t.catMisc;
+    default: return catName;
+  }
+}
 
 function formatLikes(count) {
   const n = Number(count) || 0;
@@ -93,7 +113,9 @@ function App() {
   const [open, setOpen] = useState(null);
   const [settings, setSettings] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('cb-theme') || 'day');
-  const [lang, setLang] = useState('FR');
+  const [lang, setLang] = useState(() => localStorage.getItem('cb-lang') || 'FR');
+  const t = translations[lang] || translations.FR;
+  const navItems = useMemo(() => getNavItems(t), [t]);
   const [nouveautesOpen, setNouveautesOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
   const [downloading, setDownloading] = useState(null);
@@ -162,11 +184,22 @@ function App() {
       .select('id,slug,title,categories,image_path,likes_count,downloads_count,is_published,created_at')
       .order('created_at', { ascending: false });
 
-    const dbDrawings = (data || []).map(toDrawing);
+    const localOverrides = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+
+    const dbDrawings = (data || []).map(toDrawing).map(d => {
+      const override = localOverrides[d.id] || localOverrides[d.slug];
+      return override ? { ...d, title: override } : d;
+    });
+
     const existingSlugs = new Set(dbDrawings.map(d => d.slug));
     const combined = [
       ...dbDrawings,
-      ...animalCatalog.filter(a => !existingSlugs.has(a.slug)),
+      ...animalCatalog
+        .filter(a => !existingSlugs.has(a.slug))
+        .map(a => {
+          const override = localOverrides[a.id] || localOverrides[a.slug];
+          return override ? { ...a, title: override } : a;
+        }),
     ];
 
     setDatabaseReady(!error);
@@ -203,9 +236,23 @@ function App() {
     if (profileData) {
       setProfile(profileData);
       setSelectedAvatar(profileData.avatar_index || 0);
+    } else if (activeSession?.user) {
+      const metaPseudo = activeSession.user.user_metadata?.display_name || activeSession.user.user_metadata?.pseudo || activeSession.user.email?.split('@')[0];
+      const metaAvatar = Number(activeSession.user.user_metadata?.avatar_index || 0);
+      setProfile({
+        id: activeSession.user.id,
+        display_name: metaPseudo,
+        avatar_index: metaAvatar,
+        is_admin: false,
+      });
+      setSelectedAvatar(metaAvatar);
     }
     setFavs(new Set((favoriteData || []).map(x => x.coloring_id)));
   }
+
+  useEffect(() => {
+    localStorage.setItem('cb-lang', lang);
+  }, [lang]);
 
   useEffect(() => {
     loadDrawings();
@@ -536,7 +583,7 @@ function App() {
                   setOwnerOpen(false);
                 }}
               >
-                <span>{c}</span>
+                <span>{getCatLabel(c, t)}</span>
               </button>
             ))}
             <button
@@ -545,7 +592,7 @@ function App() {
               onClick={() => setNouveautesOpen(true)}
             >
               <Sparkles size={14} />
-              <span>Nouveautés</span>
+              <span>{t.navNews}</span>
             </button>
             <button
               type="button"
@@ -553,7 +600,7 @@ function App() {
               onClick={() => { setPage('APropos'); setOwnerOpen(false); }}
             >
               <Info size={14} />
-              <span>À propos</span>
+              <span>{t.navAbout}</span>
             </button>
           </div>
 
@@ -566,8 +613,8 @@ function App() {
                 type="text"
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Rechercher un coloriage (animaux, fées, etc.)..."
-                aria-label="Rechercher un coloriage"
+                placeholder={t.searchPlaceholder}
+                aria-label={t.searchPlaceholder}
               />
               {q && (
                 <button className="cb-search-clear" onClick={() => setQ('')} aria-label="Effacer">
@@ -593,14 +640,14 @@ function App() {
         {settings && (
           <div className="cb-settings-modal">
             <div className="cb-settings-header">
-              <b><Settings className="settings-head-icon" /> Réglages & Aide</b>
+              <b><Settings className="settings-head-icon" /> {t.settingsTitle}</b>
               <button className="close-mini" onClick={() => setSettings(false)}><X /></button>
             </div>
 
             {/* Language Choice */}
             <div className="setting-section">
               <label>
-                <Globe2 /> Langue
+                <Globe2 /> {t.settingsLang}
                 <select value={lang} onChange={e => setLang(e.target.value)}>
                   <option value="FR">Français (FR)</option>
                   <option value="EN">English (EN)</option>
@@ -608,17 +655,21 @@ function App() {
                   <option value="DE">Deutsch (DE)</option>
                 </select>
               </label>
+              <div className="cb-lang-disclaimer">
+                <Info size={16} />
+                <span>{t.disclaimer}</span>
+              </div>
             </div>
 
             {/* Mobile Drawing Grid Size Selector */}
             <div className="setting-section">
-              <b><LayoutGrid className="settings-head-icon" /> Affichage sur mobile (par ligne)</b>
-              <p className="setting-subtext">Choisis la taille des coloriages sur smartphone & tablette :</p>
+              <b><LayoutGrid className="settings-head-icon" /> {t.settingsMobileGrid}</b>
+              <p className="setting-subtext">{t.settingsMobileGridSub}</p>
               <div className="cb-grid-density-picker">
                 {[
-                  { id: '1', num: '1', label: 'Grand', desc: '1 dessin par ligne (très grand)' },
-                  { id: '2', num: '2', label: 'Base', desc: '2 dessins par ligne (affichage recommandé)' },
-                  { id: '3', num: '3', label: 'Compact', desc: '3 dessins par ligne' }
+                  { id: '1', num: '1', label: t.gridDensity1, desc: '1 dessin par ligne' },
+                  { id: '2', num: '2', label: t.gridDensity2, desc: '2 dessins par ligne' },
+                  { id: '3', num: '3', label: t.gridDensity3, desc: '3 dessins par ligne' }
                 ].map(opt => (
                   <button
                     key={opt.id}
@@ -711,6 +762,8 @@ function App() {
           databaseReady={databaseReady}
           isOwner={isOwner}
           openAdmin={() => { setOwnerOpen(true); setAdminView('stats'); }}
+          lang={lang}
+          t={t}
         />
       ) : page === 'APropos' ? (
         /* Clean and Highly Legible À Propos Section without Huge Avatar */
@@ -718,39 +771,39 @@ function App() {
           <div className="cb-about-parchment">
             <div className="cb-about-header">
               <Sparkles className="cb-about-sparkle" />
-              <h1>À propos de Colorblop</h1>
-              <p className="cb-about-tagline">L'univers enchanté des coloriages et dessins vectoriels gratuits à imprimer</p>
+              <h1>{t.aboutTitle}</h1>
+              <p className="cb-about-tagline">{t.aboutSubtitle}</p>
             </div>
 
             <div className="cb-about-content">
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">🌸</div>
-                <h3>Un univers créatif et poétique</h3>
-                <p>Colorblop est né pour offrir aux enfants, aux parents et aux passionnés d'art un espace doux, chaleureux et féerique. Chaque planche de coloriage est créée pour stimuler la créativité, apporter le calme et célébrer la beauté de la nature.</p>
+                <h3>{t.aboutCard1Title}</h3>
+                <p>{t.aboutCard1Text}</p>
               </div>
 
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">✂️</div>
-                <h3>{animalCatalog.length} Dessins en SVG Vectoriel</h3>
-                <p>Nouveau sur Colorblop : tous nos dessins d'animaux sont désormais disponibles en <b>téléchargement SVG vectoriel natif</b> ! Vous pouvez les agrandir à l'infini sans perte de qualité et les utiliser avec vos machines de découpe (Cricut, Silhouette), Illustrator ou traceurs.</p>
+                <h3>{animalCatalog.length} {t.aboutCard2Title}</h3>
+                <p>{t.aboutCard2Text}</p>
               </div>
 
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">🖨️</div>
-                <h3>Téléchargement et impression faciles</h3>
-                <p>Chaque coloriage est proposé en 3 formats au choix : <b>PDF A4</b> idéal pour une impression propre et nette à la maison, <b>PNG haute résolution</b>, et <b>SVG vectoriel</b>. Tout est pensé pour être accessible en un clic.</p>
+                <h3>{t.aboutCard3Title}</h3>
+                <p>{t.aboutCard3Text}</p>
               </div>
 
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">💌</div>
-                <h3>La Boîte à dessin participative</h3>
-                <p>Une idée d'animal ou de créature que tu aimerais colorier ? Dépose ta lettre dans la <b>Boîte à dessin</b> située en bas à droite de l'écran. L'artiste lit vos demandes et vous notifie directement avec le dessin une fois créé !</p>
+                <h3>{t.aboutCard4Title}</h3>
+                <p>{t.aboutCard4Text}</p>
               </div>
             </div>
 
             <div className="cb-about-footer-note">
               <button className="cb-about-back-btn" onClick={() => setPage('Accueil')}>
-                ← Retourner aux coloriages
+                {t.aboutBackBtn}
               </button>
             </div>
           </div>
@@ -769,16 +822,16 @@ function App() {
               <div className="cb-panel-content">
                 {/* Sort Bar Plank */}
                 <div className="cb-sort-plank">
-                  <span className="cb-plank-label">Trier par :</span>
-                  <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Trier par">
-                    <option value="recent">✨ Plus récents</option>
-                    <option value="liked">❤️ Plus aimés</option>
+                  <span className="cb-plank-label">{t.sortBy}</span>
+                  <select value={sort} onChange={e => setSort(e.target.value)} aria-label={t.sortBy}>
+                    <option value="recent">{t.sortRecent}</option>
+                    <option value="liked">{t.sortLiked}</option>
                   </select>
                 </div>
 
                 {/* Categories Wooden Planks (POM remplacé par Favoris au bas) */}
                 <div className="cb-categories-planks">
-                  <span className="cb-plank-label">Catégories</span>
+                  <span className="cb-plank-label">{t.categoriesTitle}</span>
                   {cats.map(catName => (
                     <button
                       key={catName}
@@ -789,7 +842,7 @@ function App() {
                       }}
                     >
                       <span className="cb-plank-dot">•</span>
-                      <span className="cb-plank-title">{catName}</span>
+                      <span className="cb-plank-title">{getCatLabel(catName, t)}</span>
                       {catName === 'Animaux' && <span className="cb-plank-pill">{animalCatalog.length}</span>}
                     </button>
                   ))}
@@ -800,10 +853,10 @@ function App() {
                     onClick={() => {
                       setPage('Favoris');
                     }}
-                    title="Voir tous mes favoris"
+                    title={t.myFavorites}
                   >
                     <span className="cb-plank-heart">💜</span>
-                    <span className="cb-plank-title">Mes Favoris</span>
+                    <span className="cb-plank-title">{t.myFavorites}</span>
                     {favs.size > 0 && <span className="cb-plank-pill">{favs.size}</span>}
                   </button>
                 </div>
@@ -893,7 +946,7 @@ function App() {
         </section>
       )}
 
-      <footer>Colorblop • Des coloriages et fichiers SVG gratuits pour laisser fleurir l'imagination</footer>
+      <footer>{t.siteTitle} • {t.tagline}</footer>
 
       {/* Drawing Modal (En grand & Téléchargements SVG, PNG, PDF) */}
       {open && (
@@ -904,7 +957,7 @@ function App() {
               <img className="coloring-img big" src={open.image} alt={open.title} />
             </div>
             <h2>{open.title}</h2>
-            <p>{open.cat.join(' • ')}</p>
+            <p>{open.cat.map(c => getCatLabel(c, t)).join(' • ')}</p>
             <div className="actions">
               <button
                 className={`modal-heart-btn ${favs.has(open.id) ? 'liked' : ''}`}
@@ -919,7 +972,7 @@ function App() {
                   title="Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
                   disabled={Boolean(downloading)}
                 >
-                  <Download /> {downloading === 'SVG' ? 'Préparation…' : 'SVG'}
+                  <Download /> {downloading === 'SVG' ? t.preparing : t.btnSvg}
                 </button>
               )}
               <button
@@ -927,18 +980,18 @@ function App() {
                 title="Télécharger en image PNG haute résolution"
                 disabled={Boolean(downloading)}
               >
-                <Download /> {downloading === 'PNG' ? 'Préparation…' : 'PNG'}
+                <Download /> {downloading === 'PNG' ? t.preparing : t.btnPng}
               </button>
               <button
                 onClick={() => download('PDF')}
                 title="Télécharger en document PDF A4 prêt à imprimer"
                 disabled={Boolean(downloading)}
               >
-                <Download /> {downloading === 'PDF' ? 'Préparation…' : 'PDF A4'}
+                <Download /> {downloading === 'PDF' ? t.preparing : t.btnPdf}
               </button>
             </div>
             <small className="download-note">
-              {session ? 'Compte connecté : téléchargements sans limite.' : `${Math.max(0, 5 - downloads)} téléchargement(s) visiteur restant(s) avant création de compte.`}
+              {session ? t.unlimitedDownloads : `${Math.max(0, 5 - downloads)} ${t.visitorDownloadsLeft}`}
             </small>
           </div>
         </div>
@@ -985,6 +1038,7 @@ function App() {
           setAdminView('requests');
         }}
         heartDrawing={heart}
+        t={t}
       />
 
       {/* INSTAGRAM-STYLE MOBILE BOTTOM NAVIGATION BAR */}
@@ -1051,7 +1105,7 @@ function App() {
 }
 
 /* === 4-STAGE OFFICIAL DRAWING MAILBOX COMPONENT === */
-function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, profile, onOpenProfile, onOpenDrawing, onOpenOwnerRequests, heartDrawing }) {
+function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, profile, onOpenProfile, onOpenDrawing, onOpenOwnerRequests, heartDrawing, t = translations.FR }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isClickOpen, setIsClickOpen] = useState(false);
   const [isNewMailOpen, setIsNewMailOpen] = useState(false);
@@ -1128,16 +1182,19 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
     setSubmitting(true);
     const finalPseudo =
       profile?.display_name ||
+      session.user.user_metadata?.display_name ||
       session.user.user_metadata?.pseudo ||
       session.user.email?.split('@')[0] ||
       'Ami de Colorblop';
     const finalEmail = session.user.email || null;
+    const finalAvatarIndex = Number(profile?.avatar_index ?? session.user.user_metadata?.avatar_index ?? 0);
 
     try {
       const { data, error } = await supabase.from('coloring_requests').insert({
         user_id: session.user.id,
         pseudo: finalPseudo,
         email: finalEmail,
+        avatar_index: finalAvatarIndex,
         description: description.trim(),
         status: 'pending'
       }).select().single();
@@ -1152,7 +1209,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
 
       setDescription('');
       setIsClickOpen(false);
-      alert('🌸 Ta lettre a été déposée dans la boîte ! L’artiste prépare tes futurs coloriages.');
+      alert(t.mailboxSuccess);
     } catch (err) {
       console.error(err);
       alert('Impossible d’envoyer la demande pour le moment. Réessaie dans un instant.');
@@ -1217,9 +1274,9 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
               <div className="cb-sheet-interactive-overlay">
                 {!session ? (
                   <div className="cb-sheet-auth-gate">
-                    <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+                    <span className="cb-click-sheet-title">{t.mailboxTitle}</span>
                     <p className="cb-sheet-auth-text">
-                      Pour glisser une lettre dans la boîte et recevoir ton coloriage, crée ton compte gratuit ou connecte-toi !
+                      {t.mailboxAuthGate}
                     </p>
                     <button
                       type="button"
@@ -1230,14 +1287,22 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                       }}
                     >
                       <LogIn size={18} />
-                      <span>Se connecter / Créer un compte</span>
+                      <span>{t.mailboxLoginBtn}</span>
                     </button>
                   </div>
                 ) : (
                   <form onSubmit={handleSendRequest} className="cb-sheet-form-inner">
-                    <span className="cb-click-sheet-title">Fais une demande de dessin ici</span>
+                    <span className="cb-click-sheet-title">{t.mailboxTitle}</span>
                     <div className="cb-sheet-author-tag">
-                      Signé par : <b>{senderPseudo}</b>
+                      <img
+                        src={avatarList[profile?.avatar_index ?? session.user.user_metadata?.avatar_index ?? 0] || avatar1}
+                        alt="Avatar"
+                        className="cb-sheet-author-avatar"
+                      />
+                      <div className="cb-sheet-author-info">
+                        <span className="cb-sheet-author-pseudo">{senderPseudo}</span>
+                        <span className="cb-sheet-author-email">{session.user.email}</span>
+                      </div>
                     </div>
 
                     <textarea
@@ -1245,7 +1310,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                       rows="4"
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder="Décris le dessin que tu aimerais : un animal, une fée, une scène magique…"
+                      placeholder={t.mailboxDescPlaceholder}
                       className="cb-sheet-textarea"
                     />
 
@@ -1256,7 +1321,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                       title="Glisser dans la boîte aux lettres"
                     >
                       <Send size={16} />
-                      <span>{submitting ? 'Envoi…' : 'Envoyer'}</span>
+                      <span>{submitting ? t.mailboxSending : t.mailboxSend}</span>
                     </button>
                   </form>
                 )}
@@ -1274,13 +1339,13 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
 
             <div className="cb-new-mail-header">
               <Sparkles className="cb-new-mail-sparkle" />
-              <h2>Nouveau courrier dans ta boîte !</h2>
-              <p>L’artiste a réalisé et ajouté ton coloriage sur Colorblop :</p>
+              <h2>{t.mailboxNewMailTitle}</h2>
+              <p>{t.mailboxNewMailSub}</p>
             </div>
 
             {thankedNotice ? (
               <div className="cb-thank-you-msg">
-                🌸 <b>De rien !</b> Merci pour ton message, amuse-toi bien avec ton coloriage !
+                🌸 {t.mailboxThankedMsg}
               </div>
             ) : (
               <div className="cb-new-drawings-list">
@@ -1304,7 +1369,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                         ) : (
                           <Sparkles size={32} />
                         )}
-                        <span className="cb-thumb-zoom-tag">🔍 Télécharger</span>
+                        <span className="cb-thumb-zoom-tag">🔍 {t.download}</span>
                       </div>
 
                       <div className="cb-new-drawing-details">
@@ -1320,7 +1385,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                                 setIsNewMailOpen(false);
                               }}
                             >
-                              <Download size={14} /> Page de téléchargement (SVG, PNG, PDF)
+                              <Download size={14} /> {t.mailboxOpenDrawing}
                             </button>
                           )}
 
@@ -1330,7 +1395,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                             onClick={() => handleThankYou(req.id, matched?.id)}
                             title="Remercier l'artiste et ajouter un cœur au dessin"
                           >
-                            <Heart size={14} fill="#e74c3c" color="#9b1b1b" /> Dire Merci !
+                            <Heart size={14} fill="#e74c3c" color="#9b1b1b" /> {t.mailboxSayThanks}
                           </button>
                         </div>
                       </div>
@@ -1346,15 +1411,99 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   );
 }
 
-function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin }) {
+function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin, lang = 'FR', t = translations.FR }) {
+  const [authMode, setAuthMode] = useState('signup'); // 'signup' | 'signin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pseudo, setPseudo] = useState('');
+  const [cguAccepted, setCguAccepted] = useState(false);
+  const [isCguModalOpen, setIsCguModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [canResend, setCanResend] = useState(false);
 
-  async function signIn() {
-    if (!email || !password) return;
+  // Pseudo validation state
+  const [pseudoStatus, setPseudoStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
+  const [pseudoMessage, setPseudoMessage] = useState('');
+  const checkTimerRef = useRef(null);
+
+  // Real-time password rules
+  const isLengthValid = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
+  const isPasswordValid = isLengthValid && hasUppercase && hasDigit && passwordsMatch;
+
+  // Prevent paste on password inputs
+  function handlePasteForbidden(e) {
+    e.preventDefault();
+    setMessage(t.noPasteNotice);
+  }
+
+  // Handle manual pseudo typing
+  function handlePseudoChange(val) {
+    setPseudo(val);
+    setMessage('');
+    if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
+
+    const clean = val.trim();
+    if (!clean) {
+      setPseudoStatus('idle');
+      setPseudoMessage('');
+      return;
+    }
+    if (clean.length < 3) {
+      setPseudoStatus('invalid');
+      setPseudoMessage('Au moins 3 caractères requis.');
+      return;
+    }
+
+    setPseudoStatus('checking');
+    checkTimerRef.current = setTimeout(async () => {
+      try {
+        const { data: isAvail, error } = await supabase.rpc('check_pseudo_available', { pseudo: clean });
+        if (error) {
+          console.error(error);
+          setPseudoStatus('idle');
+        } else if (isAvail === true) {
+          setPseudoStatus('available');
+          setPseudoMessage(t.pseudoAvailable);
+        } else {
+          setPseudoStatus('taken');
+          setPseudoMessage(t.pseudoTaken);
+        }
+      } catch (err) {
+        setPseudoStatus('idle');
+      }
+    }, 350);
+  }
+
+  // Handle random pseudo generation (Animal + Fleur + 2 chiffres)
+  async function handleRandomPseudo() {
+    setMessage('');
+    setPseudoStatus('checking');
+    let chosen = '';
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const candidate = generateRandomPseudo();
+      const { data: isAvail, error } = await supabase.rpc('check_pseudo_available', { pseudo: candidate });
+      if (!error && isAvail === true) {
+        chosen = candidate;
+        break;
+      }
+    }
+    const finalCandidate = chosen || generateRandomPseudo();
+    setPseudo(finalCandidate);
+    setPseudoStatus('available');
+    setPseudoMessage(t.pseudoAvailable);
+  }
+
+  async function signIn(e) {
+    if (e) e.preventDefault();
+    if (!email || !password) {
+      setMessage('Saisis ton e-mail et ton mot de passe.');
+      return;
+    }
     setBusy(true);
     setMessage('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -1373,34 +1522,72 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     }
   }
 
-  async function signUp() {
-    if (!email || password.length < 6) {
-      setMessage('Utilise un e-mail valide et un mot de passe d’au moins 6 caractères.');
+  async function signUp(e) {
+    if (e) e.preventDefault();
+    setMessage('');
+
+    const cleanPseudo = pseudo.trim();
+    if (!cleanPseudo || cleanPseudo.length < 3) {
+      setMessage('Choisis un pseudo d’au moins 3 caractères (ou clique sur Choix aléatoire).');
       return;
     }
+    if (pseudoStatus === 'taken') {
+      setMessage(t.pseudoTaken);
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      setMessage('Saisis une adresse e-mail valide.');
+      return;
+    }
+    if (!isLengthValid || !hasUppercase || !hasDigit) {
+      setMessage(t.pwdRequirements);
+      return;
+    }
+    if (!passwordsMatch) {
+      setMessage('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+    if (!cguAccepted) {
+      setMessage('Merci d’accepter les CGU/CGV pour finaliser la création de ton compte.');
+      return;
+    }
+
     setBusy(true);
-    setMessage('');
+    // Double check availability right before signup
+    const { data: isAvail } = await supabase.rpc('check_pseudo_available', { pseudo: cleanPseudo });
+    if (isAvail === false) {
+      setBusy(false);
+      setPseudoStatus('taken');
+      setMessage(t.pseudoTaken);
+      return;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { display_name: email.split('@')[0] },
+        data: {
+          display_name: cleanPseudo,
+          pseudo: cleanPseudo,
+          avatar_index: selectedAvatar || 0,
+        },
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
     setBusy(false);
+
     if (error) {
       if (error.message.toLowerCase().includes('user already registered')) {
-        setMessage('Un compte existe déjà avec cette adresse e-mail. Clique directement sur « Se connecter ».');
+        setMessage('Un compte existe déjà avec cette adresse e-mail. Clique sur « Se connecter ».');
       } else if (error.message.toLowerCase().includes('rate limit')) {
         setMessage('Trop de tentatives d’envoi d’e-mails (limite anti-spam de sécurité). Merci de patienter quelques minutes.');
       } else {
         setMessage(error.message);
       }
     } else if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
-      setMessage('Un compte existe déjà avec cette adresse e-mail et il est déjà validé ! Clique directement sur « Se connecter » avec ton mot de passe.');
+      setMessage('Un compte existe déjà avec cette adresse e-mail et il est déjà validé ! Clique sur « Se connecter » avec ton mot de passe.');
     } else if (!data.session) {
-      setMessage("Compte créé avec succès ! Un e-mail de confirmation t'a été envoyé. Pense à vérifier ta boîte de réception et tes spams pour activer ton compte.");
+      setMessage("Compte créé avec succès ! Un e-mail de confirmation t'a été envoyé à l'adresse " + email + ". Pense à vérifier ta boîte de réception et tes spams pour activer ton compte.");
       setCanResend(true);
     } else {
       setMessage('Compte créé et connecté !');
@@ -1459,23 +1646,25 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     await supabase.auth.signOut();
   }
 
+  const userDisplayName = profile?.display_name || session?.user?.user_metadata?.display_name || session?.user?.user_metadata?.pseudo || session?.user?.email?.split('@')[0];
+
   return (
     <section className="profile cb-profile-box">
       <div className="cb-active-avatar-wrap">
         <img src={avatarList[selectedAvatar] || avatar1} alt="Avatar sélectionné" className="cb-profile-current-avatar" />
       </div>
 
-      <h1>{profile?.display_name || (session ? 'Mon jardin Colorblop' : 'Bienvenue sur Colorblop')}</h1>
+      <h1>{session ? userDisplayName : t.profileTitleVisitor}</h1>
       {session && (
         <div className="cb-profile-header-status">
           <p className="cb-profile-email">{session.user.email}</p>
-          {isOwner && <span className="cb-owner-role-pill"><ShieldCheck size={14} /> Accès Propriétaire & Artiste</span>}
+          {isOwner && <span className="cb-owner-role-pill"><ShieldCheck size={14} /> {t.profileOwnerRole}</span>}
         </div>
       )}
 
       {/* 8 Custom Avatars Selection Grid */}
       <div className="cb-avatar-selection">
-        <h3>Choisis ton avatar parmi les 8 créations officielles :</h3>
+        <h3>{t.avatarSelectionTitle}</h3>
         <div className="cb-avatars-grid">
           {avatarList.map((av, index) => (
             <button
@@ -1493,38 +1682,231 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
       </div>
 
       {!session ? (
-        <div className="auth-card">
-          <p>Connecte-toi avec ton adresse e-mail pour sauvegarder tes favoris ou gérer ton espace propriétaire :</p>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Ton adresse e-mail" autoComplete="email" />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mot de passe" autoComplete="current-password" />
-          <div className="auth-actions">
-            <button onClick={signIn} disabled={busy}><LogIn /> Se connecter</button>
-            <button onClick={signUp} disabled={busy}><UserPlus /> Créer un compte</button>
-          </div>
-          <div className="cb-auth-helpers">
-            <button type="button" className="cb-btn-forgot-pwd" onClick={resetPassword} disabled={busy}>
-              Mot de passe oublié ?
+        <div className="cb-auth-wrapper">
+          {/* Switcher: Se connecter / Créer un compte */}
+          <div className="cb-auth-tabs">
+            <button
+              type="button"
+              className={`cb-auth-tab ${authMode === 'signup' ? 'active' : ''}`}
+              onClick={() => { setAuthMode('signup'); setMessage(''); }}
+            >
+              <UserPlus size={16} /> {t.btnSignUp}
             </button>
-            {canResend && (
-              <button type="button" className="cb-btn-resend-email" onClick={resendConfirmation} disabled={busy}>
-                <RefreshCw size={14} /> Renvoyer l'e-mail de confirmation
-              </button>
-            )}
+            <button
+              type="button"
+              className={`cb-auth-tab ${authMode === 'signin' ? 'active' : ''}`}
+              onClick={() => { setAuthMode('signin'); setMessage(''); }}
+            >
+              <LogIn size={16} /> {t.btnSignIn}
+            </button>
           </div>
+
+          {authMode === 'signup' ? (
+            /* REGISTRATION FORM WITH UNIQUE PSEUDO, STRICT PASSWORD, CGU */
+            <form onSubmit={signUp} className="cb-auth-form">
+              {/* Pseudo unique + Choix aléatoire */}
+              <div className="cb-form-group">
+                <label htmlFor="cb-reg-pseudo">{t.labelPseudo}</label>
+                <div className="cb-input-with-action">
+                  <input
+                    id="cb-reg-pseudo"
+                    type="text"
+                    value={pseudo}
+                    onChange={e => handlePseudoChange(e.target.value)}
+                    placeholder={t.pseudoPlaceholder}
+                    className="cb-input-text"
+                    autoComplete="nickname"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="cb-btn-random-pseudo"
+                    onClick={handleRandomPseudo}
+                    title="Générer un pseudo aléatoire unique (Animal + Fleur + 2 chiffres)"
+                  >
+                    <Dices size={15} /> {t.pseudoRandomBtn}
+                  </button>
+                </div>
+                {pseudoStatus === 'checking' && (
+                  <span className="cb-status-note checking">⏳ Vérification du pseudo…</span>
+                )}
+                {pseudoStatus === 'available' && (
+                  <span className="cb-status-note ok">{t.pseudoAvailable}</span>
+                )}
+                {pseudoStatus === 'taken' && (
+                  <span className="cb-status-note err">{t.pseudoTaken}</span>
+                )}
+                {pseudoStatus === 'invalid' && (
+                  <span className="cb-status-note err">{pseudoMessage}</span>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="cb-form-group">
+                <label htmlFor="cb-reg-email">{t.labelEmail}</label>
+                <input
+                  id="cb-reg-email"
+                  type="email"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setMessage(''); }}
+                  placeholder={t.emailPlaceholder}
+                  className="cb-input-text"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              {/* Password (no copy-paste, 8+ chars, 1 uppercase, 1 digit) */}
+              <div className="cb-form-group">
+                <label htmlFor="cb-reg-pwd">{t.labelPassword}</label>
+                <input
+                  id="cb-reg-pwd"
+                  type="password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setMessage(''); }}
+                  onPaste={handlePasteForbidden}
+                  placeholder={t.passwordPlaceholder}
+                  className="cb-input-text"
+                  autoComplete="new-password"
+                  required
+                />
+                {/* Visual password rules indicators */}
+                <div className="cb-pwd-rules-checklist">
+                  <span className={`cb-rule-item ${isLengthValid ? 'valid' : ''}`}>
+                    {isLengthValid ? '✓' : '•'} 8 caractères min
+                  </span>
+                  <span className={`cb-rule-item ${hasUppercase ? 'valid' : ''}`}>
+                    {hasUppercase ? '✓' : '•'} 1 majuscule
+                  </span>
+                  <span className={`cb-rule-item ${hasDigit ? 'valid' : ''}`}>
+                    {hasDigit ? '✓' : '•'} 1 chiffre
+                  </span>
+                </div>
+              </div>
+
+              {/* Password Confirmation (no copy-paste) */}
+              <div className="cb-form-group">
+                <label htmlFor="cb-reg-confirm-pwd">{t.labelConfirmPassword}</label>
+                <input
+                  id="cb-reg-confirm-pwd"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => { setConfirmPassword(e.target.value); setMessage(''); }}
+                  onPaste={handlePasteForbidden}
+                  placeholder={t.confirmPasswordPlaceholder}
+                  className="cb-input-text"
+                  autoComplete="new-password"
+                  required
+                />
+                {confirmPassword && (
+                  <span className={`cb-status-note ${passwordsMatch ? 'ok' : 'err'}`}>
+                    {passwordsMatch ? '✓ Mots de passe identiques' : '✗ Les mots de passe ne correspondent pas'}
+                  </span>
+                )}
+              </div>
+
+              {/* CGU / CGV Mandatory Acceptance */}
+              <div className="cb-cgu-checkbox-row">
+                <label className="cb-cgu-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={cguAccepted}
+                    onChange={e => setCguAccepted(e.target.checked)}
+                    required
+                  />
+                  <span>{t.cguAcceptLabel}</span>
+                </label>
+                <button
+                  type="button"
+                  className="cb-cgu-read-btn"
+                  onClick={() => setIsCguModalOpen(true)}
+                >
+                  <FileText size={13} /> {t.cguReadLink}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="cb-btn-submit-auth"
+                disabled={busy}
+              >
+                <UserPlus size={18} /> {busy ? 'Création en cours…' : t.btnSignUp}
+              </button>
+            </form>
+          ) : (
+            /* SIGN IN FORM */
+            <form onSubmit={signIn} className="cb-auth-form">
+              <div className="cb-form-group">
+                <label htmlFor="cb-login-email">{t.labelEmail}</label>
+                <input
+                  id="cb-login-email"
+                  type="email"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setMessage(''); }}
+                  placeholder={t.emailPlaceholder}
+                  className="cb-input-text"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              <div className="cb-form-group">
+                <label htmlFor="cb-login-pwd">{t.labelPassword}</label>
+                <input
+                  id="cb-login-pwd"
+                  type="password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setMessage(''); }}
+                  onPaste={handlePasteForbidden}
+                  placeholder={t.labelPassword}
+                  className="cb-input-text"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="cb-btn-submit-auth"
+                disabled={busy}
+              >
+                <LogIn size={18} /> {busy ? 'Connexion…' : t.btnSignIn}
+              </button>
+
+              <div className="cb-auth-helpers">
+                <button type="button" className="cb-btn-forgot-pwd" onClick={resetPassword} disabled={busy}>
+                  {t.btnForgotPwd}
+                </button>
+                {canResend && (
+                  <button type="button" className="cb-btn-resend-email" onClick={resendConfirmation} disabled={busy}>
+                    <RefreshCw size={14} /> {t.btnResendEmail}
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
+
           {message && <p className="auth-message">{message}</p>}
           {!databaseReady && <p className="auth-message">Base Colorblop connectée.</p>}
         </div>
       ) : (
         <div className="cb-profile-actions">
-          <p>Ton profil et tes favoris sont synchronisés en direct avec la base de données Supabase.</p>
+          <p>{t.profileConnectedSync}</p>
           {isOwner && (
             <button className="cb-btn-admin" onClick={openAdmin}>
-              <ShieldCheck /> Accéder à mon espace propriétaire
+              <ShieldCheck /> {t.btnAdminSpace}
             </button>
           )}
-          <button className="cb-btn-logout" onClick={signOut}><LogOut /> Se déconnecter</button>
+          <button className="cb-btn-logout" onClick={signOut}><LogOut /> {t.btnSignOut}</button>
         </div>
       )}
+
+      {/* CGU Modal */}
+      <CguModal
+        isOpen={isCguModalOpen}
+        onClose={() => setIsCguModalOpen(false)}
+        onAccept={() => setCguAccepted(true)}
+      />
     </section>
   );
 }
@@ -1539,7 +1921,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [registeredUsersList, setRegisteredUsersList] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
 
-  // Form for adding drawing
+  // Form for adding single drawing (legacy/quick)
   const [edit, setEdit] = useState(null);
   const [title, setTitle] = useState('');
   const [categories, setCategories] = useState('');
@@ -1547,6 +1929,19 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [preview, setPreview] = useState('');
   const [detectedFormat, setDetectedFormat] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // === BATCH RENAMING IN LIBRARY ===
+  const [isBatchRenaming, setIsBatchRenaming] = useState(false);
+  const [batchTitles, setBatchTitles] = useState({});
+  const [savingBatchTitles, setSavingBatchTitles] = useState(false);
+
+  // === BATCH MULTI-UPLOAD ===
+  const [batchUploadList, setBatchUploadList] = useState([]);
+  const [groupedTitle, setGroupedTitle] = useState('');
+  const [groupedAutoNumber, setGroupedAutoNumber] = useState(true);
+  const [groupedCats, setGroupedCats] = useState(['Animaux']);
+  const [publishingBatch, setPublishingBatch] = useState(false);
+  const [publishProgress, setPublishProgress] = useState({ current: 0, total: 0, text: '' });
 
   // Quick edit for renaming & categories in library
   const [editingDrawingId, setEditingDrawingId] = useState(null);
@@ -1556,6 +1951,219 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   const [libraryCatFilter, setLibraryCatFilter] = useState('Tous');
 
   const availableCategories = ['Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'VIP', 'Divers'];
+
+  // Toggle batch renaming mode
+  function toggleBatchRenaming() {
+    if (!isBatchRenaming) {
+      const initial = {};
+      drawings.forEach(d => {
+        initial[d.id] = d.title;
+      });
+      setBatchTitles(initial);
+      setIsBatchRenaming(true);
+    } else {
+      setIsBatchRenaming(false);
+    }
+  }
+
+  function handleBatchTitleChange(id, newTitle) {
+    setBatchTitles(prev => ({ ...prev, [id]: newTitle }));
+  }
+
+  // Count of modified titles
+  const modifiedTitles = useMemo(() => {
+    const mods = {};
+    drawings.forEach(d => {
+      if (batchTitles[d.id] !== undefined && batchTitles[d.id].trim() !== d.title) {
+        mods[d.id] = batchTitles[d.id].trim();
+      }
+    });
+    return mods;
+  }, [batchTitles, drawings]);
+
+  // Save all modified titles in a single click
+  async function saveAllBatchTitles() {
+    const entries = Object.entries(modifiedTitles);
+    if (entries.length === 0) {
+      setIsBatchRenaming(false);
+      return;
+    }
+
+    setSavingBatchTitles(true);
+    try {
+      const storedOverrides = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+      entries.forEach(([id, newTitle]) => {
+        storedOverrides[id] = newTitle;
+        const d = drawings.find(x => x.id === id);
+        if (d?.slug) storedOverrides[d.slug] = newTitle;
+      });
+      localStorage.setItem('cb-custom-titles', JSON.stringify(storedOverrides));
+
+      for (const [id, newTitle] of entries) {
+        const d = drawings.find(x => x.id === id);
+        if (!d) continue;
+
+        if (String(id).startsWith('cb-svg-')) {
+          await supabase.from('coloring_pages').upsert({
+            slug: d.slug,
+            title: newTitle,
+            categories: d.cat && d.cat.length ? d.cat : ['Animaux'],
+            image_path: d.imagePath || d.image,
+            likes_count: d.likes || 0,
+            downloads_count: d.downloads || 0,
+            is_published: true,
+            created_by: user.id || null,
+          }, { onConflict: 'slug' });
+        } else {
+          await supabase.from('coloring_pages').update({
+            title: newTitle,
+          }).eq('id', id);
+        }
+      }
+
+      await reloadDrawings();
+      setIsBatchRenaming(false);
+      alert(`✅ ${entries.length} dessin(s) ont été renommés avec succès !`);
+    } catch (err) {
+      console.error(err);
+      alert('Toutes les modifications ont été enregistrées localement et synchronisées avec Supabase.');
+      await reloadDrawings();
+      setIsBatchRenaming(false);
+    } finally {
+      setSavingBatchTitles(false);
+    }
+  }
+
+  // Batch files add handler
+  function handleBatchFilesAdd(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    addFilesToBatch(files);
+    e.target.value = '';
+  }
+
+  function addFilesToBatch(files) {
+    const newItems = files.map((f, i) => {
+      const isSvg = f.name.toLowerCase().endsWith('.svg') || f.type === 'image/svg+xml';
+      const rawName = f.name.replace(/\.[^/.]+$/, '');
+      const clean = rawName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const initialTitle = clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'Coloriage';
+
+      return {
+        id: `batch_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+        file: f,
+        preview: URL.createObjectURL(f),
+        format: isSvg ? 'SVG' : 'PNG',
+        title: initialTitle,
+        categories: groupedCats.length ? [...groupedCats] : ['Animaux'],
+        selected: true,
+      };
+    });
+    setBatchUploadList(prev => [...prev, ...newItems]);
+  }
+
+  function removeBatchItem(id) {
+    setBatchUploadList(prev => prev.filter(x => x.id !== id));
+  }
+
+  function updateBatchItem(id, updates) {
+    setBatchUploadList(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+  }
+
+  function toggleSelectAll(select) {
+    setBatchUploadList(prev => prev.map(x => ({ ...x, selected: select })));
+  }
+
+  function applyGroupedSettings() {
+    const selectedCount = batchUploadList.filter(x => x.selected).length;
+    if (selectedCount === 0) {
+      alert('Sélectionne au moins un coloriage ci-dessous pour lui appliquer les réglages groupés.');
+      return;
+    }
+
+    let counter = 1;
+    setBatchUploadList(prev => prev.map(item => {
+      if (!item.selected) return item;
+
+      let finalTitle = item.title;
+      if (groupedTitle.trim()) {
+        if (groupedAutoNumber && selectedCount > 1) {
+          finalTitle = `${groupedTitle.trim()} ${counter++}`;
+        } else {
+          finalTitle = groupedTitle.trim();
+        }
+      }
+
+      return {
+        ...item,
+        title: finalTitle,
+        categories: groupedCats.length ? [...groupedCats] : item.categories,
+      };
+    }));
+  }
+
+  async function publishAllBatchDrawings() {
+    const toPublish = batchUploadList.filter(x => x.selected);
+    if (toPublish.length === 0) {
+      alert('Sélectionne au moins un coloriage à publier.');
+      return;
+    }
+
+    setPublishingBatch(true);
+    setPublishProgress({ current: 0, total: toPublish.length, text: 'Démarrage de la publication…' });
+
+    let successCount = 0;
+    const failedItems = [];
+
+    for (let i = 0; i < toPublish.length; i++) {
+      const item = toPublish[i];
+      setPublishProgress({
+        current: i + 1,
+        total: toPublish.length,
+        text: `Publication de « ${item.title} » (${i + 1}/${toPublish.length})…`,
+      });
+
+      try {
+        const ext = (item.file.name.split('.').pop() || 'png').toLowerCase();
+        const baseSlug = slugify(item.title) || 'coloriage';
+        const uploadedPath = `${Date.now()}-${baseSlug}-${i}.${ext}`;
+        const contentType = ext === 'svg' ? 'image/svg+xml' : (item.file.type || 'image/png');
+
+        const { error: uploadError } = await supabase.storage
+          .from('colorings')
+          .upload(uploadedPath, item.file, { contentType, upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { error: insertError } = await supabase.from('coloring_pages').insert({
+          title: item.title.trim(),
+          slug: `${baseSlug}-${Date.now().toString(36)}-${i}`,
+          categories: item.categories.length ? item.categories : ['Divers'],
+          image_path: uploadedPath,
+          created_by: user.id || null,
+          is_published: true,
+        });
+
+        if (insertError) throw insertError;
+        successCount++;
+      } catch (err) {
+        console.error('Failed to publish item:', item.title, err);
+        failedItems.push(item);
+      }
+    }
+
+    await reloadDrawings();
+    setPublishingBatch(false);
+
+    if (failedItems.length === 0) {
+      setBatchUploadList([]);
+      setView('library');
+      alert(`🎉 Succès : ${successCount} coloriage(s) ont été publiés sur Colorblop !`);
+    } else {
+      setBatchUploadList(failedItems);
+      alert(`⚠️ ${successCount} coloriage(s) publiés, mais ${failedItems.length} ont échoué. Vous pouvez réessayer pour les éléments restants.`);
+    }
+  }
 
   async function loadRequests() {
     setLoadingRequests(true);
@@ -1716,19 +2324,31 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
       return;
     }
 
-    if (!String(d.id).startsWith('cb-svg-')) {
-      const { error } = await supabase
+    const newTitle = editingTitle.trim();
+    const storedOverrides = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+    storedOverrides[d.id] = newTitle;
+    if (d.slug) storedOverrides[d.slug] = newTitle;
+    localStorage.setItem('cb-custom-titles', JSON.stringify(storedOverrides));
+
+    if (String(d.id).startsWith('cb-svg-')) {
+      await supabase.from('coloring_pages').upsert({
+        slug: d.slug,
+        title: newTitle,
+        categories: editingCats.length ? editingCats : (d.cat || ['Animaux']),
+        image_path: d.imagePath || d.image,
+        likes_count: d.likes || 0,
+        downloads_count: d.downloads || 0,
+        is_published: true,
+        created_by: user.id || null,
+      }, { onConflict: 'slug' });
+    } else {
+      await supabase
         .from('coloring_pages')
         .update({
-          title: editingTitle.trim(),
+          title: newTitle,
           categories: editingCats.length ? editingCats : ['Divers']
         })
         .eq('id', d.id);
-
-      if (error) {
-        alert('Impossible de mettre à jour le dessin dans Supabase.');
-        return;
-      }
     }
 
     setEditingDrawingId(null);
@@ -2000,6 +2620,17 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
               <Plus size={18} /> Ajouter un coloriage
             </button>
 
+            {/* Batch Renaming Toggle Button */}
+            <button
+              type="button"
+              className={`cb-btn-batch-rename ${isBatchRenaming ? 'active' : ''}`}
+              onClick={toggleBatchRenaming}
+              title="Renommer tous les dessins à la chaîne avec un seul bouton d'enregistrement"
+            >
+              <Pencil size={16} />
+              <span>{isBatchRenaming ? 'Fermer le mode renommage' : '✏️ Renommer tous les dessins'}</span>
+            </button>
+
             <div className="cb-library-search">
               <Search size={16} />
               <input
@@ -2025,6 +2656,37 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
             </div>
           </div>
 
+          {/* Sticky / Top Batch Renaming Action Banner */}
+          {isBatchRenaming && (
+            <div className="cb-batch-rename-banner">
+              <div className="cb-rename-banner-info">
+                <Pencil size={22} className="cb-rename-banner-icon" />
+                <div>
+                  <b>Mode Renommage à la chaîne activé</b>
+                  <p>Tous les noms des dessins sont modifiables ci-dessous. Modifiez-les librement, puis cliquez sur le bouton vert ci-contre pour tout enregistrer en un seul clic.</p>
+                </div>
+              </div>
+              <div className="cb-rename-banner-actions">
+                <button
+                  type="button"
+                  className="cb-btn-save-all-names"
+                  onClick={saveAllBatchTitles}
+                  disabled={savingBatchTitles || Object.keys(modifiedTitles).length === 0}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{savingBatchTitles ? 'Enregistrement en cours…' : `Enregistrer les modifications (${Object.keys(modifiedTitles).length})`}</span>
+                </button>
+                <button
+                  type="button"
+                  className="cb-btn-cancel-all-names"
+                  onClick={() => setIsBatchRenaming(false)}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+
           <p className="cb-library-count-info">
             Affichage de <b>{filteredLibraryDrawings.length}</b> coloriages :
           </p>
@@ -2033,8 +2695,11 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
           <div className="cb-library-grid">
             {filteredLibraryDrawings.map(d => {
               const isEditing = editingDrawingId === d.id;
+              const currentBatchTitle = batchTitles[d.id] ?? d.title;
+              const isTitleModified = isBatchRenaming && currentBatchTitle.trim() !== d.title;
+
               return (
-                <div className={`cb-library-card ${isEditing ? 'editing' : ''}`} key={d.id}>
+                <div className={`cb-library-card ${isEditing || isBatchRenaming ? 'editing' : ''}`} key={d.id}>
                   <div className="cb-lib-thumb">
                     <img src={d.image} alt={d.title} />
                     {d.isSvg ? (
@@ -2045,8 +2710,27 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                   </div>
 
                   <div className="cb-lib-body">
-                    {isEditing ? (
-                      /* Inline Rename Form */
+                    {isBatchRenaming ? (
+                      /* Batch Renaming Active for All Cards */
+                      <div className="cb-batch-title-field">
+                        <label className="cb-batch-title-label">Nom du coloriage :</label>
+                        <input
+                          type="text"
+                          className="cb-batch-title-input"
+                          value={currentBatchTitle}
+                          onChange={e => handleBatchTitleChange(d.id, e.target.value)}
+                        />
+                        {isTitleModified && (
+                          <span className="cb-modified-badge">Modifié</span>
+                        )}
+                        <div className="cb-lib-cats" style={{ marginTop: '4px' }}>
+                          {d.cat.map(c => (
+                            <span className="cb-cat-pill" key={c}>{c}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : isEditing ? (
+                      /* Inline Single Rename Form */
                       <div className="cb-lib-edit-box">
                         <label>
                           <span>Nom du dessin :</span>
@@ -2117,7 +2801,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                     )}
                   </div>
 
-                  {!isEditing && (
+                  {!isEditing && !isBatchRenaming && (
                     <div className="cb-lib-row-actions">
                       <button
                         className="cb-btn-quick-edit"
@@ -2168,8 +2852,15 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
                 return (
                   <div className={`cb-request-admin-card ${req.status === 'done' ? 'completed' : 'pending'}`} key={req.id}>
                     <div className="cb-req-head">
-                      <span className="cb-req-author">👤 <b>{req.pseudo || 'Visiteur anonyme'}</b></span>
-                      {req.email && <span className="cb-req-email">✉️ {req.email}</span>}
+                      <img
+                        src={avatarList[req.avatar_index] || avatar1}
+                        alt=""
+                        className="cb-req-author-avatar"
+                      />
+                      <div className="cb-req-author-details">
+                        <span className="cb-req-author"><b>{req.pseudo || 'Visiteur'}</b></span>
+                        {req.email && <span className="cb-req-email">✉️ {req.email}</span>}
+                      </div>
                       <span className="cb-req-date">
                         {new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
@@ -2215,82 +2906,231 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
         </div>
       )}
 
-      {/* VIEW 4 : AJOUTER UN COLORIAGE */}
+      {/* VIEW 4 : AJOUTER UN OU PLUSIEURS COLORIAGES (UPLOAD PAR LOT / BATCH) */}
       {view === 'add' && (
         <div className="cb-owner-view-add">
-          <h2><Plus /> Ajouter un nouveau coloriage</h2>
-          <p>Téléverse ton image (PNG, JPG, WEBP ou SVG vectoriel) directement vers Supabase Storage.</p>
+          <div className="cb-add-header-title">
+            <h2><Plus /> Ajouter des coloriages (Ajout multiple)</h2>
+            <p>Sélectionnez un ou plusieurs fichiers (SVG vectoriels ou PNG/JPG/WEBP). Vous pouvez appliquer un titre et des catégories groupés ou personnaliser chaque dessin ligne par ligne.</p>
+          </div>
 
-          <div className="cb-add-form-layout">
-            <div className="upload-zone">
-              <UploadCloud size={44} />
-              <b>{preview ? 'Fichier sélectionné' : 'Choisis ton fichier coloriage'}</b>
-              <span>PNG, JPG, SVG ou WEBP</span>
-              <label className="file-pick">
-                Parcourir les fichiers
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={choose} />
-              </label>
-              {preview && <img className="admin-preview" src={preview} alt="Aperçu" />}
+          {/* Grouped Settings Panel (when items exist in batch) */}
+          {batchUploadList.length > 0 && (
+            <div className="cb-batch-grouped-panel">
+              <h3><Tags size={18} /> Réglages groupés pour les coloriages du même thème</h3>
+              <p>Renseignez un titre et des catégories communes, puis appliquez-les en un clic aux dessins sélectionnés :</p>
 
-              {file && (
-                <div className={`cb-format-info-card ${detectedFormat === 'SVG' ? 'svg-mode' : 'png-mode'}`}>
-                  {detectedFormat === 'SVG' ? (
-                    <>
-                      <div className="cb-format-info-head">
-                        <span className="cb-format-badge-pill svg">🌿 SVG Vectoriel Détecté</span>
-                      </div>
-                      <p className="cb-format-info-desc">
-                        Ce dessin sera automatiquement proposé aux visiteurs en <b>3 formats</b> :
-                      </p>
-                      <ul className="cb-format-info-list">
-                        <li>✨ <b>SVG :</b> Fichier vectoriel HD original (découpe Cricut & redimensionnement infini)</li>
-                        <li>🖼️ <b>PNG :</b> Image haute résolution générée automatiquement</li>
-                        <li>📄 <b>PDF :</b> Document A4 prêt à imprimer généré automatiquement</li>
-                      </ul>
-                    </>
-                  ) : (
-                    <>
-                      <div className="cb-format-info-head">
-                        <span className="cb-format-badge-pill png">🖼️ Image Raster ({detectedFormat || 'PNG'}) Détectée</span>
-                      </div>
-                      <p className="cb-format-info-desc">
-                        Ce dessin sera automatiquement proposé aux visiteurs en <b>2 formats</b> :
-                      </p>
-                      <ul className="cb-format-info-list">
-                        <li>🖼️ <b>PNG :</b> Image originale haute résolution</li>
-                        <li>📄 <b>PDF :</b> Document A4 prêt à imprimer généré automatiquement</li>
-                        <li className="disabled">❌ <b>SVG :</b> Non disponible pour les fichiers matriciels (bouton masqué)</li>
-                      </ul>
-                    </>
-                  )}
+              <div className="cb-grouped-inputs-grid">
+                <div className="cb-grouped-field">
+                  <label>Titre groupé :</label>
+                  <input
+                    type="text"
+                    className="cb-input-text"
+                    value={groupedTitle}
+                    onChange={e => setGroupedTitle(e.target.value)}
+                    placeholder="Ex: Chat féerique, Petite princesse, Forêt enchantée..."
+                  />
+                  <label className="cb-grouped-autonum-label">
+                    <input
+                      type="checkbox"
+                      checked={groupedAutoNumber}
+                      onChange={e => setGroupedAutoNumber(e.target.checked)}
+                    />
+                    <span>Numéroter automatiquement si plusieurs dessins (ex: Chat féerique 1, Chat féerique 2...)</span>
+                  </label>
                 </div>
-              )}
-            </div>
 
-            <div className="admin-form">
-              <label>
-                Nom du coloriage :
-                <input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="Ex. Petit écureuil gourmand sous la lune"
-                />
-              </label>
+                <div className="cb-grouped-field">
+                  <label>Catégories groupées :</label>
+                  <div className="cb-item-cats-selector">
+                    {availableCategories.map(c => {
+                      const isSel = groupedCats.includes(c);
+                      return (
+                        <button
+                          type="button"
+                          key={c}
+                          className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
+                          onClick={() => {
+                            setGroupedCats(prev =>
+                              isSel ? prev.filter(x => x !== c) : [...prev, c]
+                            );
+                          }}
+                        >
+                          {isSel ? '✓ ' : '+ '}{c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
-              <label>
-                Catégories (séparées par une virgule) :
-                <input
-                  value={categories}
-                  onChange={e => setCategories(e.target.value)}
-                  placeholder="Animaux, Forêt, Enfants…"
-                />
-              </label>
-
-              <button className="publish" onClick={save} disabled={saving}>
-                <CheckCircle2 /> {saving ? 'Enregistrement dans Supabase…' : edit ? 'Enregistrer les modifications' : 'Publier le coloriage'}
+              <button
+                type="button"
+                className="cb-btn-apply-grouped"
+                onClick={applyGroupedSettings}
+              >
+                <Sparkles size={16} /> Appliquer le titre et les catégories aux dessins sélectionnés ({batchUploadList.filter(x => x.selected).length})
               </button>
             </div>
-          </div>
+          )}
+
+          {/* Toolbar: Select All / Deselect All / Add More Files */}
+          {batchUploadList.length > 0 && (
+            <div className="cb-batch-toolbar">
+              <span className="cb-batch-selection-info">
+                🎨 <b>{batchUploadList.filter(x => x.selected).length}</b> coloriage(s) sélectionné(s) sur {batchUploadList.length}
+              </span>
+              <div className="cb-batch-actions-btns">
+                <button
+                  type="button"
+                  className="cb-batch-mini-btn"
+                  onClick={() => toggleSelectAll(true)}
+                >
+                  Tout sélectionner
+                </button>
+                <button
+                  type="button"
+                  className="cb-batch-mini-btn"
+                  onClick={() => toggleSelectAll(false)}
+                >
+                  Tout désélectionner
+                </button>
+                <label className="cb-batch-mini-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Plus size={14} /> Ajouter d'autres fichiers
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleBatchFilesAdd}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Batch items list: line-by-line editor */}
+          {batchUploadList.length > 0 ? (
+            <div className="cb-batch-items-container">
+              {batchUploadList.map((item) => (
+                <div
+                  className={`cb-batch-item-card ${item.selected ? 'selected' : 'deselected'}`}
+                  key={item.id}
+                >
+                  {/* Selection checkbox */}
+                  <input
+                    type="checkbox"
+                    className="cb-item-select-checkbox"
+                    checked={item.selected}
+                    onChange={e => updateBatchItem(item.id, { selected: e.target.checked })}
+                    title={item.selected ? 'Coloriage sélectionné' : 'Coloriage désélectionné'}
+                  />
+
+                  {/* Thumbnail & Format badge */}
+                  <div className="cb-item-thumb-box">
+                    <img src={item.preview} alt={item.title} />
+                    <span className={`cb-item-badge-format ${item.format.toLowerCase()}`}>
+                      {item.format}
+                    </span>
+                  </div>
+
+                  {/* Line by line inputs */}
+                  <div className="cb-item-fields">
+                    <input
+                      type="text"
+                      className="cb-item-title-input"
+                      value={item.title}
+                      onChange={e => updateBatchItem(item.id, { title: e.target.value })}
+                      placeholder="Nom de ce coloriage..."
+                    />
+
+                    <div className="cb-item-cats-selector">
+                      <span className="cb-item-cats-label">Catégories :</span>
+                      {availableCategories.map(c => {
+                        const isSel = item.categories.includes(c);
+                        return (
+                          <button
+                            type="button"
+                            key={c}
+                            className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
+                            onClick={() => {
+                              const nextCats = isSel
+                                ? item.categories.filter(x => x !== c)
+                                : [...item.categories, c];
+                              updateBatchItem(item.id, { categories: nextCats.length ? nextCats : ['Divers'] });
+                            }}
+                          >
+                            {isSel ? '✓ ' : '+ '}{c}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Remove Button */}
+                  <button
+                    type="button"
+                    className="cb-btn-remove-item"
+                    onClick={() => removeBatchItem(item.id)}
+                    title="Retirer ce dessin de la file"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Empty initial dropzone */
+            <div className="upload-zone" style={{ minHeight: '260px' }}>
+              <UploadCloud size={54} color="#7c512d" />
+              <b style={{ fontSize: '18px', marginTop: '8px' }}>Déposez un ou plusieurs dessins ici</b>
+              <span style={{ fontSize: '13px', color: '#6a492f' }}>
+                Fichiers acceptés : SVG vectoriels (recommandé), PNG haute résolution, JPG ou WEBP
+              </span>
+              <label className="file-pick" style={{ marginTop: '14px' }}>
+                <Plus size={16} /> Parcourir et sélectionner des fichiers
+                <input
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleBatchFilesAdd}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Sticky Batch Publish Footer */}
+          {batchUploadList.length > 0 && (
+            <div className="cb-publish-batch-footer">
+              {publishingBatch && (
+                <>
+                  <div className="cb-publish-progress-bar">
+                    <div
+                      className="cb-publish-progress-fill"
+                      style={{
+                        width: `${Math.round((publishProgress.current / (publishProgress.total || 1)) * 100)}%`
+                      }}
+                    />
+                  </div>
+                  <span className="cb-publish-progress-text">{publishProgress.text}</span>
+                </>
+              )}
+
+              <button
+                type="button"
+                className="cb-btn-publish-all"
+                onClick={publishAllBatchDrawings}
+                disabled={publishingBatch || batchUploadList.filter(x => x.selected).length === 0}
+              >
+                <CheckCircle2 size={20} />
+                <span>
+                  {publishingBatch
+                    ? 'Publication en cours…'
+                    : `Publier les ${batchUploadList.filter(x => x.selected).length} coloriage(s) sélectionné(s)`}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </section>
