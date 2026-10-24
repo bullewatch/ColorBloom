@@ -27,7 +27,7 @@ create table if not exists public.coloring_pages (
 
 create table if not exists public.favorites (
   user_id uuid not null references public.profiles(id) on delete cascade,
-  coloring_id uuid not null references public.coloring_pages(id) on delete cascade,
+  coloring_id text not null,
   created_at timestamptz not null default now(),
   primary key (user_id, coloring_id)
 );
@@ -106,9 +106,11 @@ security definer
 set search_path = public
 as $$
 begin
-  update public.coloring_pages
-  set likes_count = likes_count + 1
-  where id = new.coloring_id;
+  if new.coloring_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    update public.coloring_pages
+    set likes_count = likes_count + 1
+    where id = new.coloring_id::uuid;
+  end if;
   return new;
 end;
 $$;
@@ -120,9 +122,11 @@ security definer
 set search_path = public
 as $$
 begin
-  update public.coloring_pages
-  set likes_count = greatest(likes_count - 1, 0)
-  where id = old.coloring_id;
+  if old.coloring_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    update public.coloring_pages
+    set likes_count = greatest(likes_count - 1, 0)
+    where id = old.coloring_id::uuid;
+  end if;
   return old;
 end;
 $$;

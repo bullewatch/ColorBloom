@@ -189,39 +189,6 @@ button, input, select, textarea {
   z-index: 5;
 }
 
-/* Foliage wrapper around the top nav & search bar */
-.cb-topnav-foliage-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.cb-topnav-foliage-left {
-  position: absolute;
-  top: -18px;
-  left: -20px;
-  pointer-events: none;
-}
-
-.cb-topnav-foliage-center {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.cb-topnav-foliage-right {
-  position: absolute;
-  top: -18px;
-  right: -20px;
-  pointer-events: none;
-}
-
 /* Ligne supérieure des onglets (Accueil, Catégories, Favoris, Nouveautés, À propos) */
 .cb-nav-tabs-row {
   display: flex;
@@ -647,45 +614,6 @@ button, input, select, textarea {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.12), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
 }
 
-/* Botanical foliage wrapping around the left panel */
-.cb-panel-foliage-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.cb-foliage-tl {
-  position: absolute;
-  top: -24px;
-  left: -26px;
-  pointer-events: none;
-}
-
-.cb-foliage-left-vine {
-  position: absolute;
-  top: 36%;
-  left: -18px;
-  pointer-events: none;
-}
-
-.cb-foliage-bl {
-  position: absolute;
-  bottom: -16px;
-  left: -20px;
-  pointer-events: none;
-}
-
-.cb-foliage-tr {
-  position: absolute;
-  top: -12px;
-  right: -14px;
-  pointer-events: none;
-}
-
 .cb-css-nail {
   display: none;
 }
@@ -694,8 +622,6 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: relative;
-  z-index: 2;
 }
 
 .cb-plank-label {
@@ -710,49 +636,28 @@ button, input, select, textarea {
 }
 
 .cb-sort-plank {
-  margin-bottom: 8px;
-}
-
-.cb-sort-select-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.cb-sort-sparkle {
-  position: absolute;
-  left: 12px;
-  color: #f7d896;
-  pointer-events: none;
-  z-index: 2;
+  margin-bottom: 6px;
 }
 
 .cb-sort-plank select {
   width: 100%;
-  background: linear-gradient(180deg, #4d2813 0%, #3a1c0b 100%);
-  border: 1.5px solid #5d3319;
-  border-radius: 999px;
-  color: #faebd1;
+  background: linear-gradient(180deg, #59331a 0%, #462612 100%);
+  border: 1.5px solid #714223;
+  border-radius: 14px;
+  color: #f6e7d2;
   font-family: 'Patrick Hand', cursive;
   font-weight: 700;
   font-size: 15px;
-  padding: 7px 26px 7px 32px;
+  padding: 7px 12px;
   text-align: center;
   cursor: pointer;
   outline: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23eed7ba' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.35);
   transition: all 0.15s ease;
 }
 
 .cb-sort-plank select:hover {
-  background: linear-gradient(180deg, #5b3017 0%, #44220e 100%);
-  border-color: #7a4321;
+  background: linear-gradient(180deg, #6c3f21 0%, #542f17 100%);
 }
 
 .cb-categories-planks {
@@ -765,35 +670,34 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(180deg, #442410 0%, #341908 100%);
-  border: 1.5px solid #542b15;
-  border-radius: 999px;
-  color: #eed7bc;
+  background: linear-gradient(180deg, #5a341b 0%, #472712 100%);
+  border: 1.5px solid #6f4122;
+  border-radius: 14px;
+  color: #f6e6d1;
   font-family: 'Patrick Hand', cursive;
   font-size: 16px;
   font-weight: 700;
-  padding: 6px 14px;
+  padding: 7px 12px;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.12);
   text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
 }
 
 .cb-css-plank:hover {
-  background: linear-gradient(180deg, #542d15 0%, #40200b 100%);
-  transform: translateX(2px);
+  background: linear-gradient(180deg, #6c3f21 0%, #542f17 100%);
+  transform: translateX(3px);
   color: #fff;
-  border-color: #743c1d;
+  border-color: #8a522c;
 }
 
 .cb-css-plank.active {
   background: linear-gradient(180deg, #faebd1 0%, #ecd09e 100%);
   color: #381e0b;
   font-weight: 800;
-  border: 1.5px solid #c9a46c;
+  border: 2px solid #c9a46c;
   text-shadow: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.35);
-  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* Dot on categories */
@@ -831,15 +735,15 @@ button, input, select, textarea {
 
 /* Bouton Favoris au bas du panneau */
 .cb-plank-favs {
-  background: linear-gradient(180deg, #442410 0%, #341908 100%);
-  border: 1.5px solid #542b15;
+  background: linear-gradient(180deg, #5a341b 0%, #472712 100%);
+  border: 1.5px solid #6f4122;
 }
 
 .cb-plank-favs.active {
   background: linear-gradient(180deg, #faebd1 0%, #ecd09e 100%);
   color: #381e0b;
   font-weight: 800;
-  border: 1.5px solid #c9a46c;
+  border: 2px solid #c9a46c;
   text-shadow: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.4);
 }
@@ -1073,61 +977,20 @@ button, input, select, textarea {
 /* === RIGHT SIDEBAR: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) === */
 .cb-ad-sidebar {
   align-self: start;
-  position: relative;
 }
 
 .cb-ad-container {
   width: 100%;
   min-height: 440px;
-  background: linear-gradient(180deg, #201107 0%, #150b04 100%);
-  border: 5px solid #281408;
-  border-radius: 24px;
-  padding: 14px 12px;
+  background: rgba(28, 17, 8, 0.65);
+  border: 3px dashed #6b4324;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.08), inset 0 -3px 6px rgba(0, 0, 0, 0.5);
-  position: relative;
-}
-
-/* Foliage wrapper around the right ad container */
-.cb-ad-foliage-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.cb-ad-foliage-tl {
-  position: absolute;
-  top: -16px;
-  left: -18px;
-  pointer-events: none;
-}
-
-.cb-ad-foliage-tr {
-  position: absolute;
-  top: -16px;
-  right: -18px;
-  pointer-events: none;
-}
-
-.cb-ad-foliage-right-vine {
-  position: absolute;
-  top: 38%;
-  right: -16px;
-  pointer-events: none;
-}
-
-.cb-ad-foliage-bottom {
-  position: absolute;
-  bottom: -14px;
-  left: -16px;
-  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .cb-ad-label {
@@ -1135,12 +998,9 @@ button, input, select, textarea {
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: #ecd7ba;
+  letter-spacing: 1px;
+  color: #eed5a7;
   margin-bottom: 10px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  position: relative;
-  z-index: 2;
 }
 
 .cb-ad-empty-box {
@@ -1150,37 +1010,19 @@ button, input, select, textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(14, 8, 4, 0.65);
-  border: 1.5px dashed #593319;
-  border-radius: 18px;
-  padding: 16px 12px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-
-.cb-ad-grass-silhouette {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 55px;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.75;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .cb-ad-placeholder-note {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  color: #a88564;
+  gap: 6px;
+  color: #bfa585;
   font-family: 'Patrick Hand', cursive;
-  font-size: 15px;
-  text-align: center;
+  font-size: 16px;
 }
 
 /* === 4-STAGE OFFICIAL MAILBOX WIDGET (BOTTOM-RIGHT CORNER) === */
