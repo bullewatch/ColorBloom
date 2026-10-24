@@ -171,20 +171,20 @@ button, input, select, textarea {
   display: block;
 }
 
-/* === CADRE MARRON UNIQUE QUI ENGLOBE ONGLETS ET BARRE DE RECHERCHE (SANS FLEURS AJOUTÉES) === */
+/* === CADRE MARRON UNIQUE QUI ENGLOBE ONGLETS ET BARRE DE RECHERCHE (STYLE BOIS SCULPTÉ) === */
 .cb-nav-search-block {
-  max-width: 680px;
+  max-width: 700px;
   width: 100%;
-  margin: -6px auto 16px;
-  background: linear-gradient(135deg, #442611 0%, #2e1708 50%, #442611 100%);
-  border: 5px solid #200f04;
-  border-radius: 20px;
-  padding: 8px 12px 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.12);
+  margin: -6px auto 18px;
+  background: linear-gradient(180deg, #442410 0%, #351a09 100%);
+  border: 5.5px solid #271206;
+  border-radius: 26px;
+  padding: 10px 16px 12px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), inset 0 2px 3px rgba(255, 255, 255, 0.15), inset 0 -3px 6px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   position: relative;
   z-index: 5;
 }
@@ -195,27 +195,26 @@ button, input, select, textarea {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 16px;
   width: 100%;
-  border-bottom: 1.5px dashed rgba(237, 217, 180, 0.25);
-  padding-bottom: 6px;
+  padding: 2px 4px 4px 4px;
 }
 
 .cb-nav-tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   background: transparent;
   border: 2px solid transparent;
-  border-radius: 10px;
-  padding: 4px 11px;
+  border-radius: 18px;
+  padding: 5px 14px;
   font-family: 'Patrick Hand', cursive;
   font-size: 16px;
   font-weight: 700;
-  color: #f8e7bf;
+  color: #f7e6cf;
   cursor: pointer;
-  transition: all 0.15s ease;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  transition: all 0.18s ease;
+  text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
 }
 
 .cb-tab-icon {
@@ -224,29 +223,35 @@ button, input, select, textarea {
 }
 
 .cb-tab-badge {
-  background: #200f04;
-  color: #eed5a7;
-  border: 1px solid #5a381d;
-  font-size: 10px;
+  background: #2b1307;
+  color: #f2dcba;
+  border: 1px solid #5a341b;
+  font-size: 11px;
   font-family: 'Nunito', sans-serif;
-  padding: 1px 5px;
-  border-radius: 6px;
+  font-weight: 800;
+  padding: 0 6px;
+  border-radius: 10px;
   margin-left: 2px;
 }
 
 .cb-nav-tab:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   transform: translateY(-1px);
 }
 
 .cb-nav-tab.active {
-  background: linear-gradient(180deg, #f2c77d 0%, #cf9a4a 100%);
-  border-color: #7b4b1a;
-  color: #2e1605;
-  font-weight: 900;
+  background: linear-gradient(180deg, #faebd1 0%, #ecd09e 100%);
+  border: 1.5px solid #c9a46c;
+  color: #381e0b;
+  font-weight: 800;
   text-shadow: none;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 2px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35);
+  border-radius: 18px;
+}
+
+.cb-nav-tab.active .cb-tab-icon {
+  color: #381e0b;
 }
 
 /* Ligne inférieure : barre de recherche dans le même cadre */
@@ -254,26 +259,27 @@ button, input, select, textarea {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .cb-search-field {
   flex: 1;
-  height: 38px;
+  height: 42px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #fffdf8;
-  border: 2px solid #7d5431;
-  border-radius: 18px;
-  padding: 0 12px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  gap: 10px;
+  background: linear-gradient(180deg, #fdfbf7 0%, #f6ecdb 100%);
+  border: 2px solid #caa875;
+  border-radius: 24px;
+  padding: 0 16px;
+  box-shadow: inset 0 2px 4px rgba(60, 30, 10, 0.15), 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .cb-loupe-icon {
   width: 18px;
   height: 18px;
-  color: #6a4424;
+  color: #5a341a;
+  flex-shrink: 0;
 }
 
 .cb-search-field input {
@@ -281,14 +287,17 @@ button, input, select, textarea {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #462c16;
-  font-size: 15px;
-  font-weight: 700;
+  color: #381e0b;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .cb-search-field input::placeholder {
-  color: #9c7b5a;
-  font-style: italic;
+  color: #856a52;
+  font-style: normal;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
 }
 
 .cb-search-clear {
@@ -309,39 +318,45 @@ button, input, select, textarea {
 /* Medallion Heart Button on the Right */
 .cb-search-heart-medallion {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 2.5px solid #583318;
-  background: radial-gradient(circle, #f9eed7 0%, #cf9c58 100%);
+  border: 2px solid #caa875;
+  background: linear-gradient(180deg, #fdfbf7 0%, #f6ecdb 100%);
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.25);
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
 
-.cb-search-heart-medallion:hover {
-  transform: scale(1.1);
+.cb-search-heart-medallion svg {
+  color: #5a3014;
 }
 
-.cb-search-heart-medallion svg {
-  width: 19px;
-  height: 19px;
+.cb-search-heart-medallion:hover {
+  transform: scale(1.05);
+}
+
+.cb-search-heart-medallion.active svg {
+  fill: #d9534f;
+  color: #d9534f;
 }
 
 .cb-medallion-count {
   position: absolute;
   top: -4px;
   right: -4px;
-  background: #a42a2a;
+  background: #d9534f;
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
+  font-family: 'Nunito', sans-serif;
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1.5px solid #fff;
+  line-height: 1;
 }
 
 /* === Settings Modal Dropdown === */
@@ -592,26 +607,16 @@ button, input, select, textarea {
 
 .cb-css-panel {
   position: relative;
-  background: linear-gradient(135deg, #442611 0%, #2e1708 50%, #442611 100%);
-  border: 5px solid #200f04;
-  border-radius: 18px;
-  padding: 16px 12px 18px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, #442410 0%, #351a09 100%);
+  border: 5.5px solid #271206;
+  border-radius: 26px;
+  padding: 18px 14px 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.12), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
 }
 
 .cb-css-nail {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #1b0c03;
-  box-shadow: inset 1px 1px 1.5px rgba(255, 255, 255, 0.5), 0 1px 2px #000;
+  display: none;
 }
-
-.cb-css-nail.top-left { top: 8px; left: 8px; }
-.cb-css-nail.top-right { top: 8px; right: 8px; }
-.cb-css-nail.bottom-left { bottom: 8px; left: 8px; }
-.cb-css-nail.bottom-right { bottom: 8px; right: 8px; }
 
 .cb-panel-content {
   display: flex;
@@ -622,83 +627,112 @@ button, input, select, textarea {
 .cb-plank-label {
   display: block;
   font-family: 'Patrick Hand', cursive;
-  font-size: 19px;
-  color: #f7e6c4;
+  font-size: 18px;
+  font-weight: 700;
+  color: #eed8bb;
   text-align: center;
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8);
-  margin-bottom: 2px;
+  text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
+  margin-bottom: 4px;
 }
 
 .cb-sort-plank {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .cb-sort-plank select {
   width: 100%;
-  background: linear-gradient(180deg, #6c4125, #4d2d18);
-  border: 2px solid #2d180c;
-  border-radius: 10px;
-  color: #f7e6c4;
-  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(180deg, #59331a 0%, #462612 100%);
+  border: 1.5px solid #714223;
+  border-radius: 14px;
+  color: #f6e7d2;
+  font-family: 'Patrick Hand', cursive;
   font-weight: 700;
-  font-size: 13px;
-  padding: 6px 8px;
+  font-size: 15px;
+  padding: 7px 12px;
+  text-align: center;
   cursor: pointer;
   outline: 0;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.35);
+  transition: all 0.15s ease;
+}
+
+.cb-sort-plank select:hover {
+  background: linear-gradient(180deg, #6c3f21 0%, #542f17 100%);
 }
 
 .cb-categories-planks {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 
 .cb-css-plank {
   display: flex;
   align-items: center;
-  gap: 7px;
-  background: linear-gradient(180deg, #6b4020 0%, #4b2a12 100%);
-  border: 2px solid #2d1608;
-  border-radius: 9px;
-  color: #f8e7bf;
-  font-family: 'Nunito', sans-serif;
-  font-size: 13px;
+  gap: 8px;
+  background: linear-gradient(180deg, #5a341b 0%, #472712 100%);
+  border: 1.5px solid #6f4122;
+  border-radius: 14px;
+  color: #f6e6d1;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 7px 12px;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
 }
 
 .cb-css-plank:hover {
-  background: linear-gradient(180deg, #814f29 0%, #5d3419 100%);
+  background: linear-gradient(180deg, #6c3f21 0%, #542f17 100%);
   transform: translateX(3px);
   color: #fff;
+  border-color: #8a522c;
 }
 
 .cb-css-plank.active {
-  background: linear-gradient(180deg, #f2c77d 0%, #cf9a4a 100%);
-  color: #2e1605;
-  font-weight: 900;
-  border-color: #7b4b1a;
+  background: linear-gradient(180deg, #faebd1 0%, #ecd09e 100%);
+  color: #381e0b;
+  font-weight: 800;
+  border: 2px solid #c9a46c;
   text-shadow: none;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 3px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Dot on categories */
+.cb-plank-dot {
+  font-size: 16px;
+  line-height: 1;
+  color: #d8b788;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.cb-css-plank.active .cb-plank-dot {
+  color: #381e0b;
 }
 
 /* Bouton Favoris au bas du panneau */
 .cb-plank-favs {
-  background: linear-gradient(180deg, #7c3a22 0%, #522212 100%);
-  border-color: #3b1408;
+  background: linear-gradient(180deg, #5a341b 0%, #472712 100%);
+  border: 1.5px solid #6f4122;
 }
 
-.cb-plank-nail {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #241106;
-  box-shadow: inset 1px 1px 1px rgba(255, 255, 255, 0.4), 0 1px 1px #000;
+.cb-plank-favs.active {
+  background: linear-gradient(180deg, #faebd1 0%, #ecd09e 100%);
+  color: #381e0b;
+  font-weight: 800;
+  border: 2px solid #c9a46c;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.cb-plank-heart {
+  font-size: 14px;
   flex-shrink: 0;
+  margin-right: 2px;
 }
 
 .cb-plank-title {
@@ -707,17 +741,21 @@ button, input, select, textarea {
 }
 
 .cb-plank-pill {
-  background: #3c200e;
-  color: #e5c38c;
-  font-size: 10px;
+  background: #33190b;
+  border: 1px solid #5a3014;
+  color: #eed8bc;
+  font-size: 11px;
+  font-family: 'Nunito', sans-serif;
   font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-left: auto;
 }
 
 .cb-css-plank.active .cb-plank-pill {
-  background: #5a2e0e;
-  color: #fff;
+  background: #4a2712;
+  color: #fbe8c7;
+  border-color: #7b4b1a;
 }
 
 /* === Center Gallery: Grid of Wooden Boards (4 colonnes par défaut sur ordinateur) === */

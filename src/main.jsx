@@ -446,7 +446,7 @@ function App() {
         <div className="cb-header-top">
           {/* Unified Colorblop Floral Banner replacing old separate canopy & logo */}
           <div className="cb-bandeau-wrap" onClick={() => { setPage('Accueil'); setOwnerOpen(false); }}>
-            <img src={colorblopBandeau} alt="ColorBloom" className="cb-bandeau-img" />
+            <img src={colorblopBandeau} alt="Colorblop" className="cb-bandeau-img" />
           </div>
 
           {/* Top-Right: Favoris (desktop), Avatar & Settings (Always visible on mobile) */}
@@ -697,7 +697,7 @@ function App() {
           setView={setAdminView}
           drawings={drawings}
           reloadDrawings={loadDrawings}
-          user={session?.user || { id: 'bullewatch-owner', email: 'bullewatch+colorbloom@gmail.com' }}
+          user={session?.user || { id: 'bullewatch-owner', email: 'flo83119@gmail.com' }}
           closeAdmin={() => setOwnerOpen(false)}
           pendingRequestsCount={pendingRequestsCount}
           refreshPendingRequests={checkPendingRequests}
@@ -718,7 +718,7 @@ function App() {
           <div className="cb-about-parchment">
             <div className="cb-about-header">
               <Sparkles className="cb-about-sparkle" />
-              <h1>À propos de ColorBloom</h1>
+              <h1>À propos de Colorblop</h1>
               <p className="cb-about-tagline">L'univers enchanté des coloriages et dessins vectoriels gratuits à imprimer</p>
             </div>
 
@@ -726,13 +726,13 @@ function App() {
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">🌸</div>
                 <h3>Un univers créatif et poétique</h3>
-                <p>ColorBloom est né pour offrir aux enfants, aux parents et aux passionnés d'art un espace doux, chaleureux et féerique. Chaque planche de coloriage est créée pour stimuler la créativité, apporter le calme et célébrer la beauté de la nature.</p>
+                <p>Colorblop est né pour offrir aux enfants, aux parents et aux passionnés d'art un espace doux, chaleureux et féerique. Chaque planche de coloriage est créée pour stimuler la créativité, apporter le calme et célébrer la beauté de la nature.</p>
               </div>
 
               <div className="cb-about-card">
                 <div className="cb-about-card-icon">✂️</div>
                 <h3>{animalCatalog.length} Dessins en SVG Vectoriel</h3>
-                <p>Nouveau sur ColorBloom : tous nos dessins d'animaux sont désormais disponibles en <b>téléchargement SVG vectoriel natif</b> ! Vous pouvez les agrandir à l'infini sans perte de qualité et les utiliser avec vos machines de découpe (Cricut, Silhouette), Illustrator ou traceurs.</p>
+                <p>Nouveau sur Colorblop : tous nos dessins d'animaux sont désormais disponibles en <b>téléchargement SVG vectoriel natif</b> ! Vous pouvez les agrandir à l'infini sans perte de qualité et les utiliser avec vos machines de découpe (Cricut, Silhouette), Illustrator ou traceurs.</p>
               </div>
 
               <div className="cb-about-card">
@@ -788,7 +788,7 @@ function App() {
                         setPage('Accueil');
                       }}
                     >
-                      <span className="cb-plank-nail" aria-hidden="true" />
+                      <span className="cb-plank-dot">•</span>
                       <span className="cb-plank-title">{catName}</span>
                       {catName === 'Animaux' && <span className="cb-plank-pill">{animalCatalog.length}</span>}
                     </button>
@@ -802,8 +802,8 @@ function App() {
                     }}
                     title="Voir tous mes favoris"
                   >
-                    <span className="cb-plank-nail" aria-hidden="true" />
-                    <span className="cb-plank-title">❤️ Mes Favoris</span>
+                    <span className="cb-plank-heart">💜</span>
+                    <span className="cb-plank-title">Mes Favoris</span>
                     {favs.size > 0 && <span className="cb-plank-pill">{favs.size}</span>}
                   </button>
                 </div>
@@ -871,7 +871,7 @@ function App() {
 
           {/* Right Sidebar: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) */}
           <aside className="cb-ad-sidebar">
-            <div className="cb-ad-container" id="colorbloom-ad-slot">
+            <div className="cb-ad-container" id="colorblop-ad-slot">
               <span className="cb-ad-label">Espace Publicitaire</span>
               <div className="cb-ad-empty-box">
                 {/* Standard Google Ad Tag ready */}
@@ -893,7 +893,7 @@ function App() {
         </section>
       )}
 
-      <footer>ColorBloom • Des coloriages et fichiers SVG gratuits pour laisser fleurir l'imagination</footer>
+      <footer>Colorblop • Des coloriages et fichiers SVG gratuits pour laisser fleurir l'imagination</footer>
 
       {/* Drawing Modal (En grand & Téléchargements SVG, PNG, PDF) */}
       {open && (
@@ -959,7 +959,7 @@ function App() {
               </div>
               <div className="notif-item">
                 <span className="notif-date">Aujourd'hui</span>
-                <b>Bienvenue sur le nouveau ColorBloom !</b>
+                <b>Bienvenue sur le nouveau Colorblop !</b>
                 <p>Cadres en bois sculpté, barre de recherche florale, boîte à dessin collaborative et 8 avatars exclusifs.</p>
               </div>
             </div>
@@ -1060,7 +1060,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   const [validatedRequests, setValidatedRequests] = useState([]);
   const [thankedNotice, setThankedNotice] = useState(false);
 
-  const senderPseudo = session ? (profile?.display_name || session.user.user_metadata?.pseudo || session.user.email?.split('@')[0] || 'Ami de ColorBloom') : '';
+  const senderPseudo = session ? (profile?.display_name || session.user.user_metadata?.pseudo || session.user.email?.split('@')[0] || 'Ami de Colorblop') : '';
 
   // Check for validated requests destined for this visitor
   useEffect(() => {
@@ -1130,7 +1130,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
       profile?.display_name ||
       session.user.user_metadata?.pseudo ||
       session.user.email?.split('@')[0] ||
-      'Ami de ColorBloom';
+      'Ami de Colorblop';
     const finalEmail = session.user.email || null;
 
     try {
@@ -1192,7 +1192,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
       >
         <img
           src={currentVisual}
-          alt="Boîte aux lettres ColorBloom"
+          alt="Boîte aux lettres Colorblop"
           className="cb-mailbox-img"
         />
 
@@ -1275,7 +1275,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
             <div className="cb-new-mail-header">
               <Sparkles className="cb-new-mail-sparkle" />
               <h2>Nouveau courrier dans ta boîte !</h2>
-              <p>L’artiste a réalisé et ajouté ton coloriage sur ColorBloom :</p>
+              <p>L’artiste a réalisé et ajouté ton coloriage sur Colorblop :</p>
             </div>
 
             {thankedNotice ? (
@@ -1465,7 +1465,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
         <img src={avatarList[selectedAvatar] || avatar1} alt="Avatar sélectionné" className="cb-profile-current-avatar" />
       </div>
 
-      <h1>{profile?.display_name || (session ? 'Mon jardin ColorBloom' : 'Bienvenue sur ColorBloom')}</h1>
+      <h1>{profile?.display_name || (session ? 'Mon jardin Colorblop' : 'Bienvenue sur Colorblop')}</h1>
       {session && (
         <div className="cb-profile-header-status">
           <p className="cb-profile-email">{session.user.email}</p>
@@ -1512,7 +1512,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
             )}
           </div>
           {message && <p className="auth-message">{message}</p>}
-          {!databaseReady && <p className="auth-message">Base ColorBloom connectée.</p>}
+          {!databaseReady && <p className="auth-message">Base Colorblop connectée.</p>}
         </div>
       ) : (
         <div className="cb-profile-actions">
@@ -1790,7 +1790,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
         <div className="cb-owner-brand">
           <ShieldCheck className="cb-owner-shield" />
           <div>
-            <h1>Espace Propriétaire & Artiste ColorBloom</h1>
+            <h1>Espace Propriétaire & Artiste Colorblop</h1>
             <p>Connecté avec Supabase • {user.email || 'flo83119@gmail.com'}</p>
           </div>
         </div>
