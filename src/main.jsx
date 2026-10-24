@@ -18,8 +18,16 @@ import { CguModal } from './CguModal';
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
 import likeArt from '../assets/like-tight.png';
+import likeLikedArt from '../assets/like-liked-tight.png';
 import favorisArt from '../assets/favoris-tight.png';
 import settingsArt from '../assets/settings-tight.png';
+import {
+  FoliageDefs,
+  LeftPanelFoliage,
+  TopNavFoliage,
+  AdPanelFoliage,
+  AdGrassSilhouette
+} from './FoliageDecorations';
 
 import avatar1 from '../assets/avatar-1.png';
 import avatar2 from '../assets/avatar-2.png';
@@ -488,6 +496,9 @@ function App() {
 
   return (
     <main className={'theme-' + theme}>
+      {/* Global Botanical SVG Definitions */}
+      <FoliageDefs />
+
       {/* Main Header */}
       <header className="cb-header">
         <div className="cb-header-top">
@@ -546,6 +557,9 @@ function App() {
 
         {/* UNIFIED BROWN WOODEN BLOCK ENGLOBING TABS AND SEARCH BAR (Smart hide on scroll down on mobile) */}
         <div className={`cb-nav-search-block ${!headerVisible ? 'cb-mobile-hidden' : ''}`}>
+          {/* Woodland foliage and flower garland around the top bar */}
+          <TopNavFoliage />
+
           {/* Desktop Navigation Tabs */}
           <nav className="cb-nav-tabs-row cb-desktop-only">
             {navItems.map(({ id, label, icon: Icon, badge }) => (
@@ -813,6 +827,9 @@ function App() {
           {/* Left Sidebar: PURE CSS STICKY WOODEN PANEL (SUIT LE SCROLL) */}
           <aside className="cb-panel-aside">
             <div className="cb-css-panel">
+              {/* Botanical foliage & daisy flowers wrapping the wooden panel */}
+              <LeftPanelFoliage />
+
               {/* Antique Corner Nails */}
               <span className="cb-css-nail top-left" aria-hidden="true" />
               <span className="cb-css-nail top-right" aria-hidden="true" />
@@ -823,10 +840,13 @@ function App() {
                 {/* Sort Bar Plank */}
                 <div className="cb-sort-plank">
                   <span className="cb-plank-label">{t.sortBy}</span>
-                  <select value={sort} onChange={e => setSort(e.target.value)} aria-label={t.sortBy}>
-                    <option value="recent">{t.sortRecent}</option>
-                    <option value="liked">{t.sortLiked}</option>
-                  </select>
+                  <div className="cb-sort-select-wrapper">
+                    <Sparkles size={14} className="cb-sort-sparkle" aria-hidden="true" />
+                    <select value={sort} onChange={e => setSort(e.target.value)} aria-label={t.sortBy}>
+                      <option value="recent">{t.sortRecent}</option>
+                      <option value="liked">{t.sortLiked}</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Categories Wooden Planks (POM remplacé par Favoris au bas) */}
@@ -895,8 +915,10 @@ function App() {
                       aria-label="Aimer et ajouter aux favoris"
                       title={`${d.likes} j'aime`}
                     >
-                      <img src={likeArt} alt="" aria-hidden="true" />
-                      <span className="cb-like-count">{formatLikes(d.likes)}</span>
+                      <img src={favs.has(d.id) ? likeLikedArt : likeArt} alt="" aria-hidden="true" />
+                      <span className={`cb-like-count cb-digits-${String(formatLikes(d.likes)).length}`}>
+                        {formatLikes(d.likes)}
+                      </span>
                     </button>
                   </article>
                 ))}
@@ -925,6 +947,9 @@ function App() {
           {/* Right Sidebar: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) */}
           <aside className="cb-ad-sidebar">
             <div className="cb-ad-container" id="colorblop-ad-slot">
+              {/* Botanical foliage wrapping the ad frame */}
+              <AdPanelFoliage />
+
               <span className="cb-ad-label">Espace Publicitaire</span>
               <div className="cb-ad-empty-box">
                 {/* Standard Google Ad Tag ready */}
@@ -940,6 +965,8 @@ function App() {
                   <Sparkles size={20} />
                   <span>Emplacement réservé Google Ad</span>
                 </div>
+                {/* Grass silhouettes at the bottom of the ad panel */}
+                <AdGrassSilhouette />
               </div>
             </div>
           </aside>
