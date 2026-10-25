@@ -1,4 +1,75 @@
-@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@500;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Patrick+Hand+SC&family=Nunito:wght@500;700;800;900&display=swap');
+
+/* Embeds & Local Fallbacks from FONT/ */
+@font-face {
+  font-family: 'Patrick Hand SC';
+  src: url('/fonts/PatrickHandSC-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Patrick_Hand_SC-Regular';
+  src: url('/fonts/PatrickHandSC-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Patrick Hand';
+  src: url('/fonts/PatrickHand-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Patrick_Hand-Regular';
+  src: url('/fonts/PatrickHand-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Base font rules: Patrick_Hand_SC-Regular for titles & main buttons */
+h1, h2, h3, h4, h5, h6,
+.cb-section-title,
+.cb-page-title,
+.cb-plank-label {
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+}
+
+button,
+.cb-btn,
+.cb-nav-tab,
+.cb-css-plank,
+.cb-mobile-cat-pill,
+.cb-bottom-nav-item,
+.cb-btn-publish-all,
+.cb-btn-admin,
+.cb-btn-apply-grouped,
+.cb-btn-save-all-names,
+.cb-btn-cancel-all-names,
+.cb-btn-apply-common-names,
+.cb-btn-batch-rename,
+.cb-btn-add-primary,
+.cb-btn-quick-edit,
+.cb-btn-quick-del,
+.cb-btn-validate-req,
+.cb-btn-login,
+.cb-btn-signup,
+.cb-btn-logout,
+.cb-item-cat-pill,
+.cb-batch-mini-btn,
+.actions button,
+.cb-reset-btn,
+.cb-about-back-btn,
+.cb-sheet-send-btn,
+.cb-sheet-login-btn {
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -208,7 +279,7 @@ button, input, select, textarea {
   border: 2px solid transparent;
   border-radius: 18px;
   padding: 5px 14px;
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 16px;
   font-weight: 700;
   color: #f7e6cf;
@@ -626,13 +697,14 @@ button, input, select, textarea {
 
 .cb-plank-label {
   display: block;
-  font-family: 'Patrick Hand', cursive;
-  font-size: 18px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 19px;
   font-weight: 700;
   color: #eed8bb;
   text-align: center;
   text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
   margin-bottom: 4px;
+  letter-spacing: 0.5px;
 }
 
 .cb-sort-plank {
@@ -645,9 +717,9 @@ button, input, select, textarea {
   border: 2px solid #714223;
   border-radius: 14px;
   color: #000000 !important;
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-weight: 700;
-  font-size: 15.5px;
+  font-size: 16px;
   padding: 7px 12px;
   text-align: center;
   cursor: pointer;
@@ -666,9 +738,9 @@ button, input, select, textarea {
 .cb-sort-plank select option {
   color: #000000 !important;
   background-color: #ffffff !important;
-  font-family: 'Patrick Hand', cursive, sans-serif;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 15.5px;
 }
 
 .cb-categories-planks {
@@ -685,14 +757,15 @@ button, input, select, textarea {
   border: 1.5px solid #6f4122;
   border-radius: 14px;
   color: #f6e6d1;
-  font-family: 'Patrick Hand', cursive;
-  font-size: 16px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 17px;
   font-weight: 700;
   padding: 7px 12px;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.12);
   text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.3px;
 }
 
 .cb-css-plank:hover {
@@ -958,15 +1031,17 @@ button, input, select, textarea {
 }
 
 .cb-empty-board h2 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 32px;
   margin: 0 0 8px;
 }
 
 .cb-empty-board p {
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  font-size: 17px;
   max-width: 480px;
   margin: 0 0 14px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .cb-reset-btn {
@@ -975,6 +1050,8 @@ button, input, select, textarea {
   border: 2px solid #35532a;
   border-radius: 8px;
   padding: 8px 18px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s;
@@ -1120,7 +1197,7 @@ button, input, select, textarea {
 
 .cb-click-sheet-title {
   display: block;
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 24px;
   font-weight: 800;
   color: #3b200b;
@@ -1131,8 +1208,8 @@ button, input, select, textarea {
 }
 
 .cb-sheet-author-tag {
-  font-family: 'Patrick Hand', cursive;
-  font-size: 14px;
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  font-size: 15px;
   color: #6a4425;
   text-align: center;
   margin-top: -2px;
@@ -1150,7 +1227,7 @@ button, input, select, textarea {
   border: 1.5px solid #a4784a;
   border-radius: 9px;
   padding: 10px 12px;
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
   font-size: 18px;
   color: #2e1708;
   resize: none;
@@ -1166,7 +1243,8 @@ button, input, select, textarea {
   border: 2px solid #1a3316;
   border-radius: 20px;
   padding: 7px 22px;
-  font-size: 14px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 15px;
   font-weight: 800;
   cursor: pointer;
   display: inline-flex;
@@ -1195,10 +1273,10 @@ button, input, select, textarea {
 }
 
 .cb-sheet-auth-text {
-  font-family: 'Patrick Hand', cursive;
-  font-size: 17px;
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  font-size: 18px;
   color: #4a2c13;
-  line-height: 1.3;
+  line-height: 1.35;
   margin: 0;
 }
 
@@ -1208,7 +1286,7 @@ button, input, select, textarea {
   border: 2px solid #221207;
   border-radius: 20px;
   padding: 8px 18px;
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -1262,7 +1340,7 @@ button, input, select, textarea {
 }
 
 .cb-new-mail-header h2 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 28px;
   color: #432812;
   margin: 0 0 4px;
@@ -1431,7 +1509,7 @@ button, input, select, textarea {
 }
 
 .cb-owner-brand h1 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 28px;
   margin: 0;
   color: #422610;
@@ -1578,7 +1656,7 @@ button, input, select, textarea {
 }
 
 .cb-stats-card h3 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 22px;
   color: #422610;
   margin: 0 0 12px;
@@ -2342,14 +2420,15 @@ button, input, select, textarea {
 }
 
 .cb-about-header h1 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 38px;
   color: #3b2210;
   margin: 0 0 4px;
 }
 
 .cb-about-tagline {
-  font-size: 16px;
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  font-size: 18px;
   font-weight: 700;
   color: #6d4b2e;
   margin: 0;
@@ -2375,16 +2454,17 @@ button, input, select, textarea {
 }
 
 .cb-about-card h3 {
-  font-family: 'Patrick Hand', cursive;
-  font-size: 21px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 22px;
   color: #422610;
   margin: 0 0 6px;
 }
 
 .cb-about-card p {
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
   color: #4a3424;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.55;
   margin: 0;
 }
 
@@ -2396,12 +2476,13 @@ button, input, select, textarea {
 }
 
 .cb-about-back-btn {
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   background: #507842;
   color: #fff;
   border: 2px solid #35532a;
   border-radius: 8px;
   padding: 8px 18px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -2438,7 +2519,7 @@ button, input, select, textarea {
 }
 
 .cb-profile-box h1 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 34px;
   margin: 4px 0;
   color: #4b321a;
@@ -2459,7 +2540,7 @@ button, input, select, textarea {
 }
 
 .cb-avatar-selection h3 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 20px;
   color: #442a14;
   margin: 0 0 12px;
@@ -2598,7 +2679,7 @@ button, input, select, textarea {
 }
 
 .modalbox h2 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 28px;
   margin: 12px 0 2px;
   color: #4b321a;
@@ -2719,7 +2800,7 @@ button, input, select, textarea {
 }
 
 .letter h2 {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 30px;
   margin: 6px 0;
   color: #4b321a;
@@ -3022,7 +3103,7 @@ footer {
     border: 1.5px solid #734522;
     border-radius: 16px;
     padding: 5px 12px;
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
     font-size: 15px;
     cursor: pointer;
     display: inline-flex;
@@ -3114,7 +3195,7 @@ footer {
   }
 
   .cb-bottom-nav-label {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
     font-size: 13px;
     letter-spacing: 0.3px;
   }
