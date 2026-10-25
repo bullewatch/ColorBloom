@@ -160,6 +160,116 @@ export const DEFAULT_NEWS = [
   { id: 'news-5', dateKey: '2026-10-12', displayDate: '12/10', count: 30 },
 ];
 
+function normalizeCatStr(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function ModalDrawingPreview({ drawing, title, hasWatermark }) {
+  const [rasterSrc, setRasterSrc] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!drawing?.image) {
+      setRasterSrc(null);
+      return;
+    }
+
+    const isSvg = drawing.isSvg || String(drawing.imagePath || drawing.image).toLowerCase().endsWith('.svg');
+    if (!isSvg) {
+      setRasterSrc(drawing.image);
+      return;
+    }
+
+    // Rasterize SVG to high-res PNG so primary visual is PNG and SVG is never directly exposed
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    const renderToPng = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const scale = 2;
+        const width = (img.naturalWidth || 800) * scale;
+        const height = (img.naturalHeight || 1000) * scale;
+        canvas.width = Math.min(width, 2400);
+        canvas.height = Math.min(height, 3000);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/png');
+          if (active) setRasterSrc(dataUrl);
+          return;
+        }
+      } catch (err) {
+        console.warn('Canvas raster notice:', err);
+      }
+      if (active) setRasterSrc(drawing.image);
+    };
+
+    fetch(drawing.image)
+      .then(res => res.text())
+      .then(svgText => {
+        if (!active) return;
+        const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
+        img.onload = () => {
+          renderToPng();
+          URL.revokeObjectURL(blobUrl);
+        };
+        img.onerror = () => {
+          if (active) setRasterSrc(drawing.image);
+          URL.revokeObjectURL(blobUrl);
+        };
+        img.src = blobUrl;
+      })
+      .catch(() => {
+        if (!active) return;
+        img.onload = renderToPng;
+        img.onerror = () => { if (active) setRasterSrc(drawing.image); };
+        img.src = drawing.image;
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [drawing]);
+
+  return (
+    <div 
+      className="cb-modal-drawing-wrapper"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {rasterSrc ? (
+        <img
+          className="coloring-img big"
+          src={rasterSrc}
+          alt={title}
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
+        />
+      ) : (
+        <div className="cb-modal-drawing-loading">
+          <div className="cb-skeleton-shimmer" />
+        </div>
+      )}
+      {hasWatermark && (
+        <div 
+          className="cb-watermark-overlay" 
+          aria-hidden="true"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="cb-watermark-pattern" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [drawings, setDrawings] = useState(animalCatalog);
   const [databaseReady, setDatabaseReady] = useState(false);
@@ -311,15 +421,59 @@ function App() {
     return getSubcategoriesFor(activeParentCategory, categoriesList);
   }, [activeParentCategory, categoriesList]);
 
+  const isVisitorLimitReached = !session && downloads >= 3;
+
+  const favoriteDrawings = useMemo(() => {
+    return drawings.filter(d => favs.has(d.id) || favs.has(d.slug) || favs.has(String(d.id)));
+  }, [drawings, favs]);
+  const favsCount = favoriteDrawings.length;
+
+  // Disable right-click globally on all drawings, canvases, and images across the site
+  useEffect(() => {
+    const handleDrawingContextMenu = (e) => {
+      if (
+        e.target.tagName === 'IMG' ||
+        e.target.tagName === 'CANVAS' ||
+        e.target.closest('.cb-gallery') ||
+        e.target.closest('.cb-board-item') ||
+        e.target.closest('.cb-board-canvas') ||
+        e.target.closest('.modalbox') ||
+        e.target.closest('.bigpaper') ||
+        e.target.closest('.cb-modal-drawing-wrapper') ||
+        e.target.closest('.cb-lib-thumb') ||
+        e.target.closest('.cb-pinned-drawing')
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    };
+    window.addEventListener('contextmenu', handleDrawingContextMenu, { capture: true });
+    return () => window.removeEventListener('contextmenu', handleDrawingContextMenu, { capture: true });
+  }, []);
+
   function getCategoryDrawingsCount(categoryObj) {
     if (!categoryObj) return 0;
+    const normName = normalizeCatStr(categoryObj.name);
+    const normId = normalizeCatStr(categoryObj.id);
+
     if (categoryObj.parentId) {
-      return drawings.filter(d => (d.cat || []).some(c => c.toLowerCase() === categoryObj.name.toLowerCase())).length;
+      return drawings.filter(d => 
+        (d.cat || []).some(c => {
+          const nc = normalizeCatStr(c);
+          return nc === normName || nc === normId;
+        })
+      ).length;
     }
+
     const subcats = getSubcategoriesFor(categoryObj, categoriesList);
-    const subcatNames = subcats.map(s => s.name.toLowerCase());
-    const accepted = new Set([categoryObj.name.toLowerCase(), ...subcatNames]);
-    return drawings.filter(d => (d.cat || []).some(c => accepted.has(c.toLowerCase()))).length;
+    const accepted = new Set([
+      normName,
+      normId,
+      ...subcats.map(s => normalizeCatStr(s.name)),
+      ...subcats.map(s => normalizeCatStr(s.id)),
+    ]);
+
+    return drawings.filter(d => (d.cat || []).some(c => accepted.has(normalizeCatStr(c)))).length;
   }
 
   // Check if current user is owner/admin
@@ -480,34 +634,41 @@ function App() {
   }, [theme]);
 
   async function heart(id) {
-    const wasFavorite = favs.has(id);
+    const targetDrawing = drawings.find(d => d.id === id || d.slug === id);
+    const key = targetDrawing ? targetDrawing.id : id;
+    const slugKey = targetDrawing?.slug;
+    const wasFavorite = favs.has(key) || (slugKey && favs.has(slugKey));
     const delta = wasFavorite ? -1 : 1;
 
     setFavs(current => {
       const next = new Set(current);
-      wasFavorite ? next.delete(id) : next.add(id);
+      if (wasFavorite) {
+        next.delete(key);
+        if (slugKey) next.delete(slugKey);
+      } else {
+        next.add(key);
+      }
       return next;
     });
 
-    setDrawings(current => current.map(d => d.id === id ? { ...d, likes: Math.max(0, d.likes + delta) } : d));
-    setOpen(current => current?.id === id ? { ...current, likes: Math.max(0, current.likes + delta) } : current);
+    setDrawings(current => current.map(d => (d.id === key || d.slug === key) ? { ...d, likes: Math.max(0, d.likes + delta) } : d));
+    setOpen(current => (current?.id === key || current?.slug === key) ? { ...current, likes: Math.max(0, current.likes + delta) } : current);
 
-    const targetDrawing = drawings.find(d => d.id === id);
-    if (targetDrawing && !String(id).startsWith('cb-svg-')) {
+    if (targetDrawing && !String(targetDrawing.id).startsWith('cb-svg-')) {
       const newLikes = Math.max(0, (targetDrawing.likes || 0) + delta);
-      supabase.from('coloring_pages').update({ likes_count: newLikes }).eq('id', id).then();
+      supabase.from('coloring_pages').update({ likes_count: newLikes }).eq('id', targetDrawing.id).then();
     }
 
     if (!session?.user) return;
 
     const query = wasFavorite
-      ? supabase.from('favorites').delete().eq('user_id', session.user.id).eq('coloring_id', id)
-      : supabase.from('favorites').insert({ user_id: session.user.id, coloring_id: id });
+      ? supabase.from('favorites').delete().eq('user_id', session.user.id).in('coloring_id', [String(key), ...(slugKey ? [slugKey] : [])])
+      : supabase.from('favorites').insert({ user_id: session.user.id, coloring_id: String(key) });
 
     const { error } = await query;
     if (error) {
+      console.warn('Favorite sync warning:', error);
       await loadAccount(session);
-      await loadDrawings();
     }
   }
 
@@ -526,8 +687,8 @@ function App() {
 
   async function download(format) {
     if (!open) return;
-    if (downloads >= 5 && !session) {
-      alert('Crée un compte gratuit pour continuer à télécharger sans limite.');
+    if (downloads >= 3 && !session) {
+      alert('Tu as atteint la limite de 3 coloriages gratuits. Crée un compte gratuit pour continuer sans limite !');
       return;
     }
 
@@ -660,23 +821,36 @@ function App() {
       }
       if (cat === 'Tous') return true;
 
-      const targetCat = categoriesList.find(c => c.name.toLowerCase() === cat.toLowerCase() || c.id === cat);
+      const targetCat = categoriesList.find(c => 
+        normalizeCatStr(c.name) === normalizeCatStr(cat) || 
+        normalizeCatStr(c.id) === normalizeCatStr(cat)
+      );
       if (!targetCat) {
-        return (d.cat || []).some(c => c.toLowerCase() === cat.toLowerCase());
+        return (d.cat || []).some(c => normalizeCatStr(c) === normalizeCatStr(cat));
       }
+
+      const normName = normalizeCatStr(targetCat.name);
+      const normId = normalizeCatStr(targetCat.id);
 
       if (targetCat.parentId) {
         // Specific subcategory (e.g. 'Chats')
-        return (d.cat || []).some(c => c.toLowerCase() === targetCat.name.toLowerCase());
+        return (d.cat || []).some(c => {
+          const nc = normalizeCatStr(c);
+          return nc === normName || nc === normId;
+        });
       } else {
         // Root category (e.g. 'Animaux'): include drawings of this category OR any of its subcategories
         const subcats = getSubcategoriesFor(targetCat, categoriesList);
-        const subcatNames = subcats.map(s => s.name.toLowerCase());
-        const accepted = new Set([targetCat.name.toLowerCase(), ...subcatNames]);
-        return (d.cat || []).some(c => accepted.has(c.toLowerCase()));
+        const accepted = new Set([
+          normName,
+          normId,
+          ...subcats.map(s => normalizeCatStr(s.name)),
+          ...subcats.map(s => normalizeCatStr(s.id)),
+        ]);
+        return (d.cat || []).some(c => accepted.has(normalizeCatStr(c)));
       }
     });
-    if (page === 'Favoris') result = result.filter(d => favs.has(d.id));
+    if (page === 'Favoris') result = result.filter(d => favs.has(d.id) || favs.has(d.slug) || favs.has(String(d.id)));
     if (sort === 'liked') result = [...result].sort((a, b) => b.likes - a.likes);
     if (sort === 'recent') result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     if (sort === 'alpha') {
@@ -711,7 +885,7 @@ function App() {
               aria-label="Mes Favoris"
             >
               <img src={favorisArt} alt="Favoris" />
-              {favs.size > 0 && <span className="cb-top-badge">{favs.size}</span>}
+              {favsCount > 0 && <span className="cb-top-badge">{favsCount}</span>}
             </button>
 
             {/* Direct Owner Space Button */}
@@ -770,7 +944,7 @@ function App() {
                 <Icon className="cb-tab-icon" />
                 <span>{label}</span>
                 {badge && <small className="cb-tab-badge">{badge}</small>}
-                {id === 'Favoris' && favs.size > 0 && <small className="cb-tab-badge">{favs.size}</small>}
+                {id === 'Favoris' && favsCount > 0 && <small className="cb-tab-badge">{favsCount}</small>}
               </button>
             ))}
           </nav>
@@ -787,12 +961,14 @@ function App() {
               }}
             >
               <span>{t.catAll}</span>
+              <span className="cb-mobile-pill-count">({drawings.length})</span>
             </button>
 
             {rootCategories.map((rc) => {
               const isRootActive = cat === rc.name && page === 'Accueil';
               const subcats = getSubcategoriesFor(rc, categoriesList);
               const isChildActive = subcats.some(s => s.name === cat) && page === 'Accueil';
+              const count = getCategoryDrawingsCount(rc);
               return (
                 <button
                   key={rc.id}
@@ -805,6 +981,7 @@ function App() {
                   }}
                 >
                   <span>{getCatLabel(rc.name, t)}</span>
+                  <span className="cb-mobile-pill-count">({count})</span>
                   {subcats.length > 0 && <span className="cb-pill-sub-indicator">▾</span>}
                 </button>
               );
@@ -843,19 +1020,23 @@ function App() {
               >
                 <span>Tout voir</span>
               </button>
-              {activeSubcategories.map(sc => (
-                <button
-                  key={sc.id}
-                  type="button"
-                  className={`cb-mobile-subcat-pill ${cat === sc.name ? 'active' : ''}`}
-                  onClick={() => {
-                    setCat(sc.name);
-                    setPage('Accueil');
-                  }}
-                >
-                  <span>{getCatLabel(sc.name, t)}</span>
-                </button>
-              ))}
+              {activeSubcategories.map(sc => {
+                const scCount = getCategoryDrawingsCount(sc);
+                return (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    className={`cb-mobile-subcat-pill ${cat === sc.name ? 'active' : ''}`}
+                    onClick={() => {
+                      setCat(sc.name);
+                      setPage('Accueil');
+                    }}
+                  >
+                    <span>{getCatLabel(sc.name, t)}</span>
+                    <span className="cb-mobile-pill-count">({scCount})</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -880,13 +1061,13 @@ function App() {
 
             {/* Medallion Heart on the Right */}
             <button
-              className={`cb-search-heart-medallion ${favs.size > 0 ? 'active' : ''}`}
+              className={`cb-search-heart-medallion ${favsCount > 0 ? 'active' : ''}`}
               onClick={() => { setPage('Favoris'); setOwnerOpen(false); }}
               title="Voir mes favoris"
               aria-label="Voir mes favoris"
             >
-              <Heart fill={favs.size > 0 ? '#d9534f' : '#eddcb8'} color="#5a2e12" />
-              {favs.size > 0 && <span className="cb-medallion-count">{favs.size}</span>}
+              <Heart fill={favsCount > 0 ? '#d9534f' : '#eddcb8'} color="#5a2e12" />
+              {favsCount > 0 && <span className="cb-medallion-count">{favsCount}</span>}
             </button>
           </div>
         </div>
@@ -1137,7 +1318,7 @@ function App() {
                               {isExpanded ? '▾' : '▸'}
                             </span>
                           )}
-                          {count > 0 && <span className="cb-plank-pill">{count}</span>}
+                          <span className="cb-plank-pill">{count}</span>
                         </button>
 
                         {/* Sous-planches imbriquées si déployé */}
@@ -1152,7 +1333,7 @@ function App() {
                             >
                               <span className="cb-subplank-branch">↳</span>
                               <span className="cb-subplank-title">Tous les {getCatLabel(rc.name, t)}</span>
-                              {count > 0 && <span className="cb-subplank-pill">{count}</span>}
+                              <span className="cb-subplank-pill">{count}</span>
                             </button>
 
                             {subcats.map(sc => {
@@ -1169,7 +1350,7 @@ function App() {
                                 >
                                   <span className="cb-subplank-branch">↳</span>
                                   <span className="cb-subplank-title">{getCatLabel(sc.name, t)}</span>
-                                  {scCount > 0 && <span className="cb-subplank-pill">{scCount}</span>}
+                                  <span className="cb-subplank-pill">{scCount}</span>
                                 </button>
                               );
                             })}
@@ -1189,7 +1370,7 @@ function App() {
                   >
                     <span className="cb-plank-dot">•</span>
                     <span className="cb-plank-title">{t.myFavorites}</span>
-                    {favs.size > 0 && <span className="cb-plank-pill">{favs.size}</span>}
+                    <span className="cb-plank-pill">{favsCount}</span>
                   </button>
                 </div>
               </div>
@@ -1201,14 +1382,26 @@ function App() {
             {shown.length ? (
               <div className={`cb-boards-grid cb-grid-cols-${gridDensity}`}>
                 {shown.map((d) => (
-                  <article className="cb-board-item" key={d.id} onClick={() => setOpen(d)}>
+                  <article 
+                    className="cb-board-item" 
+                    key={d.id} 
+                    onClick={() => setOpen(d)}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
                     {/* The Wooden Board Frame Background */}
                     <div className="cb-board-frame" style={{ backgroundImage: `url(${boardArt})` }}>
                       {/* Pinned Drawing on the Inner Parchment Canvas */}
-                      <div className="cb-board-canvas">
+                      <div className="cb-board-canvas" onContextMenu={(e) => e.preventDefault()}>
                         {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
                         {d.image ? (
-                          <img src={d.image} alt={getDrawingTitle(d.title, lang)} className="cb-pinned-drawing" loading="lazy" />
+                          <img 
+                            src={d.image} 
+                            alt={getDrawingTitle(d.title, lang)} 
+                            className="cb-pinned-drawing" 
+                            loading="lazy" 
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
+                          />
                         ) : (
                           <div className="cb-drawing-empty">
                             <span>{getDrawingTitle(d.title, lang)}</span>
@@ -1219,7 +1412,7 @@ function App() {
 
                     {/* OVERLAID LAYER: Enhanced High-Contrast Like Button Centered at the Bottom */}
                     <button
-                      className={`cb-like-badge ${favs.has(d.id) ? 'liked' : ''}`}
+                      className={`cb-like-badge ${(favs.has(d.id) || favs.has(d.slug)) ? 'liked' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         heart(d.id);
@@ -1227,7 +1420,7 @@ function App() {
                       aria-label="Aimer et ajouter aux favoris"
                       title={`${d.likes} j'aime`}
                     >
-                      <img src={favs.has(d.id) ? likeLikedArt : likeArt} alt="" aria-hidden="true" />
+                      <img src={(favs.has(d.id) || favs.has(d.slug)) ? likeLikedArt : likeArt} alt="" aria-hidden="true" />
                       <span className={`cb-like-count cb-digits-${String(formatLikes(d.likes)).length}`}>
                         {formatLikes(d.likes)}
                       </span>
@@ -1284,48 +1477,87 @@ function App() {
 
       {/* Drawing Modal (En grand & Téléchargements SVG, PNG, PDF) */}
       {open && (
-        <div className="modal" onClick={() => setOpen(null)}>
-          <div className="modalbox" onClick={e => e.stopPropagation()}>
+        <div className="modal" onClick={() => setOpen(null)} onContextMenu={(e) => e.preventDefault()}>
+          <div className="modalbox" onClick={e => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
             <button className="close" onClick={() => setOpen(null)}><X /></button>
-            <div className="bigpaper">
-              <img className="coloring-img big" src={open.image} alt={getDrawingTitle(open.title, lang)} />
+            <div className="bigpaper" onContextMenu={(e) => e.preventDefault()}>
+              <ModalDrawingPreview
+                drawing={open}
+                title={getDrawingTitle(open.title, lang)}
+                hasWatermark={isVisitorLimitReached}
+              />
             </div>
             <h2>{getDrawingTitle(open.title, lang)}</h2>
             <p>{open.cat.map(c => getCatLabel(c, t)).join(' • ')}</p>
-            <div className="actions">
-              <button
-                className={`modal-heart-btn ${favs.has(open.id) ? 'liked' : ''}`}
-                onClick={() => heart(open.id)}
-              >
-                <Heart fill={favs.has(open.id) ? 'currentColor' : 'none'} /> {formatLikes(open.likes)}
-              </button>
-              {open.isSvg && (
+
+            {isVisitorLimitReached ? (
+              <div className="cb-limit-cta-box">
+                <div className="cb-limit-cta-header">
+                  <span className="cb-limit-lock-badge">🔒 3/3 coloriages gratuits utilisés</span>
+                </div>
+                <p className="cb-limit-cta-desc">
+                  {lang === 'EN'
+                    ? 'You have reached the limit of 3 free coloring downloads for visitors. Create a free account in just a few seconds to view clean previews without watermark and enjoy unlimited downloads!'
+                    : lang === 'ES'
+                    ? '¡Has alcanzado el límite de 3 dibujos gratuitos para visitantes! Crea una cuenta gratis para ver las vistas previas sin marca de agua y descargar sin límites.'
+                    : lang === 'DE'
+                    ? 'Du hast das Limit von 3 kostenlosen Ausmalbildern für Besucher erreicht! Erstelle ein kostenloses Konto, um Vorschauen ohne Wasserzeichen zu sehen und unbegrenzt herunterzuladen.'
+                    : 'Tu as atteint la limite de 3 coloriages gratuits pour les visiteurs ! Crée un compte gratuit en quelques secondes pour voir tous les dessins sans filigrane et télécharger en illimité.'}
+                </p>
                 <button
-                  onClick={() => download('SVG')}
-                  className="download-btn-svg"
-                  title="Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
+                  type="button"
+                  className="cb-btn-create-account-limit"
+                  onClick={() => {
+                    setOpen(null);
+                    setPage('Profil');
+                  }}
+                >
+                  <UserPlus size={18} />
+                  <span>
+                    {lang === 'EN' ? 'Create a free account' : lang === 'ES' ? 'Crear una cuenta gratis' : lang === 'DE' ? 'Kostenloses Konto erstellen' : 'Créer un compte gratuit'}
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="actions">
+                <button
+                  className={`modal-heart-btn ${(favs.has(open.id) || favs.has(open.slug)) ? 'liked' : ''}`}
+                  onClick={() => heart(open.id)}
+                >
+                  <Heart fill={(favs.has(open.id) || favs.has(open.slug)) ? 'currentColor' : 'none'} /> {formatLikes(open.likes)}
+                </button>
+                {open.isSvg && (
+                  <button
+                    onClick={() => download('SVG')}
+                    className="download-btn-svg"
+                    title="Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
+                    disabled={Boolean(downloading)}
+                  >
+                    <Download /> {downloading === 'SVG' ? t.preparing : t.btnSvg}
+                  </button>
+                )}
+                <button
+                  onClick={() => download('PNG')}
+                  title="Télécharger en image PNG haute résolution"
                   disabled={Boolean(downloading)}
                 >
-                  <Download /> {downloading === 'SVG' ? t.preparing : t.btnSvg}
+                  <Download /> {downloading === 'PNG' ? t.preparing : t.btnPng}
                 </button>
-              )}
-              <button
-                onClick={() => download('PNG')}
-                title="Télécharger en image PNG haute résolution"
-                disabled={Boolean(downloading)}
-              >
-                <Download /> {downloading === 'PNG' ? t.preparing : t.btnPng}
-              </button>
-              <button
-                onClick={() => download('PDF')}
-                title="Télécharger en document PDF A4 prêt à imprimer"
-                disabled={Boolean(downloading)}
-              >
-                <Download /> {downloading === 'PDF' ? t.preparing : t.btnPdf}
-              </button>
-            </div>
+                <button
+                  onClick={() => download('PDF')}
+                  title="Télécharger en document PDF A4 prêt à imprimer"
+                  disabled={Boolean(downloading)}
+                >
+                  <Download /> {downloading === 'PDF' ? t.preparing : t.btnPdf}
+                </button>
+              </div>
+            )}
             <small className="download-note">
-              {session ? t.unlimitedDownloads : `${Math.max(0, 5 - downloads)} ${t.visitorDownloadsLeft}`}
+              {session 
+                ? t.unlimitedDownloads 
+                : isVisitorLimitReached
+                ? (lang === 'EN' ? 'Free account required to continue' : 'Compte gratuit requis pour continuer')
+                : `${Math.max(0, 3 - downloads)} ${t.visitorDownloadsLeft}`}
             </small>
           </div>
         </div>
@@ -1465,10 +1697,10 @@ function App() {
           <div className="cb-bottom-heart-wrap">
             <Heart
               className="cb-bottom-nav-icon"
-              fill={favs.size > 0 ? '#d9534f' : 'none'}
-              color={favs.size > 0 ? '#d9534f' : 'currentColor'}
+              fill={favsCount > 0 ? '#d9534f' : 'none'}
+              color={favsCount > 0 ? '#d9534f' : 'currentColor'}
             />
-            {favs.size > 0 && <span className="cb-bottom-badge">{favs.size}</span>}
+            {favsCount > 0 && <span className="cb-bottom-badge">{favsCount}</span>}
           </div>
           <span className="cb-bottom-nav-label">Favoris</span>
         </button>
@@ -3062,18 +3294,30 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     return drawings.filter(d => {
       let matchCat = true;
       if (libraryCatFilter !== 'Tous') {
-        const targetCat = (categoriesList || []).find(c => c.name.toLowerCase() === libraryCatFilter.toLowerCase() || c.id === libraryCatFilter);
+        const targetCat = (categoriesList || []).find(c => 
+          normalizeCatStr(c.name) === normalizeCatStr(libraryCatFilter) || 
+          normalizeCatStr(c.id) === normalizeCatStr(libraryCatFilter)
+        );
         if (targetCat) {
+          const normName = normalizeCatStr(targetCat.name);
+          const normId = normalizeCatStr(targetCat.id);
           if (targetCat.parentId) {
-            matchCat = (d.cat || []).some(c => c.toLowerCase() === targetCat.name.toLowerCase());
+            matchCat = (d.cat || []).some(c => {
+              const nc = normalizeCatStr(c);
+              return nc === normName || nc === normId;
+            });
           } else {
             const subcats = getSubcategoriesFor(targetCat, categoriesList);
-            const subcatNames = subcats.map(s => s.name.toLowerCase());
-            const accepted = new Set([targetCat.name.toLowerCase(), ...subcatNames]);
-            matchCat = (d.cat || []).some(c => accepted.has(c.toLowerCase()));
+            const accepted = new Set([
+              normName,
+              normId,
+              ...subcats.map(s => normalizeCatStr(s.name)),
+              ...subcats.map(s => normalizeCatStr(s.id)),
+            ]);
+            matchCat = (d.cat || []).some(c => accepted.has(normalizeCatStr(c)));
           }
         } else {
-          matchCat = (d.cat || []).includes(libraryCatFilter);
+          matchCat = (d.cat || []).some(c => normalizeCatStr(c) === normalizeCatStr(libraryCatFilter));
         }
       }
       const matchQ = d.title.toLowerCase().includes(librarySearch.toLowerCase());
