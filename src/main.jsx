@@ -103,6 +103,55 @@ function slugify(value) {
     .replace(/^-|-$/g, '');
 }
 
+export const INITIAL_CATEGORIES = [
+  { id: 'animaux', name: 'Animaux', parent_id: null, sort_order: 1 },
+  { id: 'chats', name: 'Chats', parent_id: 'animaux', sort_order: 2 },
+  { id: 'fees', name: 'Fées', parent_id: null, sort_order: 3 },
+  { id: 'fille', name: 'Fille', parent_id: null, sort_order: 4 },
+  { id: 'garcon', name: 'Garçon', parent_id: null, sort_order: 5 },
+  { id: 'halloween', name: 'Halloween', parent_id: null, sort_order: 6 },
+  { id: 'dinosaures', name: 'Dinosaures', parent_id: null, sort_order: 7 },
+  { id: 'vehicules', name: 'Véhicules', parent_id: null, sort_order: 8 },
+  { id: 'vip', name: 'VIP', parent_id: null, sort_order: 9 },
+  { id: 'divers', name: 'Divers', parent_id: null, sort_order: 10 },
+];
+
+function normalizeCategory(c) {
+  return {
+    id: c.id,
+    name: c.name,
+    parentId: c.parent_id !== undefined ? c.parent_id : (c.parentId || null),
+    sortOrder: c.sort_order !== undefined ? c.sort_order : (c.sortOrder || 0),
+  };
+}
+
+function getSubcategoriesFor(parentCat, allCats) {
+  if (!parentCat) return [];
+  const pId = String(parentCat.id).toLowerCase();
+  const pName = String(parentCat.name).toLowerCase();
+  return (allCats || []).filter(c => 
+    c.parentId && (
+      String(c.parentId).toLowerCase() === pId ||
+      String(c.parentId).toLowerCase() === pName
+    )
+  );
+}
+
+function getParentCategoryFor(catNameOrId, allCats) {
+  if (!catNameOrId) return null;
+  const target = String(catNameOrId).toLowerCase();
+  const current = (allCats || []).find(c => 
+    String(c.id).toLowerCase() === target || 
+    String(c.name).toLowerCase() === target
+  );
+  if (!current || !current.parentId) return null;
+  const pTarget = String(current.parentId).toLowerCase();
+  return (allCats || []).find(c => 
+    String(c.id).toLowerCase() === pTarget || 
+    String(c.name).toLowerCase() === pTarget
+  ) || null;
+}
+
 function App() {
   const [drawings, setDrawings] = useState(animalCatalog);
   const [databaseReady, setDatabaseReady] = useState(false);
@@ -126,6 +175,18 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  // Dynamic categories with Supabase sync and localStorage fallback
+  const [categoriesList, setCategoriesList] = useState(() => {
+    const local = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+    const map = new Map();
+    INITIAL_CATEGORIES.forEach(c => map.set(c.id, normalizeCategory(c)));
+    local.forEach(c => map.set(c.id, normalizeCategory(c)));
+    return Array.from(map.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  });
+
+  // Desktop sidebar expansion state for categories with subcategories
+  const [expandedCats, setExpandedCats] = useState({ animaux: true });
 
   // Responsive Grid Density setting (base default: 2 drawings per row)
   const [gridDensity, setGridDensity] = useState(() => localStorage.getItem('cb-grid-density') || '2');
@@ -169,8 +230,59 @@ function App() {
     localStorage.setItem('cb-grid-density', gridDensity);
   }, [gridDensity]);
 
-  // Left categories list without POM
-  const cats = ['Tous', 'Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules'];
+  async function loadCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      const local = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+      const map = new Map();
+      INITIAL_CATEGORIES.forEach(c => map.set(c.id, normalizeCategory(c)));
+      if (!error && data && data.length) {
+        data.forEach(r => map.set(r.id, normalizeCategory(r)));
+      }
+      local.forEach(c => map.set(c.id, normalizeCategory(c)));
+      const merged = Array.from(map.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      setCategoriesList(merged);
+    } catch (err) {
+      console.warn('Error loading categories:', err);
+    }
+  }
+
+  const rootCategories = useMemo(() => {
+    return categoriesList.filter(c => !c.parentId);
+  }, [categoriesList]);
+
+  const activeCategoryObj = useMemo(() => {
+    if (cat === 'Tous') return null;
+    return categoriesList.find(c => c.name.toLowerCase() === cat.toLowerCase() || c.id === cat) || null;
+  }, [cat, categoriesList]);
+
+  const activeParentCategory = useMemo(() => {
+    if (!activeCategoryObj) return null;
+    if (!activeCategoryObj.parentId) {
+      return activeCategoryObj;
+    }
+    return getParentCategoryFor(activeCategoryObj.id, categoriesList);
+  }, [activeCategoryObj, categoriesList]);
+
+  const activeSubcategories = useMemo(() => {
+    if (!activeParentCategory) return [];
+    return getSubcategoriesFor(activeParentCategory, categoriesList);
+  }, [activeParentCategory, categoriesList]);
+
+  function getCategoryDrawingsCount(categoryObj) {
+    if (!categoryObj) return 0;
+    if (categoryObj.parentId) {
+      return drawings.filter(d => (d.cat || []).some(c => c.toLowerCase() === categoryObj.name.toLowerCase())).length;
+    }
+    const subcats = getSubcategoriesFor(categoryObj, categoriesList);
+    const subcatNames = subcats.map(s => s.name.toLowerCase());
+    const accepted = new Set([categoryObj.name.toLowerCase(), ...subcatNames]);
+    return drawings.filter(d => (d.cat || []).some(c => accepted.has(c.toLowerCase()))).length;
+  }
 
   // Check if current user is owner/admin
   const isOwner = Boolean(
@@ -282,6 +394,7 @@ function App() {
 
   useEffect(() => {
     loadDrawings();
+    loadCategories();
     checkPendingRequests();
 
     // Log site visit in analytics
@@ -500,16 +613,34 @@ function App() {
   }
 
   const shown = useMemo(() => {
-    let result = drawings.filter(d =>
-      (cat === 'Tous' || d.cat.includes(cat)) &&
-      d.title.toLowerCase().includes(q.toLowerCase())
-    );
+    let result = drawings.filter(d => {
+      if (q && !d.title.toLowerCase().includes(q.toLowerCase())) {
+        return false;
+      }
+      if (cat === 'Tous') return true;
+
+      const targetCat = categoriesList.find(c => c.name.toLowerCase() === cat.toLowerCase() || c.id === cat);
+      if (!targetCat) {
+        return (d.cat || []).some(c => c.toLowerCase() === cat.toLowerCase());
+      }
+
+      if (targetCat.parentId) {
+        // Specific subcategory (e.g. 'Chats')
+        return (d.cat || []).some(c => c.toLowerCase() === targetCat.name.toLowerCase());
+      } else {
+        // Root category (e.g. 'Animaux'): include drawings of this category OR any of its subcategories
+        const subcats = getSubcategoriesFor(targetCat, categoriesList);
+        const subcatNames = subcats.map(s => s.name.toLowerCase());
+        const accepted = new Set([targetCat.name.toLowerCase(), ...subcatNames]);
+        return (d.cat || []).some(c => accepted.has(c.toLowerCase()));
+      }
+    });
     if (page === 'Favoris') result = result.filter(d => favs.has(d.id));
     if (sort === 'liked') result = [...result].sort((a, b) => b.likes - a.likes);
     if (sort === 'recent') result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     if (sort === 'alpha') result = [...result].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base', numeric: true }));
     return result;
-  }, [q, cat, page, favs, sort, drawings]);
+  }, [q, cat, page, favs, sort, drawings, categoriesList]);
 
   const activeAvatarSrc = avatarList[selectedAvatar] || avatar1;
 
@@ -599,20 +730,38 @@ function App() {
 
           {/* Mobile All Category Tabs (Horizontal Scroll Strip at the top of the screen) */}
           <div className="cb-mobile-cats-row cb-mobile-only" aria-label="Catégories de coloriage">
-            {cats.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`cb-mobile-cat-pill ${cat === c && page === 'Accueil' ? 'active' : ''}`}
-                onClick={() => {
-                  setCat(c);
-                  setPage('Accueil');
-                  setOwnerOpen(false);
-                }}
-              >
-                <span>{getCatLabel(c, t)}</span>
-              </button>
-            ))}
+            <button
+              type="button"
+              className={`cb-mobile-cat-pill ${cat === 'Tous' && page === 'Accueil' ? 'active' : ''}`}
+              onClick={() => {
+                setCat('Tous');
+                setPage('Accueil');
+                setOwnerOpen(false);
+              }}
+            >
+              <span>{t.catAll}</span>
+            </button>
+
+            {rootCategories.map((rc) => {
+              const isRootActive = cat === rc.name && page === 'Accueil';
+              const subcats = getSubcategoriesFor(rc, categoriesList);
+              const isChildActive = subcats.some(s => s.name === cat) && page === 'Accueil';
+              return (
+                <button
+                  key={rc.id}
+                  type="button"
+                  className={`cb-mobile-cat-pill ${isRootActive || isChildActive ? 'active' : ''}`}
+                  onClick={() => {
+                    setCat(rc.name);
+                    setPage('Accueil');
+                    setOwnerOpen(false);
+                  }}
+                >
+                  <span>{getCatLabel(rc.name, t)}</span>
+                  {subcats.length > 0 && <span className="cb-pill-sub-indicator">▾</span>}
+                </button>
+              );
+            })}
             <button
               type="button"
               className="cb-mobile-cat-pill"
@@ -630,6 +779,38 @@ function App() {
               <span>{t.navAbout}</span>
             </button>
           </div>
+
+          {/* Mobile Subcategories Secondary Strip (Visible when active root category has subcategories) */}
+          {activeParentCategory && activeSubcategories.length > 0 && page === 'Accueil' && (
+            <div className="cb-mobile-subcats-row cb-mobile-only" aria-label="Sous-catégories">
+              <span className="cb-mobile-subcat-badge">
+                {getCatLabel(activeParentCategory.name, t)} :
+              </span>
+              <button
+                type="button"
+                className={`cb-mobile-subcat-pill ${cat === activeParentCategory.name ? 'active' : ''}`}
+                onClick={() => {
+                  setCat(activeParentCategory.name);
+                  setPage('Accueil');
+                }}
+              >
+                <span>Tout voir</span>
+              </button>
+              {activeSubcategories.map(sc => (
+                <button
+                  key={sc.id}
+                  type="button"
+                  className={`cb-mobile-subcat-pill ${cat === sc.name ? 'active' : ''}`}
+                  onClick={() => {
+                    setCat(sc.name);
+                    setPage('Accueil');
+                  }}
+                >
+                  <span>{getCatLabel(sc.name, t)}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Search Bar Row inside the same brown wooden frame */}
           <div className="cb-search-bar-inner">
@@ -773,6 +954,8 @@ function App() {
           drawings={drawings}
           setDrawings={setDrawings}
           reloadDrawings={loadDrawings}
+          categoriesList={categoriesList}
+          reloadCategories={loadCategories}
           user={session?.user || { id: 'bullewatch-owner', email: 'flo83119@gmail.com' }}
           closeAdmin={() => setOwnerOpen(false)}
           pendingRequestsCount={pendingRequestsCount}
@@ -855,23 +1038,98 @@ function App() {
                   </select>
                 </div>
 
-                {/* Categories Wooden Planks (POM remplacé par Favoris au bas) */}
+                {/* Categories Wooden Planks (Avec Sous-catégories déployables) */}
                 <div className="cb-categories-planks">
                   <span className="cb-plank-label">{t.categoriesTitle}</span>
-                  {cats.map(catName => (
-                    <button
-                      key={catName}
-                      className={`cb-css-plank ${cat === catName && page === 'Accueil' ? 'active' : ''}`}
-                      onClick={() => {
-                        setCat(catName);
-                        setPage('Accueil');
-                      }}
-                    >
-                      <span className="cb-plank-dot">•</span>
-                      <span className="cb-plank-title">{getCatLabel(catName, t)}</span>
-                      {catName === 'Animaux' && <span className="cb-plank-pill">{animalCatalog.length}</span>}
-                    </button>
-                  ))}
+
+                  {/* Tous */}
+                  <button
+                    className={`cb-css-plank ${cat === 'Tous' && page === 'Accueil' ? 'active' : ''}`}
+                    onClick={() => {
+                      setCat('Tous');
+                      setPage('Accueil');
+                    }}
+                  >
+                    <span className="cb-plank-dot">•</span>
+                    <span className="cb-plank-title">{t.catAll}</span>
+                    <span className="cb-plank-pill">{drawings.length}</span>
+                  </button>
+
+                  {/* Catégories principales et sous-catégories imbriquées */}
+                  {rootCategories.map(rc => {
+                    const subcats = getSubcategoriesFor(rc, categoriesList);
+                    const count = getCategoryDrawingsCount(rc);
+                    const isRootSelected = cat === rc.name && page === 'Accueil';
+                    const isChildSelected = subcats.some(s => s.name === cat) && page === 'Accueil';
+                    const isExpanded = expandedCats[rc.id] || isRootSelected || isChildSelected;
+
+                    return (
+                      <div key={rc.id} className="cb-plank-group">
+                        <button
+                          className={`cb-css-plank ${isRootSelected ? 'active' : isChildSelected ? 'has-child-active' : ''}`}
+                          onClick={() => {
+                            setCat(rc.name);
+                            setPage('Accueil');
+                            if (subcats.length > 0) {
+                              setExpandedCats(prev => ({ ...prev, [rc.id]: true }));
+                            }
+                          }}
+                        >
+                          <span className="cb-plank-dot">•</span>
+                          <span className="cb-plank-title">{getCatLabel(rc.name, t)}</span>
+                          {subcats.length > 0 && (
+                            <span
+                              className={`cb-plank-arrow ${isExpanded ? 'open' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedCats(prev => ({ ...prev, [rc.id]: !prev[rc.id] }));
+                              }}
+                              title={isExpanded ? 'Réduire' : 'Dérouler'}
+                            >
+                              {isExpanded ? '▾' : '▸'}
+                            </span>
+                          )}
+                          {count > 0 && <span className="cb-plank-pill">{count}</span>}
+                        </button>
+
+                        {/* Sous-planches imbriquées si déployé */}
+                        {subcats.length > 0 && isExpanded && (
+                          <div className="cb-subplanks-container">
+                            <button
+                              className={`cb-css-subplank ${isRootSelected ? 'active' : ''}`}
+                              onClick={() => {
+                                setCat(rc.name);
+                                setPage('Accueil');
+                              }}
+                            >
+                              <span className="cb-subplank-branch">↳</span>
+                              <span className="cb-subplank-title">Tous les {getCatLabel(rc.name, t)}</span>
+                              {count > 0 && <span className="cb-subplank-pill">{count}</span>}
+                            </button>
+
+                            {subcats.map(sc => {
+                              const scCount = getCategoryDrawingsCount(sc);
+                              const isSubActive = cat === sc.name && page === 'Accueil';
+                              return (
+                                <button
+                                  key={sc.id}
+                                  className={`cb-css-subplank ${isSubActive ? 'active' : ''}`}
+                                  onClick={() => {
+                                    setCat(sc.name);
+                                    setPage('Accueil');
+                                  }}
+                                >
+                                  <span className="cb-subplank-branch">↳</span>
+                                  <span className="cb-subplank-title">{getCatLabel(sc.name, t)}</span>
+                                  {scCount > 0 && <span className="cb-subplank-pill">{scCount}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Bouton Favoris au bas des catégories */}
                   <button
@@ -1930,7 +2188,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
 }
 
 /* === OWNER / ADMIN SPACE CONNECTED TO SUPABASE WITH STATS & DRAWINGS MANAGEMENT === */
-function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
+function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, categoriesList = [], reloadCategories, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
@@ -1967,6 +2225,81 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
   const [publishingBatch, setPublishingBatch] = useState(false);
   const [publishProgress, setPublishProgress] = useState({ current: 0, total: 0, text: '' });
 
+  // Category creation state
+  const [showCatCreator, setShowCatCreator] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatParentId, setNewCatParentId] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
+  const rootCategories = useMemo(() => {
+    return (categoriesList || []).filter(c => !c.parentId);
+  }, [categoriesList]);
+
+  async function handleCreateCategory(e) {
+    if (e) e.preventDefault();
+    const trimmedName = newCatName.trim();
+    if (!trimmedName) {
+      alert('Veuillez entrer un nom pour la catégorie.');
+      return;
+    }
+
+    const existing = (categoriesList || []).find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existing) {
+      alert(`La catégorie « ${existing.name} » existe déjà.`);
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const parentId = newCatParentId && newCatParentId !== 'root' ? newCatParentId : null;
+      const baseSlug = slugify(trimmedName);
+      const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
+
+      const newCatObj = {
+        id: newId,
+        name: trimmedName.charAt(0).toUpperCase() + trimmedName.slice(1),
+        parent_id: parentId,
+        sort_order: (categoriesList || []).length + 1,
+      };
+
+      // 1. Local storage fallback
+      const storedCustom = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+      const updatedCustom = [...storedCustom.filter(c => c.id !== newId), newCatObj];
+      localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCustom));
+
+      // 2. Supabase
+      try {
+        await supabase.from('categories').upsert(newCatObj, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('Supabase categories insert notice:', dbErr);
+      }
+
+      // 3. Reload categories in App
+      if (reloadCategories) {
+        await reloadCategories();
+      }
+
+      // 4. Automatically select the newly created category
+      const newName = newCatObj.name;
+      setGroupedCats(prev => [...prev.filter(x => x !== newName), newName]);
+      if (batchUploadList.length > 0) {
+        setBatchUploadList(prev => prev.map(item => ({
+          ...item,
+          categories: [...(item.categories || []).filter(x => x !== newName), newName]
+        })));
+      }
+
+      setNewCatName('');
+      setShowCatCreator(false);
+      alert(`🎉 Catégorie « ${newName} » créée avec succès ! Elle a été sélectionnée pour vos dessins.`);
+    } catch (err) {
+      console.error('Error creating category:', err);
+      alert('Une erreur est survenue lors de la création de la catégorie.');
+    } finally {
+      setCreatingCategory(false);
+    }
+  }
+
   // Quick edit for renaming & categories in library
   const [editingDrawingId, setEditingDrawingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -1974,7 +2307,42 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
   const [librarySearch, setLibrarySearch] = useState('');
   const [libraryCatFilter, setLibraryCatFilter] = useState('Tous');
 
-  const availableCategories = ['Animaux', 'Chats', 'Fées', 'Fille', 'Garçon', 'Halloween', 'Dinosaures', 'Véhicules', 'VIP', 'Divers'];
+  function renderHierarchicalCategoryPills(selectedCats = [], onToggleCat) {
+    return (
+      <div className="cb-hierarchical-cats-container">
+        {rootCategories.map(rc => {
+          const subs = getSubcategoriesFor(rc, categoriesList);
+          const isRcSel = selectedCats.includes(rc.name);
+          return (
+            <div key={rc.id} className="cb-hierarchical-cat-group">
+              <button
+                type="button"
+                className={`cb-item-cat-pill root ${isRcSel ? 'active' : ''}`}
+                onClick={() => onToggleCat(rc.name)}
+                title={`Catégorie : ${rc.name}`}
+              >
+                {isRcSel ? '✓ ' : '+ '}{rc.name}
+              </button>
+              {subs.map(sc => {
+                const isScSel = selectedCats.includes(sc.name);
+                return (
+                  <button
+                    type="button"
+                    key={sc.id}
+                    className={`cb-item-cat-pill sub ${isScSel ? 'active' : ''}`}
+                    onClick={() => onToggleCat(sc.name)}
+                    title={`Sous-catégorie de ${rc.name} : ${sc.name}`}
+                  >
+                    {isScSel ? '✓ ' : '↳ '}{sc.name}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   // Toggle batch renaming mode
   function toggleBatchRenaming() {
@@ -2532,11 +2900,26 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
   // Filtered drawings in Library
   const filteredLibraryDrawings = useMemo(() => {
     return drawings.filter(d => {
-      const matchCat = libraryCatFilter === 'Tous' || d.cat.includes(libraryCatFilter);
+      let matchCat = true;
+      if (libraryCatFilter !== 'Tous') {
+        const targetCat = (categoriesList || []).find(c => c.name.toLowerCase() === libraryCatFilter.toLowerCase() || c.id === libraryCatFilter);
+        if (targetCat) {
+          if (targetCat.parentId) {
+            matchCat = (d.cat || []).some(c => c.toLowerCase() === targetCat.name.toLowerCase());
+          } else {
+            const subcats = getSubcategoriesFor(targetCat, categoriesList);
+            const subcatNames = subcats.map(s => s.name.toLowerCase());
+            const accepted = new Set([targetCat.name.toLowerCase(), ...subcatNames]);
+            matchCat = (d.cat || []).some(c => accepted.has(c.toLowerCase()));
+          }
+        } else {
+          matchCat = (d.cat || []).includes(libraryCatFilter);
+        }
+      }
       const matchQ = d.title.toLowerCase().includes(librarySearch.toLowerCase());
       return matchCat && matchQ;
     });
-  }, [drawings, libraryCatFilter, librarySearch]);
+  }, [drawings, libraryCatFilter, librarySearch, categoriesList]);
 
   return (
     <section className="cb-owner-space">
@@ -2784,9 +3167,17 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
                 onChange={e => setLibraryCatFilter(e.target.value)}
               >
                 <option value="Tous">Toutes les catégories</option>
-                {availableCategories.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {rootCategories.map(rc => {
+                  const subs = getSubcategoriesFor(rc, categoriesList);
+                  return (
+                    <React.Fragment key={rc.id}>
+                      <option value={rc.name}>{rc.name}</option>
+                      {subs.map(sc => (
+                        <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name}</option>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </select>
             </div>
           </div>
@@ -2932,25 +3323,11 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
 
                         <div className="cb-lib-cat-selector">
                           <span>Catégories :</span>
-                          <div className="cb-cat-pills-select">
-                            {availableCategories.map(c => {
-                              const selected = editingCats.includes(c);
-                              return (
-                                <button
-                                  type="button"
-                                  key={c}
-                                  className={`cb-cat-toggle-pill ${selected ? 'active' : ''}`}
-                                  onClick={() => {
-                                    setEditingCats(prev =>
-                                      selected ? prev.filter(x => x !== c) : [...prev, c]
-                                    );
-                                  }}
-                                >
-                                  {selected ? '✓ ' : '+ '}{c}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {renderHierarchicalCategoryPills(editingCats, (catName) => {
+                            setEditingCats(prev =>
+                              prev.includes(catName) ? prev.filter(x => x !== catName) : [...prev, catName]
+                            );
+                          })}
                         </div>
 
                         <div className="cb-lib-edit-actions">
@@ -3160,31 +3537,88 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
               </div>
 
               <div className="cb-grouped-field">
-                <label>Catégories pour ce lot :</label>
+                <div className="cb-grouped-cats-head">
+                  <label>Catégories pour ce lot :</label>
+                  <button
+                    type="button"
+                    className="cb-btn-toggle-new-cat"
+                    onClick={() => setShowCatCreator(!showCatCreator)}
+                  >
+                    <Plus size={14} /> {showCatCreator ? 'Fermer' : 'Créer une catégorie / sous-catégorie'}
+                  </button>
+                </div>
+
                 <div className="cb-item-cats-selector">
-                  {availableCategories.map(c => {
-                    const isSel = groupedCats.includes(c);
-                    return (
-                      <button
-                        type="button"
-                        key={c}
-                        className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
-                        onClick={() => {
-                          const nextCats = isSel ? groupedCats.filter(x => x !== c) : [...groupedCats, c];
-                          setGroupedCats(nextCats);
-                          if (batchUploadList.length > 0) {
-                            setBatchUploadList(prev => prev.map(item => ({
-                              ...item,
-                              categories: nextCats.length ? [...nextCats] : ['Divers']
-                            })));
-                          }
-                        }}
-                      >
-                        {isSel ? '✓ ' : '+ '}{c}
-                      </button>
-                    );
+                  {renderHierarchicalCategoryPills(groupedCats, (catName) => {
+                    const isSel = groupedCats.includes(catName);
+                    const nextCats = isSel ? groupedCats.filter(x => x !== catName) : [...groupedCats, catName];
+                    setGroupedCats(nextCats);
+                    if (batchUploadList.length > 0) {
+                      setBatchUploadList(prev => prev.map(item => ({
+                        ...item,
+                        categories: nextCats.length ? [...nextCats] : ['Divers']
+                      })));
+                    }
                   })}
                 </div>
+
+                {/* Inline Category / Subcategory Creator Box */}
+                {showCatCreator && (
+                  <div className="cb-category-creator-box">
+                    <div className="cb-cat-creator-title">
+                      <Tags size={16} />
+                      <b>Créer une nouvelle catégorie ou sous-catégorie</b>
+                    </div>
+                    <div className="cb-creator-fields-grid">
+                      <div className="cb-creator-field">
+                        <label>Nom de la catégorie :</label>
+                        <input
+                          type="text"
+                          className="cb-input-text"
+                          value={newCatName}
+                          onChange={e => setNewCatName(e.target.value)}
+                          placeholder="Ex: Chiens, Oiseaux, Licornes, Manga..."
+                          autoFocus
+                        />
+                      </div>
+                      <div className="cb-creator-field">
+                        <label>Emplacement :</label>
+                        <select
+                          className="cb-select"
+                          value={newCatParentId}
+                          onChange={e => setNewCatParentId(e.target.value)}
+                        >
+                          <option value="">📁 Catégorie principale (racine)</option>
+                          <optgroup label="Sous-catégorie de :">
+                            {rootCategories.map(r => (
+                              <option key={r.id} value={r.id}>
+                                ↳ Dans « {r.name} »
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="cb-creator-actions-row">
+                      <button
+                        type="button"
+                        className="cb-btn-submit-cat"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCatName.trim()}
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>{creatingCategory ? 'Création en cours…' : 'Créer et ajouter au lot'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="cb-btn-cancel-cat"
+                        onClick={() => { setShowCatCreator(false); setNewCatName(''); }}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3267,23 +3701,12 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user
 
                     <div className="cb-item-cats-selector">
                       <span className="cb-item-cats-label">Catégories :</span>
-                      {availableCategories.map(c => {
-                        const isSel = item.categories.includes(c);
-                        return (
-                          <button
-                            type="button"
-                            key={c}
-                            className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
-                            onClick={() => {
-                              const nextCats = isSel
-                                ? item.categories.filter(x => x !== c)
-                                : [...item.categories, c];
-                              updateBatchItem(item.id, { categories: nextCats.length ? nextCats : ['Divers'] });
-                            }}
-                          >
-                            {isSel ? '✓ ' : '+ '}{c}
-                          </button>
-                        );
+                      {renderHierarchicalCategoryPills(item.categories, (catName) => {
+                        const isSel = (item.categories || []).includes(catName);
+                        const nextCats = isSel
+                          ? item.categories.filter(x => x !== catName)
+                          : [...(item.categories || []), catName];
+                        updateBatchItem(item.id, { categories: nextCats.length ? nextCats : ['Divers'] });
                       })}
                     </div>
                   </div>
