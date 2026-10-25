@@ -772,3 +772,22 @@ export function matchesSearchWithTranslations(title, query, lang = 'FR') {
   const variants = getAllDrawingTitleVariants(title);
   return variants.some(v => cleanTitleKey(v).includes(qClean));
 }
+
+/**
+ * Formats a news addition entry: e.g. "25/10 : 34 nouveaux dessins ont été ajoutés"
+ */
+export function formatNewsItem(displayDate, count, lang = 'FR') {
+  const l = (lang || 'FR').toUpperCase();
+  const c = Number(count) || 1;
+  if (l === 'EN') {
+    return `${displayDate} : ${c} new drawing${c > 1 ? 's were added' : ' was added'}`;
+  }
+  if (l === 'ES') {
+    return `${displayDate} : se ${c > 1 ? 'añadieron' : 'añadió'} ${c} nuevo${c > 1 ? 's' : ''} dibujo${c > 1 ? 's' : ''}`;
+  }
+  if (l === 'DE') {
+    return `${displayDate} : ${c} neue${c > 1 ? 's' : ''} Bild${c > 1 ? 'er wurden' : ' wurde'} hinzugefügt`;
+  }
+  // Default French: "25/10 : 34 nouveaux dessins ont été ajoutés"
+  return `${displayDate} : ${c} nouveau${c > 1 ? 'x' : ''} dessin${c > 1 ? 's ont été ajoutés' : ' a été ajouté'}`;
+}

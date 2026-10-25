@@ -12,7 +12,7 @@ import {
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
-import { translations, generateRandomPseudo, getDrawingTitle, matchesSearchWithTranslations } from './translations';
+import { translations, generateRandomPseudo, getDrawingTitle, matchesSearchWithTranslations, formatNewsItem } from './translations';
 import { CguModal } from './CguModal';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
@@ -39,12 +39,12 @@ import mailboxNew from '../assets/mailbox/mailbox-new.png';
 
 const avatarList = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar7, avatar8];
 
-function getNavItems(t) {
+function getNavItems(t, latestBadge = '5') {
   return [
     { id: 'Accueil', label: t.navHome, icon: Home },
     { id: 'Catégorie', label: t.navCategories, icon: Leaf },
     { id: 'Favoris', label: t.navFavorites, icon: Heart },
-    { id: 'Nouveautes', label: t.navNews, icon: Sparkles, badge: t.navNewBadge || '1' },
+    { id: 'Nouveautes', label: t.navNews, icon: Sparkles, badge: latestBadge },
     { id: 'APropos', label: t.navAbout, icon: Info },
   ];
 }
@@ -152,6 +152,14 @@ function getParentCategoryFor(catNameOrId, allCats) {
   ) || null;
 }
 
+export const DEFAULT_NEWS = [
+  { id: 'news-1', dateKey: '2026-10-25', displayDate: '25/10', count: 34 },
+  { id: 'news-2', dateKey: '2026-10-23', displayDate: '23/10', count: 22 },
+  { id: 'news-3', dateKey: '2026-10-20', displayDate: '20/10', count: 18 },
+  { id: 'news-4', dateKey: '2026-10-16', displayDate: '16/10', count: 25 },
+  { id: 'news-5', dateKey: '2026-10-12', displayDate: '12/10', count: 30 },
+];
+
 function App() {
   const [drawings, setDrawings] = useState(animalCatalog);
   const [databaseReady, setDatabaseReady] = useState(false);
@@ -165,7 +173,14 @@ function App() {
   const [theme, setTheme] = useState(localStorage.getItem('cb-theme') || 'day');
   const [lang, setLang] = useState(() => localStorage.getItem('cb-lang') || 'FR');
   const t = translations[lang] || translations.FR;
-  const navItems = useMemo(() => getNavItems(t), [t]);
+  const [newsList, setNewsList] = useState(() => {
+    const local = JSON.parse(localStorage.getItem('cb-news-list') || '[]');
+    return local.length ? local.slice(0, 5) : DEFAULT_NEWS;
+  });
+  const navItems = useMemo(
+    () => getNavItems(t, newsList[0]?.count ? String(newsList[0].count) : '5'),
+    [t, newsList]
+  );
   const [nouveautesOpen, setNouveautesOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
   const [downloading, setDownloading] = useState(null);
@@ -248,6 +263,29 @@ function App() {
       setCategoriesList(merged);
     } catch (err) {
       console.warn('Error loading categories:', err);
+    }
+  }
+
+  async function loadNews() {
+    try {
+      const { data, error } = await supabase
+        .from('addition_logs')
+        .select('*')
+        .order('date_key', { ascending: false })
+        .limit(5);
+
+      if (!error && data && data.length) {
+        const formatted = data.map(r => ({
+          id: r.id,
+          dateKey: r.date_key,
+          displayDate: r.display_date,
+          count: r.drawings_count || 1,
+        }));
+        setNewsList(formatted);
+        localStorage.setItem('cb-news-list', JSON.stringify(formatted));
+      }
+    } catch (err) {
+      console.warn('Error loading addition news:', err);
     }
   }
 
@@ -395,6 +433,7 @@ function App() {
   useEffect(() => {
     loadDrawings();
     loadCategories();
+    loadNews();
     checkPendingRequests();
 
     // Log site visit in analytics
@@ -964,6 +1003,7 @@ function App() {
           reloadDrawings={loadDrawings}
           categoriesList={categoriesList}
           reloadCategories={loadCategories}
+          reloadNews={loadNews}
           user={session?.user || { id: 'bullewatch-owner', email: 'flo83119@gmail.com' }}
           closeAdmin={() => setOwnerOpen(false)}
           pendingRequestsCount={pendingRequestsCount}
@@ -1297,18 +1337,56 @@ function App() {
           <div className="letter" onClick={e => e.stopPropagation()}>
             <button className="close" onClick={() => setNouveautesOpen(false)}><X /></button>
             <Bell className="letter-icon" />
-            <h2>Nouveautés & Annonces</h2>
-            <div className="notification-list">
-              <div className="notif-item">
-                <span className="notif-date">Nouveau</span>
-                <b>{animalCatalog.length} dessins d'animaux en SVG vectoriel ajoutés !</b>
-                <p>Découvre la nouvelle collection d'animaux disponibles en téléchargement direct en SVG (idéal pour découpe et retouche), PNG et PDF A4.</p>
-              </div>
-              <div className="notif-item">
-                <span className="notif-date">Aujourd'hui</span>
-                <b>Bienvenue sur le nouveau Colorblop !</b>
-                <p>Cadres en bois sculpté, barre de recherche florale, boîte à dessin collaborative et 8 avatars exclusifs.</p>
-              </div>
+            <h2>{t.navNews || 'Nouveautés'}</h2>
+            <p className="cb-news-modal-sub">
+              {lang === 'EN'
+                ? 'History of the 5 most recent drawing additions:'
+                : lang === 'ES'
+                ? 'Historial de las 5 últimas fechas de adición:'
+                : lang === 'DE'
+                ? 'Verlauf der letzten 5 Ausmalbilder-Hinzufügungen:'
+                : 'Voici les 5 dernières dates d’ajout de nouveaux coloriages :'}
+            </p>
+
+            <div className="cb-news-dates-list">
+              {newsList.slice(0, 5).map((item, index) => {
+                const isLatest = index === 0;
+                return (
+                  <div key={item.id || item.dateKey} className={`cb-news-date-card ${isLatest ? 'latest' : ''}`}>
+                    <div className="cb-news-date-head">
+                      <span className="cb-news-date-badge">
+                        {isLatest && <span className="cb-news-pulse-dot" />}
+                        {item.displayDate}
+                      </span>
+                      <b className="cb-news-date-text">
+                        {formatNewsItem(item.displayDate, item.count, lang)}
+                      </b>
+                    </div>
+                    {isLatest && (
+                      <span className="cb-news-fresh-tag">
+                        ✨ {lang === 'EN' ? 'Latest' : lang === 'ES' ? 'Último' : lang === 'DE' ? 'Neu' : 'Dernier ajout'}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="cb-news-footer-actions">
+              <button
+                type="button"
+                className="cb-btn-view-recent-drawings"
+                onClick={() => {
+                  setNouveautesOpen(false);
+                  setPage('Accueil');
+                  setCat('Tous');
+                  setSort('recent');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              >
+                <Sparkles size={16} />
+                <span>{lang === 'EN' ? 'View latest drawings' : lang === 'ES' ? 'Ver los últimos dibujos' : lang === 'DE' ? 'Neueste Bilder ansehen' : 'Découvrir les derniers coloriages'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2197,7 +2275,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
 }
 
 /* === OWNER / ADMIN SPACE CONNECTED TO SUPABASE WITH STATS & DRAWINGS MANAGEMENT === */
-function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, categoriesList = [], reloadCategories, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
+function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, categoriesList = [], reloadCategories, reloadNews, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
@@ -2613,6 +2691,43 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     await reloadDrawings();
     setPublishingBatch(false);
 
+    if (successCount > 0) {
+      try {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateKey = `${year}-${month}-${day}`;
+        const displayDate = `${day}/${month}`;
+
+        const { data: existing } = await supabase
+          .from('addition_logs')
+          .select('id, drawings_count')
+          .eq('date_key', dateKey)
+          .maybeSingle();
+
+        if (existing) {
+          const newCount = (existing.drawings_count || 0) + successCount;
+          await supabase
+            .from('addition_logs')
+            .update({ drawings_count: newCount, created_at: now.toISOString() })
+            .eq('id', existing.id);
+        } else {
+          await supabase.from('addition_logs').insert({
+            date_key: dateKey,
+            display_date: displayDate,
+            drawings_count: successCount,
+            created_at: now.toISOString(),
+          });
+        }
+        if (reloadNews) {
+          await reloadNews();
+        }
+      } catch (logErr) {
+        console.warn('Failed to update addition_logs:', logErr);
+      }
+    }
+
     if (failedItems.length === 0) {
       setBatchUploadList([]);
       setView('library');
@@ -2763,6 +2878,42 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
 
       if (edit && file && edit.imagePath && !edit.imagePath.startsWith('/')) {
         await supabase.storage.from('colorings').remove([edit.imagePath]);
+      }
+
+      if (!edit) {
+        try {
+          const now = new Date();
+          const day = String(now.getDate()).padStart(2, '0');
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const year = now.getFullYear();
+          const dateKey = `${year}-${month}-${day}`;
+          const displayDate = `${day}/${month}`;
+
+          const { data: existing } = await supabase
+            .from('addition_logs')
+            .select('id, drawings_count')
+            .eq('date_key', dateKey)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase
+              .from('addition_logs')
+              .update({ drawings_count: (existing.drawings_count || 0) + 1, created_at: now.toISOString() })
+              .eq('id', existing.id);
+          } else {
+            await supabase.from('addition_logs').insert({
+              date_key: dateKey,
+              display_date: displayDate,
+              drawings_count: 1,
+              created_at: now.toISOString(),
+            });
+          }
+          if (reloadNews) {
+            await reloadNews();
+          }
+        } catch (logErr) {
+          console.warn('Error recording addition log:', logErr);
+        }
       }
 
       await reloadDrawings();

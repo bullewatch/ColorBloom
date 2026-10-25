@@ -2936,6 +2936,132 @@ button, input, select, textarea {
   text-align: left;
 }
 
+/* Nouveautés - 5 Dernières Dates d'Ajout */
+.cb-news-modal-sub {
+  font-size: 14.5px;
+  color: #6a4c33;
+  margin: -2px 0 16px;
+  font-family: 'Patrick Hand', cursive;
+}
+
+.cb-news-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 18px;
+  text-align: left;
+}
+
+.cb-news-date-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fffcf7;
+  border: 1.5px solid #d4b88f;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.cb-news-date-card:hover {
+  transform: translateX(3px);
+  border-color: #aa7742;
+}
+
+.cb-news-date-card.latest {
+  background: linear-gradient(135deg, #fffbf0 0%, #fff7e4 100%);
+  border: 2px solid #cf9742;
+  box-shadow: 0 4px 12px rgba(207, 151, 66, 0.2);
+}
+
+.cb-news-date-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.cb-news-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #502e17;
+  color: #faebd2;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.cb-news-date-card.latest .cb-news-date-badge {
+  background: #874917;
+  color: #fff4e0;
+}
+
+.cb-news-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: #ffda6b;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 6px #ffda6b;
+  animation: pulse 1.8s infinite;
+}
+
+.cb-news-date-text {
+  font-size: 16px;
+  color: #3b2210;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  letter-spacing: 0.2px;
+}
+
+.cb-news-fresh-tag {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8c4a16;
+  background: #faeed4;
+  border: 1px solid #e2be8c;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+}
+
+.cb-news-footer-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.cb-btn-view-recent-drawings {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(180deg, #6c4021 0%, #522d15 100%);
+  color: #fff0d5;
+  border: 2px solid #8e5830;
+  border-radius: 12px;
+  padding: 9px 18px;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.cb-btn-view-recent-drawings:hover {
+  background: linear-gradient(180deg, #7c4c29 0%, #5d3419 100%);
+  transform: translateY(-2px);
+  color: #fff;
+  border-color: #bd7d4a;
+}
+
 .notif-item {
   background: #fff8ec;
   border: 2px solid #c9aa79;
