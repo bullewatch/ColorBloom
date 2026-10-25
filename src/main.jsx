@@ -688,8 +688,8 @@ function App() {
               </div>
             </div>
 
-            {/* Mobile Drawing Grid Size Selector */}
-            <div className="setting-section">
+            {/* Mobile Drawing Grid Size Selector (Visible on Mobile only) */}
+            <div className="setting-section cb-mobile-only-setting">
               <b><LayoutGrid className="settings-head-icon" /> {t.settingsMobileGrid}</b>
               <p className="setting-subtext">{t.settingsMobileGridSub}</p>
               <div className="cb-grid-density-picker">
@@ -714,9 +714,6 @@ function App() {
                 {gridDensity === '1' && "Grand format : 1 dessin par ligne sur mobile pour admirer les moindres détails."}
                 {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (idéal sur téléphone portable)."}
                 {gridDensity === '3' && "Compact : 3 dessins par ligne pour parcourir la collection plus vite."}
-                <span style={{ display: 'block', marginTop: '4px', opacity: 0.85 }}>
-                  ℹ️ Sur ordinateur, l'affichage conserve automatiquement sa grille parfaite à 4 colonnes.
-                </span>
               </small>
             </div>
 

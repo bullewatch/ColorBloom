@@ -578,7 +578,17 @@ button, input, select, textarea {
   border-color: #3b5a30;
 }
 
-/* === SÉLECTEUR DE TAILLE / DENSITÉ DE LA GRILLE (1, 2, 3, 4 PAR LIGNE) === */
+/* === SÉLECTEUR DE TAILLE / DENSITÉ DE LA GRILLE (MOBILE ONLY) === */
+.cb-mobile-only-setting {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .cb-mobile-only-setting {
+    display: block !important;
+  }
+}
+
 .setting-subtext {
   font-size: 12.5px;
   color: #64442a;
@@ -621,7 +631,7 @@ button, input, select, textarea {
 }
 
 .cb-density-num {
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
   font-size: 20px;
   font-weight: 800;
   line-height: 1;
