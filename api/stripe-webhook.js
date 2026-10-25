@@ -15,11 +15,25 @@ export const config = {
 };
 
 async function getRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  if (Buffer.isBuffer(req.body)) {
+    return req.body;
   }
-  return Buffer.concat(chunks);
+  if (typeof req.body === 'string') {
+    return Buffer.from(req.body, 'utf8');
+  }
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    return Buffer.from(JSON.stringify(req.body), 'utf8');
+  }
+
+  return new Promise((resolve) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', () => resolve(Buffer.concat(chunks)));
+    if (req.readableEnded) {
+      resolve(Buffer.concat(chunks));
+    }
+  });
 }
 
 export default async function handler(req, res) {
