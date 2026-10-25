@@ -1253,110 +1253,85 @@ function App() {
           </div>
         </div>
 
-        {/* Settings Modal (Langue, Aide téléchargement/impression, Modes) */}
+        {/* Settings Modal (Langue, Aide téléchargement/impression) */}
         {settings && (
-          <div className="cb-settings-modal">
-            <div className="cb-settings-header">
-              <b><Settings className="settings-head-icon" /> {t.settingsTitle}</b>
-              <button className="close-mini" onClick={() => setSettings(false)}><X /></button>
-            </div>
+          <>
+            <div className="cb-settings-backdrop" onClick={() => setSettings(false)} aria-hidden="true" />
+            <div className="cb-settings-modal" role="dialog" aria-modal="true">
+              <div className="cb-settings-header">
+                <b><Settings className="settings-head-icon" /> {t.settingsTitle}</b>
+                <button className="close-mini" onClick={() => setSettings(false)} aria-label="Fermer"><X /></button>
+              </div>
 
-            {/* Language Choice */}
-            <div className="setting-section">
-              <label>
-                <Globe2 /> {t.settingsLang}
-                <select value={lang} onChange={e => setLang(e.target.value)}>
-                  <option value="FR">Français (FR)</option>
-                  <option value="EN">English (EN)</option>
-                  <option value="ES">Español (ES)</option>
-                  <option value="DE">Deutsch (DE)</option>
-                </select>
-              </label>
-              <div className="cb-lang-disclaimer">
-                <Info size={16} />
-                <span>{t.disclaimer}</span>
+              {/* Language Choice */}
+              <div className="setting-section">
+                <label>
+                  <Globe2 /> {t.settingsLang}
+                  <select value={lang} onChange={e => setLang(e.target.value)}>
+                    <option value="FR">Français (FR)</option>
+                    <option value="EN">English (EN)</option>
+                    <option value="ES">Español (ES)</option>
+                    <option value="DE">Deutsch (DE)</option>
+                  </select>
+                </label>
+                <div className="cb-lang-disclaimer">
+                  <Info size={16} />
+                  <span>{t.disclaimer}</span>
+                </div>
               </div>
-            </div>
 
-            {/* Mobile Drawing Grid Size Selector (Visible on Mobile only) */}
-            <div className="setting-section cb-mobile-only-setting">
-              <b><LayoutGrid className="settings-head-icon" /> {t.settingsMobileGrid}</b>
-              <p className="setting-subtext">{t.settingsMobileGridSub}</p>
-              <div className="cb-grid-density-picker">
-                {[
-                  { id: '1', num: '1', label: t.gridDensity1, desc: '1 dessin par ligne' },
-                  { id: '2', num: '2', label: t.gridDensity2, desc: '2 dessins par ligne' },
-                  { id: '3', num: '3', label: t.gridDensity3, desc: '3 dessins par ligne' }
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    className={`cb-density-btn ${gridDensity === opt.id ? 'active' : ''}`}
-                    onClick={() => setGridDensity(opt.id)}
-                    title={opt.desc}
-                  >
-                    <span className="cb-density-num">{opt.num}</span>
-                    <span className="cb-density-label">{opt.label}</span>
-                  </button>
-                ))}
+              {/* Mobile Drawing Grid Size Selector (Visible on Mobile only) */}
+              <div className="setting-section cb-mobile-only-setting">
+                <b><LayoutGrid className="settings-head-icon" /> {t.settingsMobileGrid}</b>
+                <p className="setting-subtext">{t.settingsMobileGridSub}</p>
+                <div className="cb-grid-density-picker">
+                  {[
+                    { id: '1', num: '1', label: t.gridDensity1, desc: '1 dessin par ligne' },
+                    { id: '2', num: '2', label: t.gridDensity2, desc: '2 dessins par ligne' },
+                    { id: '3', num: '3', label: t.gridDensity3, desc: '3 dessins par ligne' }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`cb-density-btn ${gridDensity === opt.id ? 'active' : ''}`}
+                      onClick={() => setGridDensity(opt.id)}
+                      title={opt.desc}
+                    >
+                      <span className="cb-density-num">{opt.num}</span>
+                      <span className="cb-density-label">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <small className="setting-hint">
+                  {gridDensity === '1' && "Grand format : 1 dessin par ligne sur mobile pour admirer les moindres détails."}
+                  {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (idéal sur téléphone portable)."}
+                  {gridDensity === '3' && "Compact : 3 dessins par ligne pour parcourir la collection plus vite."}
+                </small>
               </div>
-              <small className="setting-hint">
-                {gridDensity === '1' && "Grand format : 1 dessin par ligne sur mobile pour admirer les moindres détails."}
-                {gridDensity === '2' && "Affichage de base : 2 dessins par ligne (idéal sur téléphone portable)."}
-                {gridDensity === '3' && "Compact : 3 dessins par ligne pour parcourir la collection plus vite."}
-              </small>
-            </div>
 
-            {/* How It Works & Print Help */}
-            <div className="setting-section help-section">
-              <b><HelpCircle className="help-icon" /> Comment ça marche ?</b>
-              <div className="help-item">
-                <span>📥 <b>Comment télécharger ?</b></span>
-                <p>Clique sur un dessin pour l'ouvrir, puis choisis <b>SVG</b> (vectoriel), <b>PNG</b> ou <b>PDF A4</b>.</p>
-              </div>
-              <div className="help-item">
-                <span>🖨️ <b>Comment imprimer ?</b></span>
-                <p>Télécharge le <b>PDF A4</b> (format idéal pour impression papier sans déformation), ouvre-le et imprime directement !</p>
-              </div>
-              <div className="help-item">
-                <span>✂️ <b>Format SVG Vectoriel :</b></span>
-                <p>Les dessins en SVG sont parfaits pour les découpes (Cricut, Silhouette), Illustrator et l'impression grand format sans perte de qualité.</p>
-              </div>
-            </div>
-
-            {/* Themes / Modes */}
-            <div className="setting-section">
-              <b>Thèmes d'ambiance</b>
-              <div className="themes">
-                <button className={theme === 'day' ? 'active-theme' : ''} onClick={() => setTheme('day')}><Sun /> Jour</button>
-                <button className={theme === 'night' ? 'active-theme' : ''} onClick={() => setTheme('night')}><Moon /> Nuit</button>
-                <button className={theme === 'jungle' ? 'active-theme' : ''} onClick={() => setTheme('jungle')}><Leaf /> Forêt</button>
+              {/* How It Works & Print Help (Sans aucun émoji) */}
+              <div className="setting-section help-section">
+                <b><HelpCircle className="help-icon" /> Comment ça marche ?</b>
+                <div className="help-item">
+                  <span><Download size={15} /> <b>Comment télécharger ?</b></span>
+                  <p>Clique sur un dessin pour l'ouvrir, puis choisis <b>SVG</b> (vectoriel), <b>PNG</b> ou <b>PDF A4</b>.</p>
+                </div>
+                <div className="help-item">
+                  <span><FileText size={15} /> <b>Comment imprimer ?</b></span>
+                  <p>Télécharge le <b>PDF A4</b> (format idéal pour impression papier sans déformation), ouvre-le et imprime directement !</p>
+                </div>
+                <div className="help-item">
+                  <span><FileCode size={15} /> <b>Format SVG Vectoriel :</b></span>
+                  <p>Les dessins en SVG sont parfaits pour les découpes (Cricut, Silhouette), Illustrator et l'impression grand format sans perte de qualité.</p>
+                </div>
               </div>
             </div>
-
-            {/* Future Modes */}
-            <div className="setting-section future-modes">
-              <b>Modes créatifs (bientôt)</b>
-              <div className="future-pills">
-                <span>🎨 Coloriage en ligne</span>
-                <span>✨ Créateur de mandalas</span>
-              </div>
-            </div>
-
-            {/* Owner Space Access */}
-            <button className="owner-link" onClick={() => {
-              setSettings(false);
-              setOwnerOpen(!ownerOpen);
-              setAdminView('stats');
-            }}>
-              <ShieldCheck /> {ownerOpen ? 'Quitter l’espace propriétaire' : 'Espace propriétaire'}
-            </button>
-          </div>
+          </>
         )}
       </header>
 
-      {/* Main Body */}
-      {ownerOpen ? (
+      {/* Main Body - Accessible STRICTEMENT et UNIQUEMENT à flo83119@gmail.com */}
+      {ownerOpen && isOwner ? (
         <AdminPanel
           view={adminView}
           setView={setAdminView}
@@ -1366,7 +1341,7 @@ function App() {
           categoriesList={categoriesList}
           reloadCategories={loadCategories}
           reloadNews={loadNews}
-          user={session?.user || { id: 'bullewatch-owner', email: 'flo83119@gmail.com' }}
+          user={session?.user}
           closeAdmin={() => setOwnerOpen(false)}
           pendingRequestsCount={pendingRequestsCount}
           refreshPendingRequests={checkPendingRequests}
@@ -1395,25 +1370,25 @@ function App() {
 
             <div className="cb-about-content">
               <div className="cb-about-card">
-                <div className="cb-about-card-icon">🌸</div>
+                <div className="cb-about-card-icon"><Sparkles size={24} color="#795548" /></div>
                 <h3>{t.aboutCard1Title}</h3>
                 <p>{t.aboutCard1Text}</p>
               </div>
 
               <div className="cb-about-card">
-                <div className="cb-about-card-icon">✂️</div>
+                <div className="cb-about-card-icon"><FileCode size={24} color="#2e7d32" /></div>
                 <h3>{animalCatalog.length} {t.aboutCard2Title}</h3>
                 <p>{t.aboutCard2Text}</p>
               </div>
 
               <div className="cb-about-card">
-                <div className="cb-about-card-icon">🖨️</div>
+                <div className="cb-about-card-icon"><Download size={24} color="#1565c0" /></div>
                 <h3>{t.aboutCard3Title}</h3>
                 <p>{t.aboutCard3Text}</p>
               </div>
 
               <div className="cb-about-card">
-                <div className="cb-about-card-icon">💌</div>
+                <div className="cb-about-card-icon"><Mail size={24} color="#c2185b" /></div>
                 <h3>{t.aboutCard4Title}</h3>
                 <p>{t.aboutCard4Text}</p>
               </div>

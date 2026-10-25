@@ -135,7 +135,7 @@ button, input, select, textarea {
 /* === Main Header === */
 .cb-header {
   position: relative;
-  z-index: 4;
+  z-index: 20;
   max-width: 1150px;
   margin: 0 auto 8px;
   padding: 0 16px;
@@ -430,19 +430,30 @@ button, input, select, textarea {
   line-height: 1;
 }
 
-/* === Settings Modal Dropdown === */
+/* === Settings Modal Dropdown (Top Priority Layer) === */
+.cb-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 25, 15, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+}
+
 .cb-settings-modal {
-  position: absolute;
-  right: 16px;
-  top: 130px;
-  width: 340px;
+  position: fixed;
+  right: 20px;
+  top: 96px;
+  width: 350px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   background: #f2e2bd;
   border: 5px solid #68472f;
   border-radius: 18px;
   padding: 20px;
   text-align: left;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
-  z-index: 30;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7);
+  z-index: 9999;
 }
 
 .cb-settings-header {
@@ -2643,8 +2654,16 @@ button, input, select, textarea {
 }
 
 .cb-about-card-icon {
-  font-size: 26px;
-  margin-bottom: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fdf6ea;
+  border: 1.5px solid #d8ba8e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .cb-about-card h3 {
@@ -2828,13 +2847,13 @@ button, input, select, textarea {
   align-items: center;
 }
 
-/* Modals */
+/* Modals - Calque prioritaire au-dessus de tout */
 .modal {
   position: fixed;
   inset: 0;
   background: rgba(10, 25, 15, 0.85);
   backdrop-filter: blur(4px);
-  z-index: 50;
+  z-index: 10000;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -3692,6 +3711,18 @@ footer {
     width: 60px !important;
     height: 60px !important;
     border-width: 3.5px !important;
+  }
+
+  .cb-settings-modal {
+    top: 76px !important;
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    max-width: 390px !important;
+    margin: 0 auto !important;
+    padding: 16px !important;
+    max-height: calc(100vh - 95px) !important;
+    z-index: 9999 !important;
   }
 
   /* Unified Banner Centered on Mobile */
