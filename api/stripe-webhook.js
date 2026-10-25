@@ -27,34 +27,36 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Méthode non autorisée. Utilisez POST.' });
   }
 
-  const stripe = getStripe();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  let event;
   try {
     const rawBody = await getRawBody(req);
+    if (!rawBody || rawBody.length === 0) {
+      return res.status(400).json({ error: 'Corps de requête vide.' });
+    }
+
+    const stripe = getStripe();
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     const signature = req.headers['stripe-signature'];
 
+    let event;
     if (webhookSecret && signature) {
       event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
     } else {
-      // Mode test local ou sans signature configurée
-      console.warn('⚠️ Webhook exécuté sans vérification de signature (STRIPE_WEBHOOK_SECRET non configuré).');
+      console.warn('⚠️ Webhook exécuté sans vérification de signature.');
       event = JSON.parse(rawBody.toString('utf8'));
     }
-  } catch (err) {
-    console.error('Erreur validation signature webhook Stripe:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
 
-  // 1. Contrôle d'idempotence
-  const alreadyHandled = await isEventProcessed(event.id);
-  if (alreadyHandled) {
-    console.log(`Événement Stripe déjà traité (idempotent): ${event.id} (${event.type})`);
-    return res.status(200).json({ received: true, idempotent: true });
-  }
+    if (!event || !event.id) {
+      return res.status(400).json({ error: 'Événement Stripe invalide.' });
+    }
 
-  console.log(`Traitement événement Stripe: ${event.type} [${event.id}]`);
+    // 1. Contrôle d'idempotence
+    const alreadyHandled = await isEventProcessed(event.id);
+    if (alreadyHandled) {
+      console.log(`Événement Stripe déjà traité (idempotent): ${event.id} (${event.type})`);
+      return res.status(200).json({ received: true, idempotent: true });
+    }
+
+    console.log(`Traitement événement Stripe: ${event.type} [${event.id}]`);
 
   try {
     switch (event.type) {
@@ -107,8 +109,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ received: true });
   } catch (err) {
-    console.error(`Erreur lors du traitement de l'événement ${event.type}:`, err);
-    return res.status(500).json({ error: err.message });
+    console.error(`Erreur webhook Stripe [${event?.type || 'unknown'}]:`, err);
+    return res.status(400).json({ error: err.message });
   }
 }
 
