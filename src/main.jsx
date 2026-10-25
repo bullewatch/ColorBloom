@@ -168,104 +168,168 @@ function normalizeCatStr(s) {
     .trim();
 }
 
-function ModalDrawingPreview({ drawing, title, hasWatermark }) {
-  const [rasterSrc, setRasterSrc] = useState(null);
+const svgBlobCache = new Map();
+async function getSvgBlobUrl(url) {
+  if (svgBlobCache.has(url)) return svgBlobCache.get(url);
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    svgBlobCache.set(url, blobUrl);
+    return blobUrl;
+  } catch (err) {
+    return url;
+  }
+}
+
+function CanvasDrawingCard({ imageSrc, title }) {
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     let active = true;
-    if (!drawing?.image) {
-      setRasterSrc(null);
-      return;
-    }
+    if (!imageSrc || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const isSvg = drawing.isSvg || String(drawing.imagePath || drawing.image).toLowerCase().endsWith('.svg');
-    if (!isSvg) {
-      setRasterSrc(drawing.image);
-      return;
-    }
-
-    // Rasterize SVG to high-res PNG so primary visual is PNG and SVG is never directly exposed
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
-    const renderToPng = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const scale = 2;
-        const width = (img.naturalWidth || 800) * scale;
-        const height = (img.naturalHeight || 1000) * scale;
-        canvas.width = Math.min(width, 2400);
-        canvas.height = Math.min(height, 3000);
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/png');
-          if (active) setRasterSrc(dataUrl);
-          return;
-        }
-      } catch (err) {
-        console.warn('Canvas raster notice:', err);
-      }
-      if (active) setRasterSrc(drawing.image);
+    const draw = () => {
+      if (!active || !canvasRef.current) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const imgW = img.naturalWidth || img.width || 400;
+      const imgH = img.naturalHeight || img.height || 400;
+      const scale = Math.min((canvas.width * 0.92) / imgW, (canvas.height * 0.92) / imgH);
+      const dw = imgW * scale;
+      const dh = imgH * scale;
+      const dx = (canvas.width - dw) / 2;
+      const dy = (canvas.height - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
     };
 
-    fetch(drawing.image)
-      .then(res => res.text())
-      .then(svgText => {
+    if (imageSrc.toLowerCase().includes('.svg')) {
+      getSvgBlobUrl(imageSrc).then((blobUrl) => {
         if (!active) return;
-        const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-        img.onload = () => {
-          renderToPng();
-          URL.revokeObjectURL(blobUrl);
-        };
+        img.onload = draw;
         img.onerror = () => {
-          if (active) setRasterSrc(drawing.image);
-          URL.revokeObjectURL(blobUrl);
+          if (!active) return;
+          img.src = imageSrc;
         };
         img.src = blobUrl;
-      })
-      .catch(() => {
-        if (!active) return;
-        img.onload = renderToPng;
-        img.onerror = () => { if (active) setRasterSrc(drawing.image); };
-        img.src = drawing.image;
       });
+    } else {
+      img.onload = draw;
+      img.src = imageSrc;
+    }
 
     return () => {
       active = false;
     };
-  }, [drawing]);
+  }, [imageSrc]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={400}
+      height={400}
+      className="cb-pinned-drawing"
+      onContextMenu={(e) => e.preventDefault()}
+      aria-label={title}
+    />
+  );
+}
+
+function ModalDrawingPreview({ drawing, title, hasWatermark }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!drawing?.image || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    const renderCanvas = () => {
+      if (!active || !canvasRef.current) return;
+      const imgW = img.naturalWidth || 800;
+      const imgH = img.naturalHeight || 1000;
+      const scale = 2;
+      const width = Math.min(imgW * scale, 2400);
+      const height = Math.min(imgH * scale, 3000);
+      canvas.width = width;
+      canvas.height = height;
+
+      // 1. Draw solid white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Draw drawing image
+      const fitScale = Math.min((width * 0.94) / imgW, (height * 0.94) / imgH);
+      const dw = imgW * fitScale;
+      const dh = imgH * fitScale;
+      const dx = (width - dw) / 2;
+      const dy = (height - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+
+      // 3. Bake watermark DIRECTLY onto canvas pixels if visitor limit reached
+      if (hasWatermark) {
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.rotate((-28 * Math.PI) / 180);
+        ctx.fillStyle = 'rgba(125, 75, 35, 0.23)';
+        ctx.font = '800 52px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const text = 'COLORBLOP  ---  COLORBLOP  ---  COLORBLOP';
+        const stepY = 120;
+        const range = Math.max(width, height) * 1.5;
+        for (let y = -range; y <= range; y += stepY) {
+          ctx.fillText(text, 0, y);
+        }
+        ctx.restore();
+      }
+    };
+
+    if (drawing.image.toLowerCase().includes('.svg')) {
+      getSvgBlobUrl(drawing.image).then((blobUrl) => {
+        if (!active) return;
+        img.onload = renderCanvas;
+        img.onerror = () => {
+          if (!active) return;
+          img.src = drawing.image;
+        };
+        img.src = blobUrl;
+      });
+    } else {
+      img.onload = renderCanvas;
+      img.src = drawing.image;
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [drawing, hasWatermark]);
 
   return (
     <div 
       className="cb-modal-drawing-wrapper"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {rasterSrc ? (
-        <img
-          className="coloring-img big"
-          src={rasterSrc}
-          alt={title}
-          draggable={false}
-          onContextMenu={(e) => e.preventDefault()}
-        />
-      ) : (
-        <div className="cb-modal-drawing-loading">
-          <div className="cb-skeleton-shimmer" />
-        </div>
-      )}
-      {hasWatermark && (
-        <div 
-          className="cb-watermark-overlay" 
-          aria-hidden="true"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <div className="cb-watermark-pattern" />
-        </div>
-      )}
+      <canvas
+        ref={canvasRef}
+        className="coloring-img big cb-preview-canvas"
+        onContextMenu={(e) => e.preventDefault()}
+        aria-label={title}
+      />
     </div>
   );
 }
@@ -476,13 +540,110 @@ function App() {
     return drawings.filter(d => (d.cat || []).some(c => accepted.has(normalizeCatStr(c)))).length;
   }
 
-  // Check if current user is owner/admin
+  // Only flo83119@gmail.com is owner/admin
   const isOwner = Boolean(
-    profile?.is_admin ||
-    session?.user?.email?.toLowerCase().includes('flo83') ||
-    session?.user?.email?.toLowerCase().includes('bullewatch') ||
-    session?.user?.email?.toLowerCase().includes('clems')
+    session?.user?.email?.toLowerCase() === 'flo83119@gmail.com'
   );
+
+  // Visitor IP Quota management (blocks incognito / private browsing bypass)
+  const [visitorIp, setVisitorIp] = useState(null);
+
+  useEffect(() => {
+    async function initVisitorIp() {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.ip) {
+            setVisitorIp(data.ip);
+            const { count, error } = await supabase
+              .from('visitor_downloads')
+              .select('*', { count: 'exact', head: true })
+              .eq('ip_address', data.ip);
+
+            if (!error && typeof count === 'number') {
+              const localDownloads = Number(localStorage.getItem('cb-downloads') || 0);
+              const maxDownloads = Math.max(localDownloads, count);
+              setDownloads(maxDownloads);
+              localStorage.setItem('cb-downloads', maxDownloads);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('IP quota check notice:', err);
+      }
+    }
+
+    if (!session?.user) {
+      initVisitorIp();
+    }
+  }, [session]);
+
+  // Quick Category creation modal for owner
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [quickCatName, setQuickCatName] = useState('');
+  const [quickCatParentId, setQuickCatParentId] = useState('');
+  const [quickCatSubmitting, setQuickCatSubmitting] = useState(false);
+  const [quickCatMsg, setQuickCatMsg] = useState(null);
+
+  async function handleQuickCreateCategory(e) {
+    if (e) e.preventDefault();
+    const trimmed = quickCatName.trim();
+    if (!trimmed) {
+      alert('Veuillez entrer un nom de catégorie.');
+      return;
+    }
+
+    const existing = categoriesList.find(c => normalizeCatStr(c.name) === normalizeCatStr(trimmed));
+    if (existing) {
+      setQuickCatMsg({ type: 'error', text: `La catégorie « ${existing.name} » existe déjà.` });
+      return;
+    }
+
+    setQuickCatSubmitting(true);
+    setQuickCatMsg(null);
+
+    try {
+      const parentId = quickCatParentId || null;
+      const baseSlug = slugify(trimmed);
+      const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
+
+      const newCatObj = {
+        id: newId,
+        name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1),
+        parent_id: parentId,
+        sort_order: categoriesList.length + 1,
+      };
+
+      // 1. LocalStorage fallback
+      const stored = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+      const updated = [...stored.filter(c => c.id !== newId), newCatObj];
+      localStorage.setItem('cb-custom-categories', JSON.stringify(updated));
+
+      // 2. Supabase upsert
+      try {
+        await supabase.from('categories').upsert(newCatObj, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('Database category insert notice:', dbErr);
+      }
+
+      // 3. Reload categories in state
+      await loadCategories();
+
+      setQuickCatMsg({ type: 'success', text: `✓ Catégorie « ${newCatObj.name} » créée avec succès !` });
+      setTimeout(() => {
+        setQuickCatName('');
+        setQuickCatParentId('');
+        setQuickCatMsg(null);
+        setShowCatModal(false);
+      }, 900);
+    } catch (err) {
+      console.error(err);
+      setQuickCatMsg({ type: 'error', text: 'Une erreur est survenue lors de la création.' });
+    } finally {
+      setQuickCatSubmitting(false);
+    }
+  }
 
   async function loadDrawings() {
     let pagesData = null;
@@ -802,9 +963,29 @@ function App() {
         pdf.save(safe + '.pdf');
       }
 
-      const n = downloads + 1;
-      setDownloads(n);
-      localStorage.setItem('cb-downloads', n);
+      if (!session) {
+        try {
+          let ip = visitorIp;
+          if (!ip) {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            ip = data?.ip;
+            if (ip) setVisitorIp(ip);
+          }
+          if (ip) {
+            await supabase.from('visitor_downloads').insert({
+              ip_address: ip,
+              drawing_id: String(open.id),
+              format,
+            });
+          }
+        } catch (ipErr) {
+          console.warn('Logging visitor download notice:', ipErr);
+        }
+        const n = downloads + 1;
+        setDownloads(n);
+        localStorage.setItem('cb-downloads', n);
+      }
     } catch (error) {
       console.error(error);
       alert('Le téléchargement a échoué. Réessaie dans un instant.');
@@ -925,9 +1106,9 @@ function App() {
 
         {/* UNIFIED BROWN WOODEN BLOCK ENGLOBING TABS AND SEARCH BAR (Smart hide on scroll down on mobile) */}
         <div className={`cb-nav-search-block ${!headerVisible ? 'cb-mobile-hidden' : ''}`}>
-          {/* Desktop Navigation Tabs */}
+          {/* Desktop Navigation Tabs (L'onglet Catégorie est retiré sur ordinateur car déjà présent à gauche) */}
           <nav className="cb-nav-tabs-row cb-desktop-only">
-            {navItems.map(({ id, label, icon: Icon, badge }) => (
+            {navItems.filter(item => item.id !== 'Catégorie').map(({ id, label, icon: Icon, badge }) => (
               <button
                 key={id}
                 className={`cb-nav-tab ${page === id && !ownerOpen ? 'active' : ''}`}
@@ -1269,7 +1450,23 @@ function App() {
 
                 {/* Categories Wooden Planks (Avec Sous-catégories déployables) */}
                 <div className="cb-categories-planks">
-                  <span className="cb-plank-label">{t.categoriesTitle}</span>
+                  <div className="cb-planks-header-row">
+                    <span className="cb-plank-label">{t.categoriesTitle}</span>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className="cb-btn-quick-cat"
+                        onClick={() => {
+                          setQuickCatParentId('');
+                          setQuickCatName('');
+                          setShowCatModal(true);
+                        }}
+                        title="Créer une nouvelle catégorie"
+                      >
+                        <Plus size={13} /> <span>Ajouter</span>
+                      </button>
+                    )}
+                  </div>
 
                   {/* Tous */}
                   <button
@@ -1306,6 +1503,20 @@ function App() {
                         >
                           <span className="cb-plank-dot">•</span>
                           <span className="cb-plank-title">{getCatLabel(rc.name, t)}</span>
+                          {isOwner && (
+                            <span
+                              className="cb-plank-add-sub-icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQuickCatParentId(rc.id);
+                                setQuickCatName('');
+                                setShowCatModal(true);
+                              }}
+                              title={`Créer une sous-catégorie dans ${rc.name}`}
+                            >
+                              +
+                            </span>
+                          )}
                           {subcats.length > 0 && (
                             <span
                               className={`cb-plank-arrow ${isExpanded ? 'open' : ''}`}
@@ -1394,13 +1605,9 @@ function App() {
                       <div className="cb-board-canvas" onContextMenu={(e) => e.preventDefault()}>
                         {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
                         {d.image ? (
-                          <img 
-                            src={d.image} 
-                            alt={getDrawingTitle(d.title, lang)} 
-                            className="cb-pinned-drawing" 
-                            loading="lazy" 
-                            draggable={false}
-                            onContextMenu={(e) => e.preventDefault()}
+                          <CanvasDrawingCard 
+                            imageSrc={d.image} 
+                            title={getDrawingTitle(d.title, lang)} 
                           />
                         ) : (
                           <div className="cb-drawing-empty">
@@ -1620,6 +1827,77 @@ function App() {
                 <span>{lang === 'EN' ? 'View latest drawings' : lang === 'ES' ? 'Ver los últimos dibujos' : lang === 'DE' ? 'Neueste Bilder ansehen' : 'Découvrir les derniers coloriages'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Category Creator Modal for Admin (flo83119@gmail.com) */}
+      {showCatModal && isOwner && (
+        <div className="modal" onClick={() => setShowCatModal(false)}>
+          <div className="modalbox cb-cat-modal" onClick={e => e.stopPropagation()}>
+            <button className="close" onClick={() => setShowCatModal(false)}><X /></button>
+            <div className="cb-cat-modal-header">
+              <FolderOpen size={24} color="#8b5e3c" />
+              <h2>Créer une nouvelle catégorie</h2>
+            </div>
+            <p className="cb-cat-modal-desc">
+              Ajoutez une catégorie principale ou une sous-catégorie pour classer vos coloriages.
+            </p>
+
+            <form onSubmit={handleQuickCreateCategory} className="cb-cat-modal-form">
+              <div className="cb-form-group">
+                <label>Nom de la catégorie :</label>
+                <input
+                  type="text"
+                  className="cb-input-text"
+                  placeholder="Ex : Princesses, Noël, Espace, Mandalas..."
+                  value={quickCatName}
+                  onChange={e => setQuickCatName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="cb-form-group">
+                <label>Emplacement / Catégorie parente :</label>
+                <select
+                  className="cb-select"
+                  value={quickCatParentId}
+                  onChange={e => setQuickCatParentId(e.target.value)}
+                >
+                  <option value="">Planche principale (ex: Animaux, Fées, etc.)</option>
+                  <optgroup label="Sous-catégorie de :">
+                    {rootCategories.map(rc => (
+                      <option key={rc.id} value={rc.id}>↳ Sous-catégorie de {rc.name}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {quickCatMsg && (
+                <div className={`cb-notice-msg ${quickCatMsg.type}`}>
+                  {quickCatMsg.text}
+                </div>
+              )}
+
+              <div className="cb-cat-modal-actions">
+                <button
+                  type="button"
+                  className="cb-btn-cancel"
+                  onClick={() => setShowCatModal(false)}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="cb-btn-submit-cat"
+                  disabled={quickCatSubmitting || !quickCatName.trim()}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{quickCatSubmitting ? 'Création en cours…' : 'Créer la catégorie'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

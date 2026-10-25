@@ -2802,6 +2802,163 @@ button, input, select, textarea {
   pointer-events: auto;
 }
 
+.cb-preview-canvas {
+  max-width: 95%;
+  max-height: 95%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  border-radius: 4px;
+}
+
+canvas.cb-pinned-drawing {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  display: block;
+}
+
+/* Category Quick Add Button in Sidebar */
+.cb-planks-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.cb-btn-quick-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(180deg, #7c9868 0%, #5b794a 100%);
+  border: 1.5px solid #3c542e;
+  color: #fff;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cb-btn-quick-cat:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #8ba876 0%, #688a56 100%);
+}
+
+.cb-plank-add-sub-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  margin-left: 6px;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cb-plank-add-sub-icon:hover {
+  transform: scale(1.15);
+  background: #7c9868;
+}
+
+/* Category Creator Modal */
+.cb-cat-modal {
+  max-width: 440px !important;
+  text-align: left !important;
+}
+
+.cb-cat-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.cb-cat-modal-header h2 {
+  margin: 0 !important;
+  font-size: 24px !important;
+  color: #4b321a;
+}
+
+.cb-cat-modal-desc {
+  font-size: 13px !important;
+  color: #735436 !important;
+  margin-bottom: 16px !important;
+  text-align: left !important;
+}
+
+.cb-cat-modal-form .cb-form-group {
+  margin-bottom: 14px;
+}
+
+.cb-cat-modal-form label {
+  display: block;
+  font-weight: bold;
+  font-size: 14px;
+  color: #55351f;
+  margin-bottom: 5px;
+}
+
+.cb-cat-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.cb-btn-cancel {
+  background: #e6dac6;
+  border: 2px solid #8b6e51;
+  color: #543d28;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cb-btn-cancel:hover {
+  background: #dacbaf;
+}
+
+.cb-notice-msg {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.cb-notice-msg.success {
+  background: #e8f5e9;
+  border: 1.5px solid #4caf50;
+  color: #2e7d32;
+}
+
+.cb-notice-msg.error {
+  background: #ffebee;
+  border: 1.5px solid #f44336;
+  color: #c62828;
+}
+
 /* Modal Drawing Wrapper & Primary PNG Rasterization */
 .cb-modal-drawing-wrapper {
   position: relative;
