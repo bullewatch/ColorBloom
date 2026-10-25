@@ -507,6 +507,7 @@ function App() {
     if (page === 'Favoris') result = result.filter(d => favs.has(d.id));
     if (sort === 'liked') result = [...result].sort((a, b) => b.likes - a.likes);
     if (sort === 'recent') result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    if (sort === 'alpha') result = [...result].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base', numeric: true }));
     return result;
   }, [q, cat, page, favs, sort, drawings]);
 
@@ -853,6 +854,7 @@ function App() {
                   <select value={sort} onChange={e => setSort(e.target.value)} aria-label={t.sortBy}>
                     <option value="recent">{t.sortRecent}</option>
                     <option value="liked">{t.sortLiked}</option>
+                    <option value="alpha">{t.sortAlpha || 'Ordre alphabétique'}</option>
                   </select>
                 </div>
 

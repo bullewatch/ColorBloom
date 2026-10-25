@@ -20,6 +20,7 @@ export const translations = {
     sortBy: 'Trier par :',
     sortRecent: 'Derniers ajouts',
     sortLiked: 'Plus aimés',
+    sortAlpha: 'Ordre alphabétique',
     categoriesTitle: 'Catégories',
     myFavorites: 'Mes Favoris',
 
@@ -136,6 +137,7 @@ export const translations = {
     sortBy: 'Sort by:',
     sortRecent: 'Latest additions',
     sortLiked: 'Most liked',
+    sortAlpha: 'Alphabetical order',
     categoriesTitle: 'Categories',
     myFavorites: 'My Favorites',
 
@@ -252,6 +254,7 @@ export const translations = {
     sortBy: 'Ordenar por:',
     sortRecent: 'Últimas incorporaciones',
     sortLiked: 'Más populares',
+    sortAlpha: 'Orden alfabético',
     categoriesTitle: 'Categorías',
     myFavorites: 'Mis Favoritos',
 
@@ -368,6 +371,7 @@ export const translations = {
     sortBy: 'Sortieren nach:',
     sortRecent: 'Neueste Zugänge',
     sortLiked: 'Beliebteste',
+    sortAlpha: 'Alphabetische Reihenfolge',
     categoriesTitle: 'Kategorien',
     myFavorites: 'Meine Favoriten',
 
