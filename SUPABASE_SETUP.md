@@ -1,60 +1,81 @@
-# ColorBloom — activation Supabase
+# Colorblop — Configuration Supabase
 
-Le code de cette branche est déjà relié au projet Supabase ColorBloom avec la clé publique (publishable key).
+Le code est relié au projet Supabase Colorblop via la clé publique (`publishable key`).
 
-## 1. Initialiser la base
+---
 
-Dans Supabase :
+## 1. Mettre à jour l'URL du site et les redirections (Essentiel !)
 
-1. Ouvrir **SQL Editor**.
-2. Créer une nouvelle requête.
-3. Copier tout le contenu de `supabase/schema.sql`.
-4. Exécuter la requête.
+Pour que les e-mails de confirmation renvoient vers la bonne adresse (et non plus vers l'ancienne URL `color-bloom-one.vercel.app`) :
 
-Le script crée :
+1. Dans le tableau de bord Supabase, va dans **Authentication** > **URL Configuration**.
+2. **Site URL** : Remplacer par l'URL actuelle de ton site (ex: `https://colorblop.com` ou ta nouvelle URL Vercel `https://[ton-projet].vercel.app`).
+3. **Redirect URLs** : Ajouter les URLs de redirection autorisées :
+   - `http://localhost:5173/**` (pour les tests en local)
+   - `https://color-bloom-one.vercel.app/**` (ancienne URL de secours)
+   - `https://[ton-projet].vercel.app/**` (ton URL Vercel)
+   - `https://colorblop.com/**` (ton domaine personnalisé, si tu en as un)
+4. Cliquer sur **Save**.
 
-- `profiles` pour les profils utilisateurs ;
-- `coloring_pages` pour le catalogue de coloriages ;
-- `favorites` pour les favoris / likes synchronisés ;
-- `coloring_requests` pour les demandes de nouveaux coloriages ;
-- le bucket Storage public `colorings` ;
-- les règles RLS ;
-- les 4 coloriages déjà présents dans le site.
+---
 
-## 2. Configurer l’authentification
+## 2. Personnaliser le modèle d'e-mail de confirmation (Multilingue & Joli)
 
-Dans **Authentication > URL Configuration** :
+Un modèle soigné reprenant l'univers boisé de Colorblop et s'adaptant automatiquement à la langue choisie par l'utilisateur (FR, EN, ES, DE) est disponible dans le fichier `supabase/templates/confirmation.html`.
 
-- **Site URL** : `https://color-bloom-one.vercel.app`
-- ajouter `https://color-bloom-one.vercel.app/**` dans les URLs de redirection autorisées.
+1. Dans Supabase, va dans **Authentication** > **Email Templates**.
+2. Clique sur l'onglet **Confirm signup**.
+3. **Subject** :
+   ```text
+   Bienvenue sur Colorblop ! Confirmez votre adresse e-mail 🌸
+   ```
+4. **Body** : Copie-colle l'intégralité du contenu de [`supabase/templates/confirmation.html`](./supabase/templates/confirmation.html).
+5. Clique sur **Save**.
 
-## 3. Créer le compte propriétaire
+Désormais, le mail s'affiche avec la signature « Cordialement, Mme Colorblop 🌸 », un joli bouton en bois et s'adapte à la langue (Français par défaut, Anglais, Espagnol, Allemand).
 
-Une fois le site déployé avec cette branche :
+---
 
-1. ouvrir **Profil** ;
-2. créer le compte qui servira de compte propriétaire ;
-3. confirmer l’e-mail si Supabase le demande ;
-4. revenir dans **SQL Editor** et exécuter :
+## 3. Configurer l'expéditeur (noreply@colorblop.com)
+
+Par défaut, Supabase envoie les e-mails depuis `Supabase Auth <noreply@mail.app.supabase.io>` avec une limite de sécurité de 3 e-mails par heure.
+
+Pour envoyer depuis une adresse personnalisée telle que `noreply@colorblop.com` :
+
+### Option A — Immédiate (Nom d'expéditeur) :
+Dans Supabase > **Authentication** > **Email Templates** :
+- **Sender Name** : `Colorblop`
+- (Dans la boîte de réception des utilisateurs, le nom affiché sera alors directement **Colorblop** au lieu de "Supabase Auth").
+
+### Option B — Adresse e-mail personnalisée (`noreply@colorblop.com`) :
+Il faut activer un service SMTP (recommandé : **Resend** ou **Brevo**, gratuits jusqu'à 3 000 e-mails/mois) :
+1. Crée un compte gratuit sur [Resend.com](https://resend.com) ou [Brevo.com](https://brevo.com).
+2. Ajoute ton domaine `colorblop.com` et valide les enregistrements DNS (DKIM / SPF) chez ton hébergeur de nom de domaine (OVH, Hostinger, Cloudflare, etc.).
+3. Dans Supabase > **Project Settings** > **Authentication** > **SMTP Settings** :
+   - Active **Enable Custom SMTP**.
+   - **Sender email** : `noreply@colorblop.com`
+   - **Sender name** : `Colorblop`
+   - **Host** : `smtp.resend.com` (ou celui de Brevo)
+   - **Port** : `465` ou `587`
+   - **User** : `resend`
+   - **Password** : ta clé API Resend.
+   - Cliquer sur **Save**.
+
+---
+
+## 4. Compte propriétaire (Admin)
+
+1. Créer un compte sur Colorblop depuis l'onglet **Profil**.
+2. Confirmer l'e-mail reçu.
+3. Dans **SQL Editor** sur Supabase, exécuter :
 
 ```sql
 update public.profiles
 set is_admin = true
 where id = (
   select id from auth.users
-  where email = 'TON_EMAIL_PROPRIETAIRE'
+  where email = 'flo83119@gmail.com'
 );
 ```
 
-Déconnecte-toi puis reconnecte-toi. Le bouton **Espace propriétaire** devient alors disponible.
-
-## 4. Ce qui change
-
-- Les coloriages ajoutés depuis l’admin sont envoyés dans Supabase Storage.
-- Leur nom, catégories et métadonnées sont enregistrés dans Postgres.
-- Ils sont visibles depuis tous les appareils et navigateurs.
-- Les favoris sont synchronisés pour les utilisateurs connectés.
-- L’espace propriétaire n’est plus activable simplement depuis le navigateur : il dépend du rôle admin stocké côté base.
-- Les visiteurs conservent temporairement leurs favoris dans le navigateur tant qu’ils ne créent pas de compte.
-
-La `service_role key`, le mot de passe Postgres et les secrets JWT ne doivent jamais être ajoutés au dépôt ou au code navigateur.
+4. Se reconnecter pour voir apparaître l'accès à l'**Espace propriétaire**.

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmation d'inscription Colorblop</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #1b2c14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #3d2110;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #1b2c14; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Container Card -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 560px; background-color: #fcf8f0; border: 4px solid #3d2110; border-radius: 22px; overflow: hidden; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);">
+          
+          <!-- Header Banner -->
+          <tr>
+            <td align="center" style="background: linear-gradient(180deg, #442410 0%, #301708 100%); background-color: #3b1d0b; padding: 26px 20px; border-bottom: 3px solid #230f04;">
+              <span style="font-size: 32px; line-height: 1;">🌸 🎨 🌿</span>
+              <h1 style="margin: 10px 0 0 0; color: #faebd1; font-size: 26px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">
+                COLORBLOP
+              </h1>
+              <p style="margin: 4px 0 0 0; color: #ebd1b0; font-size: 13px; letter-spacing: 0.5px;">
+                Le jardin enchanté des coloriages
+              </p>
+            </td>
+          </tr>
+
+          <!-- Email Content Body -->
+          <tr>
+            <td style="padding: 32px 28px 24px 28px;">
+
+              {{ if eq .Data.lang "EN" }}
+              <!-- ================= ENGLISH VERSION ================= -->
+              <h2 style="margin: 0 0 16px 0; color: #381e0b; font-size: 22px; font-weight: 800;">
+                Welcome to Colorblop! 🎨🌸
+              </h2>
+              <p style="margin: 0 0 14px 0; font-size: 16px; line-height: 1.5; color: #4a2b16;">
+                Hello <strong>{{ if .Data.display_name }}{{ .Data.display_name }}{{ else }}friend{{ end }}</strong>,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #4a2b16;">
+                To complete your registration and access our entire collection of drawings and coloring pages, please click the button below:
+              </p>
+
+              <!-- Call To Action Button -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background: linear-gradient(180deg, #5c3217 0%, #44220e 100%); background-color: #522b13; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 14px 32px; border-radius: 999px; border: 2px solid #83471f; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
+                      🎨 Confirm my registration
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 24px 0 8px 0; font-size: 15px; line-height: 1.5; color: #4a2b16;">
+                See you very soon in our coloring world!
+              </p>
+              <p style="margin: 16px 0 0 0; font-size: 15px; line-height: 1.5; color: #381e0b;">
+                Best regards,<br>
+                <strong style="color: #2b1407; font-size: 16px;">Mrs. Colorblop 🌸</strong>
+              </p>
+
+              {{ else if eq .Data.lang "ES" }}
+              <!-- ================= SPANISH VERSION ================= -->
+              <h2 style="margin: 0 0 16px 0; color: #381e0b; font-size: 22px; font-weight: 800;">
+                ¡Bienvenido a Colorblop! 🎨🌸
+              </h2>
+              <p style="margin: 0 0 14px 0; font-size: 16px; line-height: 1.5; color: #4a2b16;">
+                Hola <strong>{{ if .Data.display_name }}{{ .Data.display_name }}{{ else }}amigo{{ end }}</strong>,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #4a2b16;">
+                Para completar tu registro y acceder a toda nuestra colección de dibujos para colorear, haz clic en el siguiente botón:
+              </p>
+
+              <!-- Call To Action Button -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background: linear-gradient(180deg, #5c3217 0%, #44220e 100%); background-color: #522b13; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 14px 32px; border-radius: 999px; border: 2px solid #83471f; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
+                      🎨 Confirmar mi registro
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 24px 0 8px 0; font-size: 15px; line-height: 1.5; color: #4a2b16;">
+                ¡Hasta pronto en nuestro jardín de colores!
+              </p>
+              <p style="margin: 16px 0 0 0; font-size: 15px; line-height: 1.5; color: #381e0b;">
+                Atentamente,<br>
+                <strong style="color: #2b1407; font-size: 16px;">Sra. Colorblop 🌸</strong>
+              </p>
+
+              {{ else if eq .Data.lang "DE" }}
+              <!-- ================= GERMAN VERSION ================= -->
+              <h2 style="margin: 0 0 16px 0; color: #381e0b; font-size: 22px; font-weight: 800;">
+                Willkommen bei Colorblop! 🎨🌸
+              </h2>
+              <p style="margin: 0 0 14px 0; font-size: 16px; line-height: 1.5; color: #4a2b16;">
+                Hallo <strong>{{ if .Data.display_name }}{{ .Data.display_name }}{{ else }}Freund{{ end }}</strong>,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #4a2b16;">
+                Um deine Registrierung abzuschließen und Zugriff auf unsere Ausmalkollektion zu erhalten, klicke bitte auf die folgende Schaltfläche:
+              </p>
+
+              <!-- Call To Action Button -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background: linear-gradient(180deg, #5c3217 0%, #44220e 100%); background-color: #522b13; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 14px 32px; border-radius: 999px; border: 2px solid #83471f; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
+                      🎨 Registrierung bestätigen
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 24px 0 8px 0; font-size: 15px; line-height: 1.5; color: #4a2b16;">
+                Bis bald in unserer bunten Malwelt!
+              </p>
+              <p style="margin: 16px 0 0 0; font-size: 15px; line-height: 1.5; color: #381e0b;">
+                Herzliche Grüße,<br>
+                <strong style="color: #2b1407; font-size: 16px;">Frau Colorblop 🌸</strong>
+              </p>
+
+              {{ else }}
+              <!-- ================= FRENCH VERSION (PAR DÉFAUT) ================= -->
+              <h2 style="margin: 0 0 16px 0; color: #381e0b; font-size: 22px; font-weight: 800;">
+                Bienvenue sur Colorblop ! 🎨🌸
+              </h2>
+              <p style="margin: 0 0 14px 0; font-size: 16px; line-height: 1.5; color: #4a2b16;">
+                Bonjour <strong>{{ if .Data.display_name }}{{ .Data.display_name }}{{ else }}ami(e){{ end }}</strong>,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #4a2b16;">
+                Pour terminer votre inscription et accéder à ma base de dessins et coloriages, veuillez cliquer sur le bouton ci-dessous :
+              </p>
+
+              <!-- Call To Action Button -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background: linear-gradient(180deg, #5c3217 0%, #44220e 100%); background-color: #522b13; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 14px 32px; border-radius: 999px; border: 2px solid #83471f; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
+                      🎨 Confirmer mon inscription
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 24px 0 8px 0; font-size: 15px; line-height: 1.5; color: #4a2b16;">
+                À très vite dans notre univers de coloriages !
+              </p>
+              <p style="margin: 16px 0 0 0; font-size: 15px; line-height: 1.5; color: #381e0b;">
+                Cordialement,<br>
+                <strong style="color: #2b1407; font-size: 16px;">Mme Colorblop 🌸</strong>
+              </p>
+              {{ end }}
+
+              <!-- Fallback Direct Link -->
+              <div style="margin-top: 32px; padding-top: 18px; border-top: 1px dashed #d9c8b4; font-size: 12px; line-height: 1.4; color: #856a52;">
+                <p style="margin: 0 0 6px 0;">
+                  Si le bouton ne s'affiche pas ou ne fonctionne pas, copiez et collez ce lien dans votre navigateur :
+                </p>
+                <p style="margin: 0; word-break: break-all;">
+                  <a href="{{ .ConfirmationURL }}" style="color: #693b18; text-decoration: underline;">
+                    {{ .ConfirmationURL }}
+                  </a>
+                </p>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer Note -->
+          <tr>
+            <td align="center" style="background-color: #f1ebd8; padding: 16px 20px; border-top: 1px solid #e2d7c5; font-size: 12px; color: #7c6049;">
+              Colorblop • Des coloriages vectoriels et dessins magiques pour tous les âges
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

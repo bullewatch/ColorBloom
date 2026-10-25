@@ -1562,6 +1562,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
           display_name: cleanPseudo,
           pseudo: cleanPseudo,
           avatar_index: selectedAvatar || 0,
+          lang: lang || 'FR',
         },
         emailRedirectTo: `${window.location.origin}/`,
       },
