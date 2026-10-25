@@ -297,3 +297,67 @@ set title = excluded.title,
 -- update public.profiles
 -- set is_admin = true
 -- where id = (select id from auth.users where email = 'YOUR_EMAIL@example.com');
+
+-- === COLORBLOP STRIPE BILLING & SUBSCRIPTIONS SCHEMA ===
+create table if not exists public.subscriptions (
+  id text primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  stripe_customer_id text not null,
+  status text not null,
+  plan_id text not null,
+  price_id text not null,
+  interval text not null,
+  amount integer not null,
+  currency text not null default 'eur',
+  current_period_start timestamptz not null,
+  current_period_end timestamptz not null,
+  cancel_at_period_end boolean not null default false,
+  canceled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.licenses (
+  id uuid primary key default gen_random_uuid(),
+  license_number text unique not null,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  subscription_id text references public.subscriptions(id) on delete cascade,
+  customer_name text not null,
+  customer_email text not null,
+  plan_type text not null default 'colorvip_pro',
+  interval text not null,
+  valid_from timestamptz not null,
+  valid_until timestamptz not null,
+  status text not null default 'active',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.stripe_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz not null default now()
+);
+
+alter table public.profiles
+  add column if not exists stripe_customer_id text,
+  add column if not exists subscription_plan text,
+  add column if not exists subscription_status text default 'inactive',
+  add column if not exists subscription_period_end timestamptz;
+
+alter table public.subscriptions enable row level security;
+alter table public.licenses enable row level security;
+alter table public.stripe_events enable row level security;
+
+create policy "users read own subscriptions"
+on public.subscriptions for select
+to authenticated
+using (user_id = auth.uid() or public.current_user_is_admin());
+
+create policy "users read own licenses"
+on public.licenses for select
+to authenticated
+using (user_id = auth.uid() or public.current_user_is_admin());
+
+grant select on public.subscriptions to authenticated;
+grant select on public.licenses to authenticated;

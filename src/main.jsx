@@ -7,13 +7,16 @@ import {
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
-  Users, Eye, RefreshCw, FileImage, FileText, Dices
+  Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
 import { translations, generateRandomPseudo, getDrawingTitle, matchesSearchWithTranslations, formatNewsItem } from './translations';
 import { CguModal } from './CguModal';
+import { MembershipView } from './MembershipView';
+import { MembershipModal } from './MembershipModal';
+import { MemberSubscriptionCard } from './MemberSubscriptionCard';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
@@ -45,6 +48,7 @@ function getNavItems(t, latestBadge = '5') {
     { id: 'Catégorie', label: t.navCategories, icon: Leaf },
     { id: 'Favoris', label: t.navFavorites, icon: Heart },
     { id: 'Nouveautes', label: t.navNews, icon: Sparkles, badge: latestBadge },
+    { id: 'DevenirMembre', label: t.navMembership || 'Devenir membre', icon: Crown },
     { id: 'APropos', label: t.navAbout, icon: Info },
   ];
 }
@@ -365,6 +369,43 @@ function App() {
   const [selectedAvatar, setSelectedAvatar] = useState(() => Number(localStorage.getItem('cb-avatar') || 0));
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
+  // Stripe Subscriptions State
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
+  const [checkoutNotice, setCheckoutNotice] = useState(null);
+
+  const fetchSubscriptionStatus = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch('/api/subscription-status', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptionData(data);
+      }
+    } catch (err) {
+      console.warn('Erreur vérification statut abonnement:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscriptionStatus();
+  }, [session]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('checkout') === 'success' || urlParams.get('payment') === 'success') {
+      setCheckoutNotice('success');
+      fetchSubscriptionStatus();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('tab') === 'abonnement') {
+      setPage('Profil');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Dynamic categories with Supabase sync and localStorage fallback
   const [categoriesList, setCategoriesList] = useState(() => {
     const local = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
@@ -544,6 +585,7 @@ function App() {
   const isOwner = Boolean(
     session?.user?.email?.toLowerCase() === 'flo83119@gmail.com'
   );
+  const canDownloadSvg = Boolean(subscriptionData?.canDownloadSvg || isOwner);
 
   // Visitor IP Quota management (blocks incognito / private browsing bypass)
   const [visitorIp, setVisitorIp] = useState(null);
@@ -875,13 +917,36 @@ function App() {
 
     try {
       if (format === 'SVG') {
-        if (!open.isSvg && !open.image.endsWith('.svg')) {
+        if (!open.isSvg && !open.image.endsWith('.svg') && !open.svgAssetId) {
           alert('Le format SVG n’est pas disponible pour ce dessin matriciel.');
           return;
         }
-        const res = await fetch(open.image);
-        const svgContent = await res.text();
-        const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+
+        // Téléchargement SVG réservé aux membres ColorVIP et ColorVIP Pro
+        if (!canDownloadSvg) {
+          setIsMembershipModalOpen(true);
+          return;
+        }
+
+        // Téléchargement sécurisé via l'API protégée
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token || '';
+
+        const downloadUrl = `/api/download-svg?id=${encodeURIComponent(open.id)}&slug=${encodeURIComponent(open.slug || '')}&token=${encodeURIComponent(token)}`;
+
+        const res = await fetch(downloadUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 401) {
+            setIsMembershipModalOpen(true);
+            return;
+          }
+          throw new Error('Erreur lors du téléchargement sécurisé du SVG.');
+        }
+
+        const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = safe + '.svg';
@@ -1346,6 +1411,14 @@ function App() {
           pendingRequestsCount={pendingRequestsCount}
           refreshPendingRequests={checkPendingRequests}
         />
+      ) : page === 'DevenirMembre' ? (
+        <MembershipView
+          session={session}
+          onOpenProfile={() => {
+            setPage('Profil');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       ) : page === 'Profil' ? (
         <Profile
           session={session}
@@ -1355,6 +1428,12 @@ function App() {
           databaseReady={databaseReady}
           isOwner={isOwner}
           openAdmin={() => { setOwnerOpen(true); setAdminView('stats'); }}
+          subscriptionData={subscriptionData}
+          onRefreshSubscription={fetchSubscriptionStatus}
+          onNavigateToMembership={() => {
+            setPage('DevenirMembre');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
           lang={lang}
           t={t}
         />
@@ -1711,11 +1790,24 @@ function App() {
                 {open.isSvg && (
                   <button
                     onClick={() => download('SVG')}
-                    className="download-btn-svg"
-                    title="Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
+                    className={`download-btn-svg cb-btn-download-svg ${!canDownloadSvg ? 'locked' : ''}`}
+                    title={
+                      canDownloadSvg
+                        ? "Télécharger le fichier vectoriel SVG (idéal machines de découpe & impression HD)"
+                        : "Format SVG vectoriel réservé aux membres ColorVIP et ColorVIP Pro"
+                    }
                     disabled={Boolean(downloading)}
                   >
-                    <Download /> {downloading === 'SVG' ? t.preparing : t.btnSvg}
+                    {canDownloadSvg ? (
+                      <>
+                        <Download /> {downloading === 'SVG' ? t.preparing : t.btnSvg}
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={15} /> {t.btnSvg}
+                        <span className="cb-vip-badge-tag">VIP</span>
+                      </>
+                    )}
                   </button>
                 )}
                 <button
@@ -1957,7 +2049,69 @@ function App() {
           </div>
           <span className="cb-bottom-nav-label">Favoris</span>
         </button>
+
+        {/* VIP / Membre */}
+        <button
+          type="button"
+          className={`cb-bottom-nav-item ${page === 'DevenirMembre' ? 'active' : ''}`}
+          onClick={() => {
+            setPage('DevenirMembre');
+            setOwnerOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          aria-label="Devenir membre"
+        >
+          <Crown className="cb-bottom-nav-icon" color="#e6a100" />
+          <span className="cb-bottom-nav-label">VIP Pro</span>
+        </button>
+
+        {/* Profil */}
+        <button
+          type="button"
+          className={`cb-bottom-nav-item ${page === 'Profil' ? 'active' : ''}`}
+          onClick={() => {
+            setPage('Profil');
+            setOwnerOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          aria-label="Mon Profil"
+        >
+          <Users className="cb-bottom-nav-icon" />
+          <span className="cb-bottom-nav-label">Profil</span>
+        </button>
       </nav>
+
+      {/* Stripe Membership Modal for locked SVG downloads */}
+      <MembershipModal
+        isOpen={isMembershipModalOpen}
+        onClose={() => setIsMembershipModalOpen(false)}
+        onNavigateToMembership={() => {
+          setIsMembershipModalOpen(false);
+          setPage('DevenirMembre');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
+      {/* Checkout Success Toast Notification */}
+      {checkoutNotice === 'success' && (
+        <div className="cb-checkout-celebration-toast" role="alert">
+          <div className="cb-celebration-content">
+            <Sparkles className="cb-celebration-icon" />
+            <div>
+              <h4>Félicitations et bienvenue !</h4>
+              <p>Votre abonnement COLORBLOP est désormais actif. Tous les SVG vectoriels sont débloqués !</p>
+            </div>
+            <button
+              type="button"
+              className="cb-toast-close"
+              onClick={() => setCheckoutNotice(null)}
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -2301,7 +2455,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   );
 }
 
-function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin, lang = 'FR', t = translations.FR }) {
+function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin, subscriptionData, onRefreshSubscription, onNavigateToMembership, lang = 'FR', t = translations.FR }) {
   const [authMode, setAuthMode] = useState('signup'); // 'signup' | 'signin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -2783,6 +2937,16 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
       ) : (
         <div className="cb-profile-actions">
           <p>{t.profileConnectedSync}</p>
+
+          {/* Member Subscription & Commercial License */}
+          <MemberSubscriptionCard
+            session={session}
+            profile={profile}
+            subscriptionData={subscriptionData}
+            onNavigateToMembership={onNavigateToMembership}
+            onRefreshSubscription={onRefreshSubscription}
+          />
+
           {isOwner && (
             <button className="cb-btn-admin" onClick={openAdmin}>
               <ShieldCheck /> {t.btnAdminSpace}

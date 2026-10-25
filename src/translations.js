@@ -12,6 +12,7 @@ export const translations = {
     navCategories: 'Catégories',
     navFavorites: 'Favoris',
     navNews: 'Nouveautés',
+    navMembership: 'Devenir membre',
     navAbout: 'À propos',
     navNewBadge: 'Nouveau',
 
@@ -132,6 +133,7 @@ export const translations = {
     navCategories: 'Categories',
     navFavorites: 'Favorites',
     navNews: 'What’s New',
+    navMembership: 'Membership',
     navAbout: 'About',
     navNewBadge: 'New',
 
@@ -252,6 +254,7 @@ export const translations = {
     navCategories: 'Categorías',
     navFavorites: 'Favoritos',
     navNews: 'Novedades',
+    navMembership: 'Hacerse miembro',
     navAbout: 'Acerca de',
     navNewBadge: 'Nuevo',
 
@@ -372,6 +375,7 @@ export const translations = {
     navCategories: 'Kategorien',
     navFavorites: 'Favoriten',
     navNews: 'Neuheiten',
+    navMembership: 'Mitglied werden',
     navAbout: 'Über uns',
     navNewBadge: 'Neu',
 

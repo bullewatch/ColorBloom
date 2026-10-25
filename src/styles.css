@@ -5195,3 +5195,1033 @@ footer {
   filter: brightness(1.08);
 }
 
+
+/* === COLORBLOP STRIPE BILLING & SUBSCRIPTIONS STYLES === */
+
+/* Page Devenir Membre */
+.cb-membership-section {
+  max-width: 1080px;
+  margin: 16px auto 60px;
+  padding: 0 16px;
+  animation: cbSheetFadeIn 0.3s ease-out;
+}
+
+.cb-membership-parchment {
+  background: #fdfaf2;
+  border: 6px solid #5a381d;
+  border-radius: 24px;
+  padding: 36px 32px 42px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+}
+
+.cb-membership-header {
+  text-align: center;
+  max-width: 740px;
+  margin: 0 auto 32px;
+}
+
+.cb-membership-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3e5c8;
+  border: 1.5px solid #bd9b6a;
+  color: #4a2c13;
+  padding: 5px 16px;
+  border-radius: 20px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.cb-membership-header h1 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 38px;
+  color: #3b200b;
+  margin: 0 0 10px;
+  line-height: 1.15;
+}
+
+.cb-membership-subtitle {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 19px;
+  color: #55341c;
+  line-height: 1.4;
+  margin: 0 0 24px;
+}
+
+/* Switcher Mensuel / Annuel */
+.cb-billing-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: #ecd9b3;
+  border: 2px solid #8e623b;
+  border-radius: 40px;
+  padding: 6px 18px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.cb-toggle-label {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 18px;
+  font-weight: 700;
+  color: #634328;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s ease;
+}
+
+.cb-toggle-label.active {
+  color: #241408;
+  font-weight: 800;
+}
+
+.cb-discount-tag {
+  background: #2e7d32;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.cb-billing-switch {
+  width: 52px;
+  height: 28px;
+  background: #5a381d;
+  border-radius: 14px;
+  border: 0;
+  cursor: pointer;
+  position: relative;
+  padding: 2px;
+  transition: background 0.2s ease;
+}
+
+.cb-billing-switch-thumb {
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 50%;
+  display: block;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.cb-billing-switch.is-year .cb-billing-switch-thumb {
+  transform: translateX(24px);
+}
+
+.cb-toggle-subtext {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  color: #724c2c;
+  margin: 10px 0 0;
+}
+
+.cb-membership-error-banner {
+  background: #ffebee;
+  border: 1.5px solid #d32f2f;
+  color: #b71c1c;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  margin-top: 16px;
+}
+
+/* Grille des Formules */
+.cb-membership-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-bottom: 36px;
+}
+
+.cb-plan-card {
+  background: #ffffff;
+  border: 3.5px solid #b89664;
+  border-radius: 20px;
+  padding: 30px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cb-plan-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+}
+
+.cb-plan-card.is-pro {
+  border-color: #2e7d32;
+  background: linear-gradient(180deg, #ffffff 0%, #f6faf5 100%);
+  box-shadow: 0 10px 30px rgba(46, 125, 50, 0.18);
+}
+
+.cb-plan-badge {
+  position: absolute;
+  top: -14px;
+  left: 24px;
+  padding: 4px 14px;
+  border-radius: 14px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.cb-plan-badge.pro-star {
+  background: #2e7d32;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cb-plan-badge.current {
+  background: #d97706;
+  color: #ffffff;
+  right: 24px;
+  left: auto;
+}
+
+.cb-plan-top {
+  border-bottom: 2px dashed #e2d1b3;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+
+.cb-plan-title {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 32px;
+  color: #3b200b;
+  margin: 0 0 6px;
+}
+
+.cb-plan-desc {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  color: #644528;
+  margin: 0 0 16px;
+  min-height: 44px;
+}
+
+.cb-plan-price-wrap {
+  margin-top: 10px;
+}
+
+.cb-price-crossed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.cb-price-crossed {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 20px;
+  color: #9e7b60;
+  text-decoration: line-through;
+  font-weight: 700;
+}
+
+.cb-price-badge-save {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.cb-price-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.cb-price-amount {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 44px;
+  font-weight: 800;
+  color: #241408;
+  line-height: 1;
+}
+
+.cb-price-period {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 20px;
+  color: #644528;
+  font-weight: 700;
+}
+
+.cb-price-monthly-equiv {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  color: #2e7d32;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.cb-price-billing-note {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #8c6a49;
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+.cb-plan-features {
+  flex: 1;
+  margin-bottom: 26px;
+}
+
+.cb-plan-features b {
+  display: block;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 18px;
+  color: #4a2c13;
+  margin-bottom: 12px;
+}
+
+.cb-plan-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cb-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  color: #3b2514;
+  line-height: 1.35;
+}
+
+.cb-check-icon {
+  width: 18px;
+  height: 18px;
+  color: #2e7d32;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cb-check-icon.pro {
+  color: #1b5e20;
+}
+
+.cb-cross-icon {
+  width: 18px;
+  height: 18px;
+  color: #c62828;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cb-feature-disabled {
+  color: #9e8471 !important;
+  text-decoration: line-through;
+}
+
+.cb-plan-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cb-plan-btn {
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.cb-plan-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.cb-plan-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.cb-plan-btn.btn-vip {
+  background: linear-gradient(180deg, #6c4728 0%, #4a2c13 100%);
+  color: #fff8e8;
+  border-color: #2a1608;
+}
+
+.cb-plan-btn.btn-pro {
+  background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+  color: #ffffff;
+  border-color: #0e3d12;
+}
+
+.cb-plan-btn.btn-current {
+  background: #ecd9b3;
+  color: #55341c;
+  border-color: #8e623b;
+  cursor: default;
+}
+
+.cb-plan-terms-hint {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #8c6a49;
+  text-align: center;
+}
+
+/* Footer Réassurance */
+.cb-membership-footer-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  border-top: 2px solid #ecd9b3;
+  padding-top: 28px;
+}
+
+.cb-info-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cb-info-icon {
+  width: 24px;
+  height: 24px;
+  color: #5a381d;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cb-info-item b {
+  display: block;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 17px;
+  color: #3b200b;
+  margin-bottom: 4px;
+}
+
+.cb-info-item p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #644528;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Modale Rapide VIP au clic sur cadenas SVG */
+.cb-membership-modal-overlay {
+  z-index: 10000;
+}
+
+.cb-membership-modal-card {
+  background: #fdfaf2;
+  border: 5px solid #5a381d;
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 580px;
+  width: 94vw;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
+  animation: cbPopIn 0.25s ease-out;
+}
+
+.cb-modal-vip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f3e5c8;
+  border: 1.5px solid #bd9b6a;
+  color: #5a381d;
+  padding: 4px 14px;
+  border-radius: 16px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.cb-membership-modal-card h2 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 32px;
+  color: #3b200b;
+  margin: 0 0 6px;
+}
+
+.cb-modal-vip-sub {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  color: #55341c;
+  margin: 0 0 18px;
+}
+
+.cb-modal-interval-pill {
+  display: inline-flex;
+  background: #ebd8b5;
+  border: 1.5px solid #8e623b;
+  border-radius: 20px;
+  padding: 3px;
+  margin-bottom: 20px;
+}
+
+.cb-modal-interval-pill button {
+  background: transparent;
+  border: 0;
+  padding: 4px 14px;
+  border-radius: 16px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  color: #644528;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cb-modal-interval-pill button.active {
+  background: #5a381d;
+  color: #fff8e8;
+}
+
+.cb-modal-plans-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.cb-modal-plan-box {
+  background: #ffffff;
+  border: 2px solid #bd9b6a;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.cb-modal-plan-box.is-pro {
+  border-color: #2e7d32;
+  background: #f6faf5;
+}
+
+.cb-modal-tag-pro {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 11px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.cb-modal-plan-head h3 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 22px;
+  color: #3b200b;
+  margin: 0 0 4px;
+}
+
+.cb-modal-price {
+  font-family: 'Patrick Hand SC', cursive;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.cb-modal-price b {
+  font-size: 26px;
+  color: #241408;
+}
+
+.cb-modal-price small {
+  color: #644528;
+}
+
+.cb-m-crossed {
+  text-decoration: line-through;
+  color: #9e7b60;
+  font-size: 15px;
+  margin-right: 4px;
+}
+
+.cb-modal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cb-modal-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #3b2514;
+}
+
+.cb-modal-choose-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+  color: #ffffff;
+}
+
+.cb-modal-choose-btn.btn-vip {
+  background: #5a381d;
+}
+
+.cb-modal-choose-btn.btn-pro {
+  background: #2e7d32;
+}
+
+.cb-modal-hint-note {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #724c2c;
+  margin: 0;
+}
+
+/* Espace Membre : Carte Mon abonnement */
+.cb-my-subscription-card {
+  background: #fbf5e6;
+  border: 4px solid #5a381d;
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 24px;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.cb-my-sub-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px dashed #d5be9b;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.cb-my-sub-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cb-my-sub-crown {
+  color: #d97706;
+}
+
+.cb-my-sub-header h3 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 24px;
+  color: #3b200b;
+  margin: 0;
+}
+
+.cb-sub-refresh-btn {
+  background: transparent;
+  border: 1.5px solid #bd9b6a;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: #5a381d;
+}
+
+.cb-sub-refresh-btn:hover {
+  background: #ecd9b3;
+}
+
+/* Cas gratuit */
+.cb-sub-box-free {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cb-sub-badge-free {
+  align-self: flex-start;
+  background: #ecd9b3;
+  color: #5a381d;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cb-sub-free-desc {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  color: #55341c;
+  margin: 0;
+}
+
+.cb-sub-free-callout {
+  background: #fff8e8;
+  border: 1.5px solid #d5be9b;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  color: #3b200b;
+}
+
+.cb-sub-upgrade-btn {
+  align-self: flex-start;
+  background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+  color: #ffffff;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 20px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.3);
+}
+
+.cb-sub-upgrade-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* Cas actif */
+.cb-sub-box-active {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cb-sub-active-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cb-sub-plan-pill {
+  padding: 5px 14px;
+  border-radius: 14px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: 800;
+  margin-right: 8px;
+}
+
+.cb-sub-plan-pill.vip {
+  background: #5a381d;
+  color: #fff8e8;
+}
+
+.cb-sub-plan-pill.pro {
+  background: #2e7d32;
+  color: #ffffff;
+}
+
+.cb-sub-status-pill.active {
+  background: #e8f5e9;
+  border: 1px solid #81c784;
+  color: #2e7d32;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cb-sub-price-tag b {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 22px;
+  color: #241408;
+}
+
+.cb-sub-price-tag small {
+  color: #644528;
+}
+
+.cb-sub-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  background: #ffffff;
+  border: 1.5px solid #d5be9b;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.cb-sub-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #644528;
+}
+
+.cb-sub-detail-item small {
+  display: block;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #8c6a49;
+}
+
+.cb-sub-detail-item b {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  color: #241408;
+}
+
+.cb-sub-detail-item b.text-success {
+  color: #2e7d32;
+}
+
+.cb-sub-detail-item b.text-warning {
+  color: #d97706;
+}
+
+.cb-sub-cancel-notice {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  color: #e65100;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+}
+
+/* Encart Licence Commerciale Pro */
+.cb-sub-license-box {
+  background: #f1f8f1;
+  border: 2px solid #81c784;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cb-license-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cb-license-icon {
+  width: 24px;
+  height: 24px;
+  color: #2e7d32;
+}
+
+.cb-license-header h4 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 19px;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.cb-license-header p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #388e3c;
+  margin: 2px 0 0;
+}
+
+.cb-license-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #2e7d32;
+}
+
+.cb-btn-download-license {
+  align-self: flex-start;
+  background: #2e7d32;
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 8px rgba(46, 125, 50, 0.25);
+}
+
+.cb-btn-download-license:hover {
+  background: #1b5e20;
+}
+
+.cb-sub-actions-row {
+  margin-top: 4px;
+}
+
+.cb-btn-portal {
+  background: #ffffff;
+  border: 2px solid #5a381d;
+  color: #5a381d;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-portal:hover {
+  background: #5a381d;
+  color: #ffffff;
+}
+
+/* Bouton SVG verrouillé */
+.cb-btn-download-svg.locked {
+  position: relative;
+  background: #ecd9b3 !important;
+  color: #644528 !important;
+  border-color: #a4784a !important;
+}
+
+.cb-vip-badge-tag {
+  background: #2e7d32;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive Abonnements */
+@media (max-width: 768px) {
+  .cb-membership-parchment {
+    padding: 24px 16px;
+    border-width: 4px;
+  }
+
+  .cb-membership-header h1 {
+    font-size: 28px;
+  }
+
+  .cb-membership-subtitle {
+    font-size: 16px;
+  }
+
+  .cb-membership-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .cb-membership-footer-info {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .cb-modal-plans-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cb-sub-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Toast de célébration après succès de paiement Stripe */
+.cb-checkout-celebration-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+  color: #ffffff;
+  padding: 14px 22px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 2px solid #ffffff;
+  animation: cbSlideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cb-checkout-celebration-toast b {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 19px;
+  display: block;
+}
+
+.cb-checkout-celebration-toast p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  margin: 2px 0 0;
+}
+
+.cb-checkout-celebration-toast button {
+  background: transparent;
+  border: 0;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+@keyframes cbSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
