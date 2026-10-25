@@ -3690,13 +3690,76 @@ footer {
   background: #fff8eb;
   border: 3px solid #8e6844;
   border-radius: 14px;
-  padding: 14px 18px;
+  padding: 16px 20px;
   margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.cb-rename-banner-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+}
+
+.cb-batch-rename-common-box {
+  background: #fcf4e4;
+  border: 2px dashed #b88656;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cb-common-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #4a2810;
+  cursor: pointer;
+}
+
+.cb-common-toggle-label input[type="checkbox"] {
+  accent-color: #3b7d2f;
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+.cb-common-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cb-common-input {
+  max-width: 280px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+}
+
+.cb-btn-apply-common-names {
+  background: #7c4f24;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cb-btn-apply-common-names:hover {
+  background: #5f3a18;
 }
 
 .cb-rename-banner-info {

@@ -176,34 +176,59 @@ function App() {
   const isOwner = Boolean(
     profile?.is_admin ||
     session?.user?.email?.toLowerCase().includes('flo83') ||
-    session?.user?.email?.toLowerCase().includes('bullewatch')
+    session?.user?.email?.toLowerCase().includes('bullewatch') ||
+    session?.user?.email?.toLowerCase().includes('clems')
   );
 
   async function loadDrawings() {
-    const { data, error } = await supabase
-      .from('coloring_pages')
-      .select('id,slug,title,categories,image_path,likes_count,downloads_count,is_published,created_at')
-      .order('created_at', { ascending: false });
+    let pagesData = null;
+    let pagesErr = null;
+    let deletedRows = [];
+
+    try {
+      const [pagesRes, deletedRes] = await Promise.all([
+        supabase
+          .from('coloring_pages')
+          .select('id,slug,title,categories,image_path,likes_count,downloads_count,is_published,created_at')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('deleted_colorings')
+          .select('slug'),
+      ]);
+      pagesData = pagesRes.data;
+      pagesErr = pagesRes.error;
+      deletedRows = deletedRes?.data || [];
+    } catch (e) {
+      console.warn('Network error loading drawings:', e);
+    }
 
     const localOverrides = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+    const localDeleted = JSON.parse(localStorage.getItem('cb-deleted-slugs') || '[]');
+    const deletedSlugsSet = new Set([
+      ...localDeleted,
+      ...(deletedRows || []).map(r => r.slug),
+    ]);
 
-    const dbDrawings = (data || []).map(toDrawing).map(d => {
-      const override = localOverrides[d.id] || localOverrides[d.slug];
-      return override ? { ...d, title: override } : d;
-    });
+    const dbDrawings = (pagesData || [])
+      .filter(row => row.is_published !== false && !deletedSlugsSet.has(row.slug) && !deletedSlugsSet.has(String(row.id)))
+      .map(toDrawing)
+      .map(d => {
+        const override = localOverrides[d.id] || localOverrides[d.slug];
+        return override ? { ...d, title: override } : d;
+      });
 
     const existingSlugs = new Set(dbDrawings.map(d => d.slug));
     const combined = [
       ...dbDrawings,
       ...animalCatalog
-        .filter(a => !existingSlugs.has(a.slug))
+        .filter(a => !existingSlugs.has(a.slug) && !deletedSlugsSet.has(a.slug) && !deletedSlugsSet.has(String(a.id)))
         .map(a => {
           const override = localOverrides[a.id] || localOverrides[a.slug];
           return override ? { ...a, title: override } : a;
         }),
     ];
 
-    setDatabaseReady(!error);
+    setDatabaseReady(!pagesErr);
     setDrawings(combined);
   }
 
@@ -748,6 +773,7 @@ function App() {
           view={adminView}
           setView={setAdminView}
           drawings={drawings}
+          setDrawings={setDrawings}
           reloadDrawings={loadDrawings}
           user={session?.user || { id: 'bullewatch-owner', email: 'flo83119@gmail.com' }}
           closeAdmin={() => setOwnerOpen(false)}
@@ -1905,7 +1931,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
 }
 
 /* === OWNER / ADMIN SPACE CONNECTED TO SUPABASE WITH STATS & DRAWINGS MANAGEMENT === */
-function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
+function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
@@ -1926,10 +1952,16 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   // === BATCH RENAMING IN LIBRARY ===
   const [isBatchRenaming, setIsBatchRenaming] = useState(false);
   const [batchTitles, setBatchTitles] = useState({});
+  const [useLibraryCommonName, setUseLibraryCommonName] = useState(false);
+  const [libraryCommonName, setLibraryCommonName] = useState('');
+  const [libraryAutoNumber, setLibraryAutoNumber] = useState(true);
   const [savingBatchTitles, setSavingBatchTitles] = useState(false);
 
   // === BATCH MULTI-UPLOAD ===
   const [batchUploadList, setBatchUploadList] = useState([]);
+  const [useCommonName, setUseCommonName] = useState(false);
+  const [commonName, setCommonName] = useState('');
+  const [autoNumberCommonName, setAutoNumberCommonName] = useState(true);
   const [groupedTitle, setGroupedTitle] = useState('');
   const [groupedAutoNumber, setGroupedAutoNumber] = useState(true);
   const [groupedCats, setGroupedCats] = useState(['Animaux']);
@@ -2027,6 +2059,32 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
     }
   }
 
+  // Apply common name to all items currently in the batch upload queue
+  function applyCommonNameToBatch(name, autoNum) {
+    if (!name || !name.trim()) return;
+    setBatchUploadList(prev => {
+      const count = prev.length;
+      return prev.map((item, idx) => ({
+        ...item,
+        title: (autoNum && count > 1) ? `${name.trim()} ${idx + 1}` : name.trim(),
+      }));
+    });
+  }
+
+  // Apply common name to all visible items in the library during batch rename
+  function applyCommonNameToLibrary(name, autoNum) {
+    if (!name || !name.trim()) return;
+    setBatchTitles(prev => {
+      const next = { ...prev };
+      filteredLibraryDrawings.forEach((d, idx) => {
+        next[d.id] = (autoNum && filteredLibraryDrawings.length > 1)
+          ? `${name.trim()} ${idx + 1}`
+          : name.trim();
+      });
+      return next;
+    });
+  }
+
   // Batch files add handler
   function handleBatchFilesAdd(e) {
     const files = Array.from(e.target.files || []);
@@ -2036,11 +2094,22 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   }
 
   function addFilesToBatch(files) {
+    const existingCount = batchUploadList.length;
+    const totalCount = existingCount + files.length;
+
     const newItems = files.map((f, i) => {
       const isSvg = f.name.toLowerCase().endsWith('.svg') || f.type === 'image/svg+xml';
-      const rawName = f.name.replace(/\.[^/.]+$/, '');
-      const clean = rawName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
-      const initialTitle = clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'Coloriage';
+      let initialTitle;
+      if (useCommonName && commonName.trim()) {
+        const idx = existingCount + i + 1;
+        initialTitle = (autoNumberCommonName && totalCount > 1)
+          ? `${commonName.trim()} ${idx}`
+          : commonName.trim();
+      } else {
+        const rawName = f.name.replace(/\.[^/.]+$/, '');
+        const clean = rawName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        initialTitle = clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'Coloriage';
+      }
 
       return {
         id: `batch_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
@@ -2052,11 +2121,30 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
         selected: true,
       };
     });
-    setBatchUploadList(prev => [...prev, ...newItems]);
+
+    setBatchUploadList(prev => {
+      const combined = [...prev, ...newItems];
+      if (useCommonName && commonName.trim() && autoNumberCommonName && combined.length > 1) {
+        return combined.map((item, idx) => ({
+          ...item,
+          title: `${commonName.trim()} ${idx + 1}`,
+        }));
+      }
+      return combined;
+    });
   }
 
   function removeBatchItem(id) {
-    setBatchUploadList(prev => prev.filter(x => x.id !== id));
+    setBatchUploadList(prev => {
+      const filtered = prev.filter(x => x.id !== id);
+      if (useCommonName && commonName.trim() && autoNumberCommonName && filtered.length > 1) {
+        return filtered.map((item, idx) => ({
+          ...item,
+          title: `${commonName.trim()} ${idx + 1}`,
+        }));
+      }
+      return filtered;
+    });
   }
 
   function updateBatchItem(id, updates) {
@@ -2107,6 +2195,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
 
     let successCount = 0;
     const failedItems = [];
+    const createdByUuid = (user?.id && /^[0-9a-f-]{36}$/i.test(user.id)) ? user.id : null;
 
     for (let i = 0; i < toPublish.length; i++) {
       const item = toPublish[i];
@@ -2133,7 +2222,7 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
           slug: `${baseSlug}-${Date.now().toString(36)}-${i}`,
           categories: item.categories.length ? item.categories : ['Divers'],
           image_path: uploadedPath,
-          created_by: user.id || null,
+          created_by: createdByUuid,
           is_published: true,
         });
 
@@ -2282,13 +2371,14 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
       };
 
       let error;
+      const createdByUuid = (user?.id && /^[0-9a-f-]{36}$/i.test(user.id)) ? user.id : null;
       if (edit) {
         ({ error } = await supabase.from('coloring_pages').update(payload).eq('id', edit.id));
       } else {
         ({ error } = await supabase.from('coloring_pages').insert({
           ...payload,
           slug: (slugify(title) || 'coloriage') + '-' + Date.now().toString(36),
-          created_by: user.id,
+          created_by: createdByUuid,
           is_published: true,
         }));
       }
@@ -2349,20 +2439,73 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
   }
 
   async function removeDrawing(drawing) {
-    if (!confirm(`Supprimer le coloriage « ${drawing.title} » ?`)) return;
+    if (!confirm(`Supprimer définitivement le coloriage « ${drawing.title} » ?`)) return;
 
-    if (!String(drawing.id).startsWith('cb-svg-')) {
-      const { error } = await supabase.from('coloring_pages').delete().eq('id', drawing.id);
-      if (error) {
-        alert('Impossible de supprimer ce coloriage.');
-        return;
+    try {
+      // 1. Immediately remove from local React state
+      if (setDrawings) {
+        setDrawings(prev => prev.filter(d => d.id !== drawing.id && d.slug !== drawing.slug));
       }
-      if (drawing.imagePath && !drawing.imagePath.startsWith('/')) {
-        await supabase.storage.from('colorings').remove([drawing.imagePath]);
+
+      // 2. Add to localStorage cb-deleted-slugs
+      const localDeleted = JSON.parse(localStorage.getItem('cb-deleted-slugs') || '[]');
+      if (drawing.slug && !localDeleted.includes(drawing.slug)) localDeleted.push(drawing.slug);
+      if (drawing.id && !localDeleted.includes(String(drawing.id))) localDeleted.push(String(drawing.id));
+      localStorage.setItem('cb-deleted-slugs', JSON.stringify(localDeleted));
+
+      // Clean up local custom titles if present
+      const localTitles = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+      delete localTitles[drawing.id];
+      if (drawing.slug) delete localTitles[drawing.slug];
+      localStorage.setItem('cb-custom-titles', JSON.stringify(localTitles));
+
+      // Clean up local favorites if present
+      const localFavs = JSON.parse(localStorage.getItem('cb-favs') || '[]');
+      const newFavs = localFavs.filter(x => x !== drawing.id && x !== drawing.slug);
+      localStorage.setItem('cb-favs', JSON.stringify(newFavs));
+
+      // 3. Insert slug into deleted_colorings table in Supabase
+      if (drawing.slug) {
+        try {
+          await supabase.from('deleted_colorings').upsert({ slug: drawing.slug }, { onConflict: 'slug' });
+        } catch (delErr) {
+          console.warn('Could not upsert deleted_colorings:', delErr);
+        }
       }
+
+      // 4. Delete from coloring_pages table in Supabase
+      if (drawing.id && !String(drawing.id).startsWith('cb-svg-')) {
+        await supabase.from('coloring_pages').delete().eq('id', drawing.id);
+      }
+      if (drawing.slug) {
+        await supabase.from('coloring_pages').delete().eq('slug', drawing.slug);
+      }
+
+      // 5. Delete from favorites in Supabase
+      try {
+        if (drawing.id) await supabase.from('favorites').delete().eq('coloring_id', String(drawing.id));
+        if (drawing.slug) await supabase.from('favorites').delete().eq('coloring_id', drawing.slug);
+      } catch (favErr) {
+        console.warn('Favorite cleanup:', favErr);
+      }
+
+      // 6. Delete file from Supabase storage if it was uploaded
+      if (drawing.imagePath && !drawing.imagePath.startsWith('/') && !drawing.imagePath.startsWith('http')) {
+        try {
+          await supabase.storage.from('colorings').remove([drawing.imagePath]);
+        } catch (storageErr) {
+          console.warn('Storage cleanup:', storageErr);
+        }
+      }
+
+      // 7. Reload drawings to make sure all components are synchronized
+      await reloadDrawings();
+      alert(`Le coloriage « ${drawing.title} » a été supprimé avec succès.`);
+    } catch (err) {
+      console.error('Erreur lors de la suppression du coloriage:', err);
+      alert('Une erreur est survenue lors de la suppression.');
+      await reloadDrawings();
     }
-
-    await reloadDrawings();
   }
 
   // Compute aggregated stats
@@ -2652,30 +2795,84 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
           {/* Sticky / Top Batch Renaming Action Banner */}
           {isBatchRenaming && (
             <div className="cb-batch-rename-banner">
-              <div className="cb-rename-banner-info">
-                <Pencil size={22} className="cb-rename-banner-icon" />
-                <div>
-                  <b>Mode Renommage à la chaîne activé</b>
-                  <p>Tous les noms des dessins sont modifiables ci-dessous. Modifiez-les librement, puis cliquez sur le bouton vert ci-contre pour tout enregistrer en un seul clic.</p>
+              <div className="cb-rename-banner-top">
+                <div className="cb-rename-banner-info">
+                  <Pencil size={22} className="cb-rename-banner-icon" />
+                  <div>
+                    <b>Mode Renommage à la chaîne activé</b>
+                    <p>Tous les noms des dessins sont modifiables ci-dessous. Modifiez-les librement ou utilisez le nom commun ci-dessous pour tout pré-remplir d'un coup.</p>
+                  </div>
+                </div>
+                <div className="cb-rename-banner-actions">
+                  <button
+                    type="button"
+                    className="cb-btn-save-all-names"
+                    onClick={saveAllBatchTitles}
+                    disabled={savingBatchTitles || Object.keys(modifiedTitles).length === 0}
+                  >
+                    <CheckCircle2 size={18} />
+                    <span>{savingBatchTitles ? 'Enregistrement en cours…' : `Enregistrer les modifications (${Object.keys(modifiedTitles).length})`}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="cb-btn-cancel-all-names"
+                    onClick={() => setIsBatchRenaming(false)}
+                  >
+                    Annuler
+                  </button>
                 </div>
               </div>
-              <div className="cb-rename-banner-actions">
-                <button
-                  type="button"
-                  className="cb-btn-save-all-names"
-                  onClick={saveAllBatchTitles}
-                  disabled={savingBatchTitles || Object.keys(modifiedTitles).length === 0}
-                >
-                  <CheckCircle2 size={18} />
-                  <span>{savingBatchTitles ? 'Enregistrement en cours…' : `Enregistrer les modifications (${Object.keys(modifiedTitles).length})`}</span>
-                </button>
-                <button
-                  type="button"
-                  className="cb-btn-cancel-all-names"
-                  onClick={() => setIsBatchRenaming(false)}
-                >
-                  Annuler
-                </button>
+
+              {/* Option Nom Commun in Library Batch Rename */}
+              <div className="cb-batch-rename-common-box">
+                <label className="cb-common-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={useLibraryCommonName}
+                    onChange={e => {
+                      const val = e.target.checked;
+                      setUseLibraryCommonName(val);
+                      if (val && libraryCommonName.trim()) {
+                        applyCommonNameToLibrary(libraryCommonName, libraryAutoNumber);
+                      }
+                    }}
+                  />
+                  <span><b>Nom commun pour tous</b> (appliquer un nom identique aux {filteredLibraryDrawings.length} dessins affichés)</span>
+                </label>
+                {useLibraryCommonName && (
+                  <div className="cb-common-inputs-row">
+                    <input
+                      type="text"
+                      className="cb-input-text cb-common-input"
+                      value={libraryCommonName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setLibraryCommonName(val);
+                        applyCommonNameToLibrary(val, libraryAutoNumber);
+                      }}
+                      placeholder="Ex: Mandala, Dinosaure, Chat..."
+                    />
+                    <label className="cb-grouped-autonum-label">
+                      <input
+                        type="checkbox"
+                        checked={libraryAutoNumber}
+                        onChange={e => {
+                          const autoNum = e.target.checked;
+                          setLibraryAutoNumber(autoNum);
+                          applyCommonNameToLibrary(libraryCommonName, autoNum);
+                        }}
+                      />
+                      <span>Numéroter automatiquement (1, 2, 3...)</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="cb-btn-apply-common-names"
+                      onClick={() => applyCommonNameToLibrary(libraryCommonName, libraryAutoNumber)}
+                    >
+                      Appliquer aux {filteredLibraryDrawings.length} dessins
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2907,65 +3104,97 @@ function AdminPanel({ view, setView, drawings, reloadDrawings, user, closeAdmin,
             <p>Sélectionnez un ou plusieurs fichiers (SVG vectoriels ou PNG/JPG/WEBP). Vous pouvez appliquer un titre et des catégories groupés ou personnaliser chaque dessin ligne par ligne.</p>
           </div>
 
-          {/* Grouped Settings Panel (when items exist in batch) */}
-          {batchUploadList.length > 0 && (
-            <div className="cb-batch-grouped-panel">
-              <h3><Tags size={18} /> Réglages groupés pour les coloriages du même thème</h3>
-              <p>Renseignez un titre et des catégories communes, puis appliquez-les en un clic aux dessins sélectionnés :</p>
+          {/* Grouped Settings Panel (Always accessible before and after adding files) */}
+          <div className="cb-batch-grouped-panel">
+            <h3><Tags size={18} /> Réglages & Nom commun pour ce lot de dessins</h3>
+            <p>Cochez « Nom commun » pour appliquer un seul nom à l'ensemble des dessins, ou laissez décoché pour utiliser le nom de vos fichiers :</p>
 
-              <div className="cb-grouped-inputs-grid">
-                <div className="cb-grouped-field">
-                  <label>Titre groupé :</label>
+            <div className="cb-grouped-inputs-grid">
+              <div className="cb-grouped-field">
+                <label className="cb-common-toggle-label">
                   <input
-                    type="text"
-                    className="cb-input-text"
-                    value={groupedTitle}
-                    onChange={e => setGroupedTitle(e.target.value)}
-                    placeholder="Ex: Chat féerique, Petite princesse, Forêt enchantée..."
+                    type="checkbox"
+                    checked={useCommonName}
+                    onChange={e => {
+                      const active = e.target.checked;
+                      setUseCommonName(active);
+                      if (active && commonName.trim()) {
+                        applyCommonNameToBatch(commonName, autoNumberCommonName);
+                      }
+                    }}
                   />
-                  <label className="cb-grouped-autonum-label">
-                    <input
-                      type="checkbox"
-                      checked={groupedAutoNumber}
-                      onChange={e => setGroupedAutoNumber(e.target.checked)}
-                    />
-                    <span>Numéroter automatiquement si plusieurs dessins (ex: Chat féerique 1, Chat féerique 2...)</span>
-                  </label>
-                </div>
+                  <span><b>Nom commun</b> (mettre une seule fois un nom pour tous)</span>
+                </label>
 
-                <div className="cb-grouped-field">
-                  <label>Catégories groupées :</label>
-                  <div className="cb-item-cats-selector">
-                    {availableCategories.map(c => {
-                      const isSel = groupedCats.includes(c);
-                      return (
-                        <button
-                          type="button"
-                          key={c}
-                          className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
-                          onClick={() => {
-                            setGroupedCats(prev =>
-                              isSel ? prev.filter(x => x !== c) : [...prev, c]
-                            );
-                          }}
-                        >
-                          {isSel ? '✓ ' : '+ '}{c}
-                        </button>
-                      );
-                    })}
+                {useCommonName ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                    <input
+                      type="text"
+                      className="cb-input-text"
+                      value={commonName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setCommonName(val);
+                        applyCommonNameToBatch(val, autoNumberCommonName);
+                      }}
+                      placeholder="Ex: Dinosaure, Mandala, Petite fée, Chat..."
+                      autoFocus
+                    />
+                    <label className="cb-grouped-autonum-label">
+                      <input
+                        type="checkbox"
+                        checked={autoNumberCommonName}
+                        onChange={e => {
+                          const autoNum = e.target.checked;
+                          setAutoNumberCommonName(autoNum);
+                          applyCommonNameToBatch(commonName, autoNum);
+                        }}
+                      />
+                      <span>Numéroter automatiquement si plusieurs dessins (ex: Dinosaure 1, Dinosaure 2...)</span>
+                    </label>
                   </div>
-                </div>
+                ) : (
+                  <span style={{ fontSize: '12px', color: '#7a5a3f' }}>
+                    💡 Si décoché, chaque dessin prendra automatiquement le nom de son fichier (ex: mon-dessin.svg → Mon dessin).
+                  </span>
+                )}
               </div>
 
-              <button
-                type="button"
-                className="cb-btn-apply-grouped"
-                onClick={applyGroupedSettings}
-              >
-                <Sparkles size={16} /> Appliquer le titre et les catégories aux dessins sélectionnés ({batchUploadList.filter(x => x.selected).length})
-              </button>
+              <div className="cb-grouped-field">
+                <label>Catégories pour ce lot :</label>
+                <div className="cb-item-cats-selector">
+                  {availableCategories.map(c => {
+                    const isSel = groupedCats.includes(c);
+                    return (
+                      <button
+                        type="button"
+                        key={c}
+                        className={`cb-item-cat-pill ${isSel ? 'active' : ''}`}
+                        onClick={() => {
+                          const nextCats = isSel ? groupedCats.filter(x => x !== c) : [...groupedCats, c];
+                          setGroupedCats(nextCats);
+                          if (batchUploadList.length > 0) {
+                            setBatchUploadList(prev => prev.map(item => ({
+                              ...item,
+                              categories: nextCats.length ? [...nextCats] : ['Divers']
+                            })));
+                          }
+                        }}
+                      >
+                        {isSel ? '✓ ' : '+ '}{c}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          )}
+
+            {batchUploadList.length > 0 && useCommonName && commonName.trim() && (
+              <div style={{ marginTop: '10px', fontSize: '12.5px', color: '#2e6b20', fontWeight: 'bold' }}>
+                ✓ Nom commun « {commonName.trim()} » appliqué aux {batchUploadList.length} dessin(s) dans la file
+              </div>
+            )}
+          </div>
 
           {/* Toolbar: Select All / Deselect All / Add More Files */}
           {batchUploadList.length > 0 && (
