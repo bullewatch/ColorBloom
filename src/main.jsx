@@ -12,7 +12,7 @@ import {
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
-import { translations, generateRandomPseudo } from './translations';
+import { translations, generateRandomPseudo, getDrawingTitle, matchesSearchWithTranslations } from './translations';
 import { CguModal } from './CguModal';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
@@ -493,14 +493,15 @@ function App() {
     }
 
     setDownloading(format);
-    const safe = slugify(open.title) || 'coloriage';
+    const displayTitle = getDrawingTitle(open.title, lang);
+    const safe = slugify(displayTitle) || 'coloriage';
 
     supabase.from('site_analytics').insert({
       event_type: 'download',
       metadata: {
         drawing_id: open.id,
         slug: open.slug,
-        title: open.title,
+        title: displayTitle,
         format,
       }
     }).then();
@@ -614,7 +615,8 @@ function App() {
 
   const shown = useMemo(() => {
     let result = drawings.filter(d => {
-      if (q && !d.title.toLowerCase().includes(q.toLowerCase())) {
+      // Multilingual search matching in any supported language
+      if (q && !matchesSearchWithTranslations(d.title, q, lang)) {
         return false;
       }
       if (cat === 'Tous') return true;
@@ -638,9 +640,15 @@ function App() {
     if (page === 'Favoris') result = result.filter(d => favs.has(d.id));
     if (sort === 'liked') result = [...result].sort((a, b) => b.likes - a.likes);
     if (sort === 'recent') result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    if (sort === 'alpha') result = [...result].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base', numeric: true }));
+    if (sort === 'alpha') {
+      result = [...result].sort((a, b) => {
+        const titleA = getDrawingTitle(a.title, lang);
+        const titleB = getDrawingTitle(b.title, lang);
+        return titleA.localeCompare(titleB, lang.toLowerCase(), { sensitivity: 'base', numeric: true });
+      });
+    }
     return result;
-  }, [q, cat, page, favs, sort, drawings, categoriesList]);
+  }, [q, cat, page, favs, sort, drawings, categoriesList, lang]);
 
   const activeAvatarSrc = avatarList[selectedAvatar] || avatar1;
 
@@ -1160,10 +1168,10 @@ function App() {
                       <div className="cb-board-canvas">
                         {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
                         {d.image ? (
-                          <img src={d.image} alt={d.title} className="cb-pinned-drawing" loading="lazy" />
+                          <img src={d.image} alt={getDrawingTitle(d.title, lang)} className="cb-pinned-drawing" loading="lazy" />
                         ) : (
                           <div className="cb-drawing-empty">
-                            <span>{d.title}</span>
+                            <span>{getDrawingTitle(d.title, lang)}</span>
                           </div>
                         )}
                       </div>
@@ -1240,9 +1248,9 @@ function App() {
           <div className="modalbox" onClick={e => e.stopPropagation()}>
             <button className="close" onClick={() => setOpen(null)}><X /></button>
             <div className="bigpaper">
-              <img className="coloring-img big" src={open.image} alt={open.title} />
+              <img className="coloring-img big" src={open.image} alt={getDrawingTitle(open.title, lang)} />
             </div>
-            <h2>{open.title}</h2>
+            <h2>{getDrawingTitle(open.title, lang)}</h2>
             <p>{open.cat.map(c => getCatLabel(c, t)).join(' • ')}</p>
             <div className="actions">
               <button
@@ -1325,6 +1333,7 @@ function App() {
         }}
         heartDrawing={heart}
         t={t}
+        lang={lang}
       />
 
       {/* INSTAGRAM-STYLE MOBILE BOTTOM NAVIGATION BAR */}
@@ -1391,7 +1400,7 @@ function App() {
 }
 
 /* === 4-STAGE OFFICIAL DRAWING MAILBOX COMPONENT === */
-function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, profile, onOpenProfile, onOpenDrawing, onOpenOwnerRequests, heartDrawing, t = translations.FR }) {
+function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, session, profile, onOpenProfile, onOpenDrawing, onOpenOwnerRequests, heartDrawing, t = translations.FR, lang = 'FR' }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isClickOpen, setIsClickOpen] = useState(false);
   const [isNewMailOpen, setIsNewMailOpen] = useState(false);
@@ -1640,7 +1649,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                         title="Cliquer pour voir et télécharger ce dessin"
                       >
                         {matched?.image ? (
-                          <img src={matched.image} alt={matched.title} />
+                          <img src={matched.image} alt={getDrawingTitle(matched.title, lang)} />
                         ) : (
                           <Sparkles size={32} />
                         )}
@@ -1648,7 +1657,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                       </div>
 
                       <div className="cb-new-drawing-details">
-                        <b>{matched?.title || req.completed_drawing_slug}</b>
+                        <b>{getDrawingTitle(matched?.title, lang) || req.completed_drawing_slug}</b>
                         <p>Ton souhait initial : « {req.description} »</p>
 
                         <div className="cb-new-drawing-actions">

@@ -490,3 +490,285 @@ export function generateRandomPseudo() {
   const num = Math.floor(10 + Math.random() * 90);
   return `${animal}${flower}${num}`;
 }
+
+// === MULTILINGUAL ANIMAL & DRAWING TITLES DICTIONARY (FR, EN, ES, DE) ===
+export const ANIMAL_DICTIONARY = [
+  // Animals from Colorblop collection
+  { FR: 'Âne', EN: 'Donkey', ES: 'Burro', DE: 'Esel' },
+  { FR: 'Animal', EN: 'Animal', ES: 'Animal', DE: 'Tier' },
+  { FR: 'Animal mignon', EN: 'Cute Animal', ES: 'Animal lindo', DE: 'Niedliches Tier' },
+  { FR: 'Baleine', EN: 'Whale', ES: 'Ballena', DE: 'Wal' },
+  { FR: 'Blaireau', EN: 'Badger', ES: 'Tejón', DE: 'Dachs' },
+  { FR: 'Caméléon', EN: 'Chameleon', ES: 'Camaleón', DE: 'Chamäleon' },
+  { FR: 'Canard', EN: 'Duck', ES: 'Pato', DE: 'Ente' },
+  { FR: 'Capybara', EN: 'Capybara', ES: 'Carpincho', DE: 'Wasserschwein' },
+  { FR: 'Castor', EN: 'Beaver', ES: 'Castor', DE: 'Biber' },
+  { FR: 'Chat', EN: 'Cat', ES: 'Gato', DE: 'Katze' },
+  { FR: 'Chaton', EN: 'Kitten', ES: 'Gatito', DE: 'Kätzchen' },
+  { FR: 'Chauve-souris', EN: 'Bat', ES: 'Murciélago', DE: 'Fledermaus' },
+  { FR: 'Chauve souris', EN: 'Bat', ES: 'Murciélago', DE: 'Fledermaus' },
+  { FR: 'Cheval', EN: 'Horse', ES: 'Caballo', DE: 'Pferd' },
+  { FR: 'Chien', EN: 'Dog', ES: 'Perro', DE: 'Hund' },
+  { FR: 'Chiot', EN: 'Puppy', ES: 'Cachorro', DE: 'Welpe' },
+  { FR: 'Chouette', EN: 'Owl', ES: 'Lechuza', DE: 'Eule' },
+  { FR: 'Hibou', EN: 'Owl', ES: 'Búho', DE: 'Eule' },
+  { FR: 'Crocodile', EN: 'Crocodile', ES: 'Cocodrilo', DE: 'Krokodil' },
+  { FR: 'Alligator', EN: 'Alligator', ES: 'Caimán', DE: 'Alligator' },
+  { FR: 'Dauphin', EN: 'Dolphin', ES: 'Delfín', DE: 'Delfin' },
+  { FR: 'Dromadaire', EN: 'Dromedary', ES: 'Dromedario', DE: 'Dromedar' },
+  { FR: 'Chameau', EN: 'Camel', ES: 'Camello', DE: 'Kamel' },
+  { FR: 'Écureuil', EN: 'Squirrel', ES: 'Ardilla', DE: 'Eichhörnchen' },
+  { FR: 'Ecureuil', EN: 'Squirrel', ES: 'Ardilla', DE: 'Eichhörnchen' },
+  { FR: 'Éléphant', EN: 'Elephant', ES: 'Elefante', DE: 'Elefant' },
+  { FR: 'Elephant', EN: 'Elephant', ES: 'Elefante', DE: 'Elefant' },
+  { FR: 'Cerf', EN: 'Deer', ES: 'Ciervo', DE: 'Hirsch' },
+  { FR: 'Fantôme cerf', EN: 'Ghost Deer', ES: 'Ciervo Fantasma', DE: 'Geisterhirsch' },
+  { FR: 'Fantome cerf', EN: 'Ghost Deer', ES: 'Ciervo Fantasma', DE: 'Geisterhirsch' },
+  { FR: 'Fennec', EN: 'Fennec Fox', ES: 'Fénec', DE: 'Fennek' },
+  { FR: 'Flamant rose', EN: 'Flamingo', ES: 'Flamenco', DE: 'Flamingo' },
+  { FR: 'Flammand rose', EN: 'Flamingo', ES: 'Flamenco', DE: 'Flamingo' },
+  { FR: 'Fouine', EN: 'Beech Marten', ES: 'Garduña', DE: 'Steinmarder' },
+  { FR: 'Furet', EN: 'Ferret', ES: 'Hurón', DE: 'Frettchen' },
+  { FR: 'Girafe', EN: 'Giraffe', ES: 'Jirafa', DE: 'Giraffe' },
+  { FR: 'Gorille', EN: 'Gorilla', ES: 'Gorila', DE: 'Gorilla' },
+  { FR: 'Guépard', EN: 'Cheetah', ES: 'Guepardo', DE: 'Gepard' },
+  { FR: 'Hamster', EN: 'Hamster', ES: 'Hámster', DE: 'Hamster' },
+  { FR: 'Hérisson', EN: 'Hedgehog', ES: 'Erizo', DE: 'Igel' },
+  { FR: 'Herisson', EN: 'Hedgehog', ES: 'Erizo', DE: 'Igel' },
+  { FR: 'Hippopotame', EN: 'Hippopotamus', ES: 'Hipopótamo', DE: 'Flusspferd' },
+  { FR: 'Jaguar', EN: 'Jaguar', ES: 'Jaguar', DE: 'Jaguar' },
+  { FR: 'Kangourou', EN: 'Kangaroo', ES: 'Canguro', DE: 'Känguru' },
+  { FR: 'Koala', EN: 'Koala', ES: 'Koala', DE: 'Koala' },
+  { FR: 'Lama', EN: 'Llama', ES: 'Llama', DE: 'Lama' },
+  { FR: 'Lézard', EN: 'Lizard', ES: 'Lagarto', DE: 'Eidechse' },
+  { FR: 'Lezard', EN: 'Lizard', ES: 'Lagarto', DE: 'Eidechse' },
+  { FR: 'Lion', EN: 'Lion', ES: 'León', DE: 'Löwe' },
+  { FR: 'Lionceau', EN: 'Lion Cub', ES: 'Cachorro de león', DE: 'Löwenjunges' },
+  { FR: 'Loup', EN: 'Wolf', ES: 'Lobo', DE: 'Wolf' },
+  { FR: 'Loutre', EN: 'Otter', ES: 'Nutria', DE: 'Otter' },
+  { FR: 'Lynx', EN: 'Lynx', ES: 'Lince', DE: 'Luchs' },
+  { FR: 'Oiseau', EN: 'Bird', ES: 'Pájaro', DE: 'Vogel' },
+  { FR: 'Orque', EN: 'Orca', ES: 'Orca', DE: 'Schwertwal' },
+  { FR: 'Otarie', EN: 'Sea Lion', ES: 'Lobo marino', DE: 'Seelöwe' },
+  { FR: 'Ours', EN: 'Bear', ES: 'Oso', DE: 'Bär' },
+  { FR: 'Ourson', EN: 'Bear Cub', ES: 'Osezno', DE: 'Bärenjunges' },
+  { FR: 'Panda', EN: 'Panda', ES: 'Panda', DE: 'Panda' },
+  { FR: 'Panda roux', EN: 'Red Panda', ES: 'Panda rojo', DE: 'Kleiner Panda' },
+  { FR: 'Pangolin', EN: 'Pangolin', ES: 'Pangolín', DE: 'Schuppentier' },
+  { FR: 'Paon', EN: 'Peacock', ES: 'Pavo real', DE: 'Pfau' },
+  { FR: 'Paresseux', EN: 'Sloth', ES: 'Perezoso', DE: 'Faultier' },
+  { FR: 'Perroquet', EN: 'Parrot', ES: 'Loro', DE: 'Papagei' },
+  { FR: 'Phoque', EN: 'Seal', ES: 'Foca', DE: 'Robbe' },
+  { FR: 'Pingouin', EN: 'Penguin', ES: 'Pingüino', DE: 'Pinguin' },
+  { FR: 'Manchot', EN: 'Penguin', ES: 'Pingüino', DE: 'Pinguin' },
+  { FR: 'Poule', EN: 'Hen', ES: 'Gallina', DE: 'Huhn' },
+  { FR: 'Poussin', EN: 'Chick', ES: 'Pollito', DE: 'Küken' },
+  { FR: 'Coq', EN: 'Rooster', ES: 'Gallo', DE: 'Hahn' },
+  { FR: 'Lapin', EN: 'Rabbit', ES: 'Conejo', DE: 'Hase' },
+  { FR: 'Lièvre', EN: 'Hare', ES: 'Liebre', DE: 'Feldhase' },
+  { FR: 'Rat', EN: 'Rat', ES: 'Rata', DE: 'Ratte' },
+  { FR: 'Raton laveur', EN: 'Raccoon', ES: 'Mapache', DE: 'Waschbär' },
+  { FR: 'Renard', EN: 'Fox', ES: 'Zorro', DE: 'Fuchs' },
+  { FR: 'Rhinocéros', EN: 'Rhinoceros', ES: 'Rinoceronte', DE: 'Nashorn' },
+  { FR: 'Rhinoceros', EN: 'Rhinoceros', ES: 'Rinoceronte', DE: 'Nashorn' },
+  { FR: 'Serpent', EN: 'Snake', ES: 'Serpiente', DE: 'Schlange' },
+  { FR: 'Singe', EN: 'Monkey', ES: 'Mono', DE: 'Affe' },
+  { FR: 'Souris', EN: 'Mouse', ES: 'Ratón', DE: 'Maus' },
+  { FR: 'Suricate', EN: 'Meerkat', ES: 'Suricata', DE: 'Erdmännchen' },
+  { FR: 'Taupe', EN: 'Mole', ES: 'Topo', DE: 'Maulwurf' },
+  { FR: 'Taureau', EN: 'Bull', ES: 'Toro', DE: 'Stier' },
+  { FR: 'Tigre', EN: 'Tiger', ES: 'Tigre', DE: 'Tiger' },
+  { FR: 'Toucan', EN: 'Toucan', ES: 'Tucán', DE: 'Tukan' },
+  { FR: 'Vache', EN: 'Cow', ES: 'Vaca', DE: 'Kuh' },
+  { FR: 'Veau', EN: 'Calf', ES: 'Ternero', DE: 'Kalb' },
+  { FR: 'Wombat', EN: 'Wombat', ES: 'Wómbat', DE: 'Wombat' },
+  { FR: 'Zèbre', EN: 'Zebra', ES: 'Cebra', DE: 'Zebra' },
+  { FR: 'Zebre', EN: 'Zebra', ES: 'Cebra', DE: 'Zebra' },
+
+  // Additional wildlife, farm animals, and nature
+  { FR: 'Biche', EN: 'Doe', ES: 'Cierva', DE: 'Hirschkuh' },
+  { FR: 'Faon', EN: 'Fawn', ES: 'Cervatillo', DE: 'Rehkitz' },
+  { FR: 'Grenouille', EN: 'Frog', ES: 'Rana', DE: 'Frosch' },
+  { FR: 'Crapaud', EN: 'Toad', ES: 'Sapo', DE: 'Kröte' },
+  { FR: 'Tortue', EN: 'Turtle', ES: 'Tortuga', DE: 'Schildkröte' },
+  { FR: 'Papillon', EN: 'Butterfly', ES: 'Mariposa', DE: 'Schmetterling' },
+  { FR: 'Abeille', EN: 'Bee', ES: 'Abeja', DE: 'Biene' },
+  { FR: 'Bourdon', EN: 'Bumblebee', ES: 'Abejorro', DE: 'Hummel' },
+  { FR: 'Coccinelle', EN: 'Ladybug', ES: 'Mariquita', DE: 'Marienkäfer' },
+  { FR: 'Fourmi', EN: 'Ant', ES: 'Hormiga', DE: 'Ameise' },
+  { FR: 'Libellule', EN: 'Dragonfly', ES: 'Libélula', DE: 'Libelle' },
+  { FR: 'Escargot', EN: 'Snail', ES: 'Caracol', DE: 'Schnecke' },
+  { FR: 'Araignée', EN: 'Spider', ES: 'Araña', DE: 'Spinne' },
+  { FR: 'Poisson', EN: 'Fish', ES: 'Pez', DE: 'Fisch' },
+  { FR: 'Poisson clown', EN: 'Clownfish', ES: 'Pez payaso', DE: 'Clownfisch' },
+  { FR: 'Requin', EN: 'Shark', ES: 'Tiburón', DE: 'Hai' },
+  { FR: 'Pieuvre', EN: 'Octopus', ES: 'Pulpo', DE: 'Krake' },
+  { FR: 'Poulpe', EN: 'Octopus', ES: 'Pulpo', DE: 'Krake' },
+  { FR: 'Crabe', EN: 'Crab', ES: 'Cangrejo', DE: 'Krabbe' },
+  { FR: 'Homard', EN: 'Lobster', ES: 'Langosta', DE: 'Hummer' },
+  { FR: 'Crevette', EN: 'Shrimp', ES: 'Camarón', DE: 'Garnele' },
+  { FR: 'Hippocampe', EN: 'Seahorse', ES: 'Caballito de mar', DE: 'Seepferdchen' },
+  { FR: 'Étoile de mer', EN: 'Starfish', ES: 'Estrella de mar', DE: 'Seestern' },
+  { FR: 'Méduse', EN: 'Jellyfish', ES: 'Medusa', DE: 'Qualle' },
+  { FR: 'Morse', EN: 'Walrus', ES: 'Morsa', DE: 'Walross' },
+  { FR: 'Béluga', EN: 'Beluga', ES: 'Beluga', DE: 'Beluga' },
+  { FR: 'Narval', EN: 'Narwhal', ES: 'Narval', DE: 'Narwal' },
+  { FR: 'Raie', EN: 'Stingray', ES: 'Raya', DE: 'Rochen' },
+  { FR: 'Mouton', EN: 'Sheep', ES: 'Oveja', DE: 'Schaf' },
+  { FR: 'Agneau', EN: 'Lamb', ES: 'Cordero', DE: 'Lamm' },
+  { FR: 'Bélier', EN: 'Ram', ES: 'Carnero', DE: 'Widder' },
+  { FR: 'Chèvre', EN: 'Goat', ES: 'Cabra', DE: 'Ziege' },
+  { FR: 'Cochon', EN: 'Pig', ES: 'Cerdo', DE: 'Schwein' },
+  { FR: 'Sanglier', EN: 'Wild Boar', ES: 'Jabalí', DE: 'Wildschwein' },
+  { FR: 'Dinde', EN: 'Turkey', ES: 'Pavo', DE: 'Truthahn' },
+  { FR: 'Oie', EN: 'Goose', ES: 'Oca', DE: 'Gans' },
+  { FR: 'Cygne', EN: 'Swan', ES: 'Cisne', DE: 'Schwan' },
+  { FR: 'Caneton', EN: 'Duckling', ES: 'Patito', DE: 'Entenküken' },
+  { FR: 'Aigle', EN: 'Eagle', ES: 'Águila', DE: 'Adler' },
+  { FR: 'Faucon', EN: 'Falcon', ES: 'Halcón', DE: 'Falke' },
+  { FR: 'Colibri', EN: 'Hummingbird', ES: 'Colibrí', DE: 'Kolibri' },
+  { FR: 'Mésange', EN: 'Tit', ES: 'Herrerillo', DE: 'Meise' },
+  { FR: 'Moineau', EN: 'Sparrow', ES: 'Gorrión', DE: 'Spatz' },
+  { FR: 'Corbeau', EN: 'Crow', ES: 'Cuervo', DE: 'Krähe' },
+  { FR: 'Pie', EN: 'Magpie', ES: 'Urraca', DE: 'Elster' },
+  { FR: 'Pélican', EN: 'Pelican', ES: 'Pelícano', DE: 'Pelikan' },
+  { FR: 'Mouette', EN: 'Seagull', ES: 'Gaviota', DE: 'Möwe' },
+  { FR: 'Goéland', EN: 'Seagull', ES: 'Gaviota', DE: 'Möwe' },
+  { FR: 'Pinson', EN: 'Finch', ES: 'Pinzón', DE: 'Buchfink' },
+  { FR: 'Merle', EN: 'Blackbird', ES: 'Mirlo', DE: 'Amsel' },
+  { FR: 'Rossignol', EN: 'Nightingale', ES: 'Ruiseñor', DE: 'Nachtigall' },
+  { FR: 'Fée', EN: 'Fairy', ES: 'Hada', DE: 'Fee' },
+  { FR: 'Licorne', EN: 'Unicorn', ES: 'Unicornio', DE: 'Einhorn' },
+  { FR: 'Dragon', EN: 'Dragon', ES: 'Dragón', DE: 'Drache' },
+  { FR: 'Dinosaure', EN: 'Dinosaur', ES: 'Dinosaurio', DE: 'Dinosaurier' },
+  { FR: 'Princesse', EN: 'Princess', ES: 'Princesa', DE: 'Prinzessin' },
+  { FR: 'Prince', EN: 'Prince', ES: 'Príncipe', DE: 'Prinz' },
+  { FR: 'Sirène', EN: 'Mermaid', ES: 'Sirena', DE: 'Meerjungfrau' },
+  { FR: 'Chevalier', EN: 'Knight', ES: 'Caballero', DE: 'Ritter' },
+  { FR: 'Château', EN: 'Castle', ES: 'Castillo', DE: 'Schloss' },
+  { FR: 'Voiture', EN: 'Car', ES: 'Coche', DE: 'Auto' },
+  { FR: 'Camion', EN: 'Truck', ES: 'Camión', DE: 'LKW' },
+  { FR: 'Tracteur', EN: 'Tractor', ES: 'Tractor', DE: 'Traktor' },
+  { FR: 'Train', EN: 'Train', ES: 'Tren', DE: 'Zug' },
+  { FR: 'Avion', EN: 'Airplane', ES: 'Avión', DE: 'Flugzeug' },
+  { FR: 'Hélicoptère', EN: 'Helicopter', ES: 'Helicóptero', DE: 'Hubschrauber' },
+  { FR: 'Fusée', EN: 'Rocket', ES: 'Cohete', DE: 'Rakete' },
+  { FR: 'Bateau', EN: 'Boat', ES: 'Barco', DE: 'Boot' },
+  { FR: 'Sous-marin', EN: 'Submarine', ES: 'Submarino', DE: 'U-Boot' },
+  { FR: 'Moto', EN: 'Motorcycle', ES: 'Moto', DE: 'Motorrad' },
+  { FR: 'Vélo', EN: 'Bicycle', ES: 'Bicicleta', DE: 'Fahrrad' },
+  { FR: 'Fleur', EN: 'Flower', ES: 'Flor', DE: 'Blume' },
+  { FR: 'Arbre', EN: 'Tree', ES: 'Árbol', DE: 'Baum' },
+  { FR: 'Forêt', EN: 'Forest', ES: 'Bosque', DE: 'Wald' },
+  { FR: 'Soleil', EN: 'Sun', ES: 'Sol', DE: 'Sonne' },
+  { FR: 'Lune', EN: 'Moon', ES: 'Luna', DE: 'Mond' },
+  { FR: 'Étoile', EN: 'Star', ES: 'Estrella', DE: 'Stern' },
+  { FR: 'Nuage', EN: 'Cloud', ES: 'Nube', DE: 'Wolke' },
+  { FR: 'Arc-en-ciel', EN: 'Rainbow', ES: 'Arcoíris', DE: 'Regenbogen' },
+  { FR: 'Maison', EN: 'House', ES: 'Casa', DE: 'Haus' },
+  { FR: 'Coeur', EN: 'Heart', ES: 'Corazón', DE: 'Herz' },
+  { FR: 'Mandala', EN: 'Mandala', ES: 'Mandala', DE: 'Mandala' },
+];
+
+function cleanTitleKey(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Build bidirectional lookup map for instantaneous multilingual matching
+const titleLookupMap = new Map();
+ANIMAL_DICTIONARY.forEach(entry => {
+  ['FR', 'EN', 'ES', 'DE'].forEach(l => {
+    if (entry[l]) {
+      const k = cleanTitleKey(entry[l]);
+      if (k && !titleLookupMap.has(k)) {
+        titleLookupMap.set(k, entry);
+      }
+    }
+  });
+});
+
+/**
+ * Translates a drawing title to the target language (FR, EN, ES, DE)
+ * Handles numbers at the end: e.g. "Âne" -> "Donkey" (EN) / "Fantôme cerf 12" -> "Ghost Deer 12"
+ */
+export function getDrawingTitle(title, lang = 'FR') {
+  if (!title) return '';
+  const langKey = (lang || 'FR').toUpperCase();
+  if (langKey === 'FR') return title;
+
+  // 1. Direct full match
+  const fullClean = cleanTitleKey(title);
+  if (titleLookupMap.has(fullClean)) {
+    const entry = titleLookupMap.get(fullClean);
+    if (entry[langKey]) return entry[langKey];
+  }
+
+  // 2. Base + trailing number match (e.g. "Fantôme cerf 12" -> "Ghost Deer 12", "Chien 3" -> "Dog 3")
+  const match = title.trim().match(/^(.*?)(?:\s+(\d+))?$/);
+  if (match) {
+    const base = match[1].trim();
+    const num = match[2] ? ` ${match[2]}` : '';
+    const baseClean = cleanTitleKey(base);
+    if (titleLookupMap.has(baseClean)) {
+      const entry = titleLookupMap.get(baseClean);
+      if (entry[langKey]) {
+        return `${entry[langKey]}${num}`;
+      }
+    }
+  }
+
+  return title;
+}
+
+/**
+ * Returns all language variants of a title (useful for searching in any language)
+ */
+export function getAllDrawingTitleVariants(title) {
+  if (!title) return [];
+  const variants = new Set([title]);
+
+  const match = title.trim().match(/^(.*?)(?:\s+(\d+))?$/);
+  const base = match ? match[1].trim() : title.trim();
+  const num = match && match[2] ? ` ${match[2]}` : '';
+
+  const cleanFull = cleanTitleKey(title);
+  const cleanBase = cleanTitleKey(base);
+
+  const entry = titleLookupMap.get(cleanFull) || titleLookupMap.get(cleanBase);
+  if (entry) {
+    ['FR', 'EN', 'ES', 'DE'].forEach(l => {
+      if (entry[l]) {
+        variants.add(num ? `${entry[l]}${num}` : entry[l]);
+        variants.add(entry[l]);
+      }
+    });
+  }
+
+  return Array.from(variants);
+}
+
+/**
+ * Matches a query against a title in any supported language (accent and case insensitive)
+ */
+export function matchesSearchWithTranslations(title, query, lang = 'FR') {
+  if (!query || !query.trim()) return true;
+  const qClean = cleanTitleKey(query);
+
+  // 1. Check raw title
+  if (cleanTitleKey(title).includes(qClean)) return true;
+
+  // 2. Check translated title in current active language
+  const translated = getDrawingTitle(title, lang);
+  if (cleanTitleKey(translated).includes(qClean)) return true;
+
+  // 3. Check all other language variants
+  const variants = getAllDrawingTitleVariants(title);
+  return variants.some(v => cleanTitleKey(v).includes(qClean));
+}
