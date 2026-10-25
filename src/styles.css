@@ -1429,6 +1429,84 @@ button, input, select, textarea {
   background: linear-gradient(180deg, #4d8842 0%, #35602e 100%);
 }
 
+/* État de succès Demande envoyée (Feuille de dessin) */
+.cb-sheet-success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  padding: 8px 12px;
+  gap: 6px;
+  animation: cbSheetFadeIn 0.25s ease-out;
+}
+
+.cb-sheet-success-icon {
+  color: #2e7d32;
+  filter: drop-shadow(0 2px 4px rgba(46, 125, 50, 0.35));
+}
+
+.cb-sheet-success-sub {
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  font-size: 17px;
+  color: #3b200b;
+  line-height: 1.25;
+  margin: 0;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.cb-sheet-form-error {
+  background: rgba(255, 235, 238, 0.95);
+  border: 1.5px solid #d32f2f;
+  color: #b71c1c;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-family: 'Patrick Hand', 'Patrick_Hand-Regular', cursive;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+/* Toast de confirmation au-dessus de la boîte aux lettres */
+.cb-mailbox-toast {
+  position: fixed;
+  bottom: 160px;
+  right: 24px;
+  z-index: 9999;
+  background: linear-gradient(180deg, #3d6e35 0%, #294c23 100%);
+  color: #ffffff;
+  padding: 9px 18px;
+  border-radius: 25px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #ffffff;
+  pointer-events: none;
+  animation: cbToastPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes cbSheetFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes cbToastPop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* STAGE 4 : "VISUEL NOUVEAU COURRIER" MODAL */
 .cb-new-mail-card {
   background: #fbf5e6;
@@ -3763,6 +3841,13 @@ footer {
     width: 95px !important;
     bottom: 74px !important;
     right: 12px !important;
+  }
+
+  .cb-mailbox-toast {
+    bottom: 175px !important;
+    right: 12px !important;
+    font-size: 16px !important;
+    padding: 7px 14px !important;
   }
 
   /* INSTAGRAM-STYLE MOBILE BOTTOM BAR */

@@ -1996,6 +1996,9 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   const [submitting, setSubmitting] = useState(false);
   const [validatedRequests, setValidatedRequests] = useState([]);
   const [thankedNotice, setThankedNotice] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
 
   const senderPseudo = session ? (profile?.display_name || session.user.user_metadata?.pseudo || session.user.email?.split('@')[0] || 'Ami de Colorblop') : '';
 
@@ -2040,6 +2043,8 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
     : mailboxBase;
 
   function handleMailboxClick() {
+    setFormError('');
+    setRequestSent(false);
     if (hasOwnerMail) {
       onOpenOwnerRequests();
     } else if (hasUserValidatedMail) {
@@ -2051,6 +2056,8 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
 
   async function handleSendRequest(e) {
     e.preventDefault();
+    setFormError('');
+
     if (!session?.user) {
       setIsClickOpen(false);
       onOpenProfile();
@@ -2058,7 +2065,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
     }
 
     if (description.trim().length < 3) {
-      alert('Écris quelques mots pour décrire ton coloriage.');
+      setFormError(t.mailboxDescMin || 'Écris quelques mots pour décrire ton coloriage.');
       return;
     }
 
@@ -2091,11 +2098,22 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
       }
 
       setDescription('');
-      setIsClickOpen(false);
-      alert(t.mailboxSuccess);
+      setRequestSent(true);
+      setToastMessage(t.mailboxRequestSent || 'Demande envoyée');
+
+      // Fermeture douce de la feuille après 2 secondes
+      setTimeout(() => {
+        setIsClickOpen(false);
+        setRequestSent(false);
+      }, 2000);
+
+      // Notification toast affichée au-dessus de la boîte aux lettres
+      setTimeout(() => {
+        setToastMessage('');
+      }, 4500);
     } catch (err) {
       console.error(err);
-      alert('Impossible d’envoyer la demande pour le moment. Réessaie dans un instant.');
+      setFormError(t.mailboxSendError || 'Impossible d’envoyer la demande pour le moment. Réessaie dans un instant.');
     } finally {
       setSubmitting(false);
     }
@@ -2143,11 +2161,19 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
         )}
       </div>
 
+      {/* Toast de confirmation sans alerte navigateur */}
+      {toastMessage && (
+        <div className="cb-mailbox-toast" role="status">
+          <CheckCircle2 size={20} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* STAGE 3 : "VISUEL CLIC" - INTERACTIVE WRITING SHEET WITH CLEAN PARCHMENT */}
       {isClickOpen && (
-        <div className="modal" onClick={() => setIsClickOpen(false)}>
+        <div className="modal" onClick={() => { setIsClickOpen(false); setFormError(''); setRequestSent(false); }}>
           <div className="cb-click-sheet-card" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setIsClickOpen(false)} aria-label="Fermer"><X /></button>
+            <button className="close" onClick={() => { setIsClickOpen(false); setFormError(''); setRequestSent(false); }} aria-label="Fermer"><X /></button>
 
             {/* The Visual Clic Artwork without printed ghost text underneath */}
             <div className="cb-sheet-artwork-wrapper">
@@ -2173,15 +2199,32 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
                       <span>{t.mailboxLoginBtn}</span>
                     </button>
                   </div>
+                ) : requestSent ? (
+                  <div className="cb-sheet-success-state">
+                    <CheckCircle2 size={44} className="cb-sheet-success-icon" />
+                    <span className="cb-click-sheet-title">{t.mailboxRequestSent || 'Demande envoyée'}</span>
+                    <p className="cb-sheet-success-sub">
+                      {t.mailboxSuccess || 'Ta lettre a été déposée dans la boîte !'}
+                    </p>
+                  </div>
                 ) : (
                   <form onSubmit={handleSendRequest} className="cb-sheet-form-inner">
                     <span className="cb-click-sheet-title">{t.mailboxTitle}</span>
+
+                    {formError && (
+                      <div className="cb-sheet-form-error">
+                        {formError}
+                      </div>
+                    )}
 
                     <textarea
                       required
                       rows="4"
                       value={description}
-                      onChange={e => setDescription(e.target.value)}
+                      onChange={e => {
+                        setDescription(e.target.value);
+                        if (formError) setFormError('');
+                      }}
                       placeholder={t.mailboxDescPlaceholder}
                       className="cb-sheet-textarea"
                     />
