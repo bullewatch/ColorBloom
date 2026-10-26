@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Crown, Check, X, ShieldCheck, Sparkles, Lock, ArrowRight, FileText, ExternalLink } from 'lucide-react';
 import { supabase } from './supabase';
+import { ProIdentityModal } from './ProIdentityModal';
 
 export function MembershipView({
   session,
@@ -12,28 +13,14 @@ export function MembershipView({
   const [interval, setInterval] = useState('year'); // 'month' ou 'year' (recommandé par défaut)
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isProIdentityModalOpen, setIsProIdentityModalOpen] = useState(false);
 
   const currentPlan = subscription?.status === 'active' || subscription?.status === 'trialing'
     ? subscription?.plan_id
     : null;
 
-  async function handleSubscribe(planId) {
+  async function executeCheckout(planId, customerName = null) {
     setErrorMsg('');
-
-    if (!session?.user) {
-      // Inviter à créer un compte ou se connecter d'abord
-      if (onOpenProfile) onOpenProfile();
-      return;
-    }
-
-    // Si déjà abonné à ce plan exact
-    if (currentPlan === planId) {
-      if (onOpenManageSubscription) {
-        onOpenManageSubscription();
-      }
-      return;
-    }
-
     setLoadingPlan(planId);
 
     try {
@@ -49,6 +36,7 @@ export function MembershipView({
         body: JSON.stringify({
           planId,
           interval,
+          customerName,
         }),
       });
 
@@ -57,13 +45,36 @@ export function MembershipView({
         throw new Error(data.error || 'Impossible de créer la session de paiement.');
       }
 
-      // Redirection vers Stripe Checkout sécurisé
       window.location.href = data.url;
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Une erreur est survenue lors de la redirection vers le paiement.');
       setLoadingPlan(null);
+      setIsProIdentityModalOpen(false);
     }
+  }
+
+  function handleSubscribe(planId) {
+    setErrorMsg('');
+
+    if (!session?.user) {
+      if (onOpenProfile) onOpenProfile();
+      return;
+    }
+
+    if (currentPlan === planId) {
+      if (onOpenManageSubscription) {
+        onOpenManageSubscription();
+      }
+      return;
+    }
+
+    if (planId === 'colorvip_pro') {
+      setIsProIdentityModalOpen(true);
+      return;
+    }
+
+    executeCheckout(planId, null);
   }
 
   return (
@@ -337,6 +348,13 @@ export function MembershipView({
             </div>
           </div>
         </div>
+
+        <ProIdentityModal
+          isOpen={isProIdentityModalOpen}
+          onClose={() => setIsProIdentityModalOpen(false)}
+          onConfirm={(officialName) => executeCheckout('colorvip_pro', officialName)}
+          loading={Boolean(loadingPlan)}
+        />
       </div>
     </section>
   );

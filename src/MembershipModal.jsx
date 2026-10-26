@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Lock, Crown, Sparkles, Check, ArrowRight } from 'lucide-react';
 import { supabase } from './supabase';
+import { ProIdentityModal } from './ProIdentityModal';
 
 export function MembershipModal({
   isOpen,
@@ -12,18 +13,12 @@ export function MembershipModal({
   const [interval, setInterval] = useState('year');
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isProIdentityModalOpen, setIsProIdentityModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
-  async function handleSubscribe(planId) {
+  async function executeCheckout(planId, customerName = null) {
     setErrorMsg('');
-
-    if (!session?.user) {
-      onClose();
-      if (onOpenProfile) onOpenProfile();
-      return;
-    }
-
     setLoadingPlan(planId);
 
     try {
@@ -39,6 +34,7 @@ export function MembershipModal({
         body: JSON.stringify({
           planId,
           interval,
+          customerName,
         }),
       });
 
@@ -52,7 +48,25 @@ export function MembershipModal({
       console.error(err);
       setErrorMsg(err.message || 'Une erreur est survenue.');
       setLoadingPlan(null);
+      setIsProIdentityModalOpen(false);
     }
+  }
+
+  function handleSubscribe(planId) {
+    setErrorMsg('');
+
+    if (!session?.user) {
+      onClose();
+      if (onOpenProfile) onOpenProfile();
+      return;
+    }
+
+    if (planId === 'colorvip_pro') {
+      setIsProIdentityModalOpen(true);
+      return;
+    }
+
+    executeCheckout(planId, null);
   }
 
   return (
@@ -165,6 +179,13 @@ export function MembershipModal({
           Renouvellement automatique, résiliable à tout moment en 1 clic sans engagement.
           {interval === 'year' && ' * Les prix barrés correspondent à 12 mensualités au tarif mensuel.'}
         </p>
+
+        <ProIdentityModal
+          isOpen={isProIdentityModalOpen}
+          onClose={() => setIsProIdentityModalOpen(false)}
+          onConfirm={(officialName) => executeCheckout('colorvip_pro', officialName)}
+          loading={Boolean(loadingPlan)}
+        />
       </div>
     </div>
   );

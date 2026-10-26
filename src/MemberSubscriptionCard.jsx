@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Sparkles, Download, ExternalLink, Calendar, FileBadge, ArrowRight, RefreshCw, Edit2, Check } from 'lucide-react';
+import { Crown, Sparkles, Download, Calendar, FileBadge, ArrowRight, RefreshCw, Lock, CheckCircle2, ShieldAlert, Check } from 'lucide-react';
 import { generateCommercialLicensePdf, calculateLicenseDates } from './licensePdf';
 import { supabase } from './supabase';
 
@@ -10,8 +10,8 @@ export function MemberSubscriptionCard({
   onNavigateToMembership,
   onRefreshSubscription,
 }) {
-  const [loadingPortal, setLoadingPortal] = useState(false);
-  const [portalError, setPortalError] = useState('');
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [actionNotice, setActionNotice] = useState({ type: '', msg: '' });
 
   const sub = subscriptionData?.subscription;
   const license = subscriptionData?.license;
@@ -19,110 +19,159 @@ export function MemberSubscriptionCard({
   const isActive = subscriptionData?.hasActiveSubscription;
   const planId = sub?.plan_id;
 
-  // Gestion du titulaire (NOM et Prénom)
-  const defaultHolder =
-    license?.customer_name ||
-    profile?.display_name ||
-    session?.user?.user_metadata?.full_name ||
-    session?.user?.email?.split('@')[0] ||
-    '';
-
-  const [holderName, setHolderName] = useState(defaultHolder);
-  const [isEditingHolder, setIsEditingHolder] = useState(false);
-  const [savingHolder, setSavingHolder] = useState(false);
-
-  useEffect(() => {
-    if (license?.customer_name) {
-      setHolderName(license.customer_name);
-    } else if (profile?.display_name) {
-      setHolderName(profile.display_name);
-    }
-  }, [license?.customer_name, profile?.display_name]);
-
+  // Calcul exact des dates (même jour calendaire)
   const dates = calculateLicenseDates(
     license?.valid_from || sub?.current_period_start,
     license?.interval || sub?.interval || 'month',
     license?.valid_until || sub?.current_period_end
   );
 
-  async function handleOpenPortal() {
-    setLoadingPortal(true);
-    setPortalError('');
+  // Vérification si le titulaire officiel est définitivement verrouillé
+  const currentLicName = (license?.customer_name || '').trim();
+  const isHolderLocked = Boolean(
+    currentLicName &&
+    currentLicName.includes(' ') &&
+    currentLicName !== 'MEMBRE PRO COLORBLOP' &&
+    currentLicName !== 'FLORIAN (ARTISTE & PROPRIÉTAIRE COLORBLOP)'
+  ) || isOwner;
+
+  // Formulaire de double saisie pour verrouillage initial si non verrouillé
+  const [holderInput1, setHolderInput1] = useState(currentLicName || profile?.display_name || '');
+  const [holderInput2, setHolderInput2] = useState('');
+  const [lockError, setLockError] = useState('');
+  const [savingHolder, setSavingHolder] = useState(false);
+
+  // Gestion native de la résiliation (arrêt du renouvellement automatique sans compte Stripe)
+  async function handleCancelRenewal() {
+    const confirmMsg = `Arrêter le renouvellement automatique ?\n\nVos téléchargements SVG et vos accès restent pleinement actifs jusqu’au ${dates.formattedEnd}.\nVous ne serez plus débité après cette date. Vous pourrez reprendre le renouvellement quand vous le souhaitez.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setLoadingAction(true);
+    setActionNotice({ type: '', msg: '' });
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
-      const res = await fetch('/api/customer-portal', {
+      const res = await fetch('/api/manage-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ action: 'cancel' }),
       });
 
       const data = await res.json();
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Impossible d’ouvrir le portail client Stripe.');
+      if (!res.ok) {
+        throw new Error(data.error || 'Impossible d’arrêter le renouvellement automatique.');
       }
 
-      window.location.href = data.url;
+      setActionNotice({ type: 'success', msg: data.message });
+      if (onRefreshSubscription) onRefreshSubscription();
     } catch (err) {
       console.error(err);
-      setPortalError(err.message || 'Erreur lors de l’ouverture du portail de facturation.');
-      setLoadingPortal(false);
+      setActionNotice({ type: 'error', msg: err.message || 'Erreur lors de la modification de l’abonnement.' });
+    } finally {
+      setLoadingAction(false);
     }
   }
 
-  async function handleSaveHolder() {
-    const trimmed = holderName.trim();
-    if (!trimmed) return;
-    setSavingHolder(true);
-    try {
-      if (session?.user?.id) {
-        // Mettre à jour dans la table licenses
-        await supabase
-          .from('licenses')
-          .update({ customer_name: trimmed, updated_at: new Date().toISOString() })
-          .eq('user_id', session.user.id);
+  // Reprise du renouvellement automatique directement depuis Colorblop
+  async function handleResumeRenewal() {
+    setLoadingAction(true);
+    setActionNotice({ type: '', msg: '' });
 
-        // Mettre à jour le profil également
-        await supabase
-          .from('profiles')
-          .update({ display_name: trimmed })
-          .eq('id', session.user.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const res = await fetch('/api/manage-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'reactivate' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Impossible de réactiver le renouvellement automatique.');
       }
 
-      setIsEditingHolder(false);
+      setActionNotice({ type: 'success', msg: data.message });
       if (onRefreshSubscription) onRefreshSubscription();
     } catch (err) {
-      console.warn('Erreur mise à jour titulaire:', err);
+      console.error(err);
+      setActionNotice({ type: 'error', msg: err.message || 'Erreur lors de la réactivation.' });
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  // Verrouillage définitif du Nom et Prénom avec double saisie de vérification
+  async function handleLockName(e) {
+    if (e) e.preventDefault();
+    setLockError('');
+
+    const n1 = holderInput1.trim();
+    const n2 = holderInput2.trim();
+
+    if (!n1 || !n2) {
+      setLockError('Veuillez renseigner votre Nom et Prénom dans les deux champs.');
+      return;
+    }
+
+    if (!n1.includes(' ')) {
+      setLockError('Veuillez renseigner à la fois votre NOM et votre Prénom (séparés par un espace).');
+      return;
+    }
+
+    if (n1.toLowerCase() !== n2.toLowerCase()) {
+      setLockError('Les deux saisies ne correspondent pas. Veuillez vérifier l’orthographe.');
+      return;
+    }
+
+    setSavingHolder(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const res = await fetch('/api/lock-license-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: n1,
+          nameConfirm: n2,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Impossible d’enregistrer le titulaire officiel.');
+      }
+
+      setActionNotice({ type: 'success', msg: 'Titulaire officiel validé et verrouillé définitivement.' });
+      if (onRefreshSubscription) onRefreshSubscription();
+    } catch (err) {
+      console.error(err);
+      setLockError(err.message || 'Erreur lors de l’enregistrement.');
     } finally {
       setSavingHolder(false);
     }
   }
 
   function handleDownloadLicense() {
-    let finalHolder = (holderName || '').trim();
-
-    // Si le nom ressemble à un simple pseudo ou email sans espace, on propose de confirmer le Nom et Prénom
-    if (!finalHolder || (!finalHolder.includes(' ') && finalHolder.toLowerCase().includes('@'))) {
-      const prompted = window.prompt(
-        "Veuillez renseigner votre NOM et Prénom pour l'attestation officielle de licence commerciale (ex: DUPONT Jean) :",
-        finalHolder || ''
-      );
-      if (prompted && prompted.trim()) {
-        finalHolder = prompted.trim();
-        setHolderName(finalHolder);
-        if (session?.user?.id) {
-          supabase.from('licenses').update({ customer_name: finalHolder }).eq('user_id', session.user.id);
-        }
-      }
-    }
+    const verifiedHolder = (license?.customer_name || profile?.display_name || 'DUPONT JEAN').trim();
 
     generateCommercialLicensePdf({
       licenseNumber: license?.license_number || 'CBL-2026-PRO-OFFICIEL',
-      holderName: finalHolder || 'DUPONT Jean',
+      holderName: verifiedHolder,
       holderEmail: license?.customer_email || session?.user?.email,
       interval: license?.interval || sub?.interval || 'month',
       validFrom: license?.valid_from || sub?.current_period_start,
@@ -150,9 +199,10 @@ export function MemberSubscriptionCard({
         )}
       </div>
 
-      {portalError && (
-        <div className="cb-membership-error-banner" style={{ margin: '8px 0' }}>
-          {portalError}
+      {actionNotice.msg && (
+        <div className={`cb-sub-notice-banner ${actionNotice.type}`}>
+          {actionNotice.type === 'success' ? <CheckCircle2 size={16} /> : <ShieldAlert size={16} />}
+          <span>{actionNotice.msg}</span>
         </div>
       )}
 
@@ -211,19 +261,13 @@ export function MemberSubscriptionCard({
             <div className="cb-sub-detail-item">
               <Calendar size={15} />
               <div>
-                <small>{sub?.cancel_at_period_end ? 'Fin d’accès le :' : 'Prochaine échéance :'}</small>
+                <small>{sub?.cancel_at_period_end ? 'Accès SVG valide jusqu’au :' : 'Prochaine échéance :'}</small>
                 <b className={sub?.cancel_at_period_end ? 'text-warning' : 'text-success'}>
                   {dates.formattedEnd}
                 </b>
               </div>
             </div>
           </div>
-
-          {sub?.cancel_at_period_end && (
-            <div className="cb-sub-cancel-notice">
-              ⚠️ Votre résiliation a bien été prise en compte. Vos accès SVG restent pleinement actifs jusqu’au {dates.formattedEnd}.
-            </div>
-          )}
 
           {/* LICENCE COMMERCIALE (Réservée exclusivement à ColorVIP Pro) */}
           {planId === 'colorvip_pro' && (
@@ -241,43 +285,60 @@ export function MemberSubscriptionCard({
                 <span>Statut : <b className="text-success">Conforme & En vigueur ✓</b></span>
               </div>
 
-              <div className="cb-license-holder-box">
-                <div className="cb-license-holder-label">Titulaire officiel (NOM et Prénom) :</div>
-                {isEditingHolder ? (
-                  <div className="cb-license-holder-edit-wrap">
+              {/* GESTION DU TITULAIRE : SOIT VERROUILLÉ DÉFINITIF, SOIT DOUBLE SAISIE OBLIGATOIRE */}
+              {isHolderLocked ? (
+                <div className="cb-license-holder-locked-box">
+                  <div className="cb-license-locked-head">
+                    <span className="cb-license-locked-label">Titulaire officiel certifié :</span>
+                    <span className="cb-license-locked-badge">
+                      <Lock size={12} /> Verrouillé définitivement
+                    </span>
+                  </div>
+                  <div className="cb-license-locked-name">{currentLicName || 'FLORIAN'}</div>
+                  <small className="cb-license-locked-info">
+                    Ce nom est inscrit sur votre attestation officielle et ne peut plus être modifié (protection anti-fraude).
+                  </small>
+                </div>
+              ) : (
+                <div className="cb-license-holder-unlock-box">
+                  <div className="cb-license-lock-title">
+                    <ShieldAlert size={16} color="#d97706" />
+                    <span>Valider votre NOM et Prénom pour l'attestation</span>
+                  </div>
+                  <p className="cb-license-lock-desc">
+                    Veuillez saisir votre <b>NOM et Prénom</b> deux fois. Une fois validé, il sera définitivement verrouillé.
+                  </p>
+
+                  <div className="cb-lock-inputs-grid">
                     <input
                       type="text"
-                      className="cb-license-holder-input"
-                      value={holderName}
-                      onChange={(e) => setHolderName(e.target.value)}
-                      placeholder="ex: DUPONT Jean"
-                      autoFocus
+                      className="cb-lock-input"
+                      value={holderInput1}
+                      onChange={e => setHolderInput1(e.target.value)}
+                      placeholder="NOM et Prénom (ex: DUPONT Jean)"
                     />
-                    <button
-                      type="button"
-                      className="cb-btn-save-holder"
-                      onClick={handleSaveHolder}
-                      disabled={savingHolder}
-                    >
-                      <Check size={14} />
-                      <span>{savingHolder ? 'Enregistrement…' : 'Valider'}</span>
-                    </button>
+                    <input
+                      type="text"
+                      className="cb-lock-input"
+                      value={holderInput2}
+                      onChange={e => setHolderInput2(e.target.value)}
+                      placeholder="Confirmez votre NOM et Prénom"
+                    />
                   </div>
-                ) : (
-                  <div className="cb-license-holder-display">
-                    <b className="cb-license-holder-name">{holderName || 'Non renseigné'}</b>
-                    <button
-                      type="button"
-                      className="cb-btn-edit-holder"
-                      onClick={() => setIsEditingHolder(true)}
-                      title="Modifier le Nom et Prénom pour l'attestation PDF"
-                    >
-                      <Edit2 size={13} />
-                      <span>Modifier</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+
+                  {lockError && <div className="cb-lock-error-msg">{lockError}</div>}
+
+                  <button
+                    type="button"
+                    className="cb-btn-lock-submit"
+                    onClick={handleLockName}
+                    disabled={savingHolder || !holderInput1.trim() || !holderInput2.trim()}
+                  >
+                    <Check size={14} />
+                    <span>{savingHolder ? 'Verrouillage en cours…' : 'Enregistrer définitivement mon nom'}</span>
+                  </button>
+                </div>
+              )}
 
               <div className="cb-license-dates-row">
                 <span>Validité : Du <b>{dates.formattedStart}</b> au <b>{dates.formattedEnd}</b></span>
@@ -294,18 +355,49 @@ export function MemberSubscriptionCard({
             </div>
           )}
 
-          {/* Actions : Portail Stripe */}
-          <div className="cb-sub-actions-row">
-            <button
-              type="button"
-              className="cb-btn-portal"
-              onClick={handleOpenPortal}
-              disabled={loadingPortal}
-            >
-              <ExternalLink size={15} />
-              <span>{loadingPortal ? 'Ouverture Stripe…' : 'Gérer mon abonnement / Factures / Moyen de paiement'}</span>
-            </button>
-          </div>
+          {/* GESTION DU RENOUVELLEMENT DIRECTEMENT DANS COLORBLOP (SANS COMPTE STRIPE) */}
+          {!isOwner && (
+            <div className="cb-sub-management-box">
+              {sub?.cancel_at_period_end ? (
+                <div className="cb-renewal-card canceled">
+                  <div className="cb-renewal-info">
+                    <ShieldAlert size={18} className="cb-renewal-icon warning" />
+                    <div>
+                      <b>Renouvellement automatique arrêté</b>
+                      <p>Vos accès SVG restent pleinement actifs jusqu’au {dates.formattedEnd}. Vous ne serez plus débité.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="cb-btn-resume-sub"
+                    onClick={handleResumeRenewal}
+                    disabled={loadingAction}
+                  >
+                    <RefreshCw size={14} className={loadingAction ? 'cb-spin' : ''} />
+                    <span>{loadingAction ? 'Réactivation…' : 'Reprendre le renouvellement automatique'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="cb-renewal-card active">
+                  <div className="cb-renewal-info">
+                    <CheckCircle2 size={18} className="cb-renewal-icon success" />
+                    <div>
+                      <b>Renouvellement automatique actif</b>
+                      <p>Votre abonnement se renouvelle automatiquement à chaque échéance. Vous pouvez l’arrêter à tout moment.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="cb-btn-cancel-sub"
+                    onClick={handleCancelRenewal}
+                    disabled={loadingAction}
+                  >
+                    <span>{loadingAction ? 'Arrêt en cours…' : 'Arrêter le renouvellement automatique'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

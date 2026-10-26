@@ -13,13 +13,15 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Vous devez être connecté pour vous abonner.' });
     }
 
-    const { planId, interval } = req.body || {};
+    const { planId, interval, customerName } = req.body || {};
     if (![PLANS.COLORVIP, PLANS.COLORVIP_PRO].includes(planId)) {
       return res.status(400).json({ error: 'Formule d’abonnement invalide.' });
     }
     if (![INTERVALS.MONTH, INTERVALS.YEAR].includes(interval)) {
       return res.status(400).json({ error: 'Périodicité invalide (month ou year attendu).' });
     }
+
+    const verifiedCustomerName = customerName?.trim() || null;
 
     const stripe = getStripe();
 
@@ -74,6 +76,15 @@ export default async function handler(req, res) {
       req.headers.origin ||
       (req.headers.host ? `https://${req.headers.host}` : 'https://colorblop.com');
 
+    const finalCustomerName = verifiedCustomerName || profile?.display_name || user.email.split('@')[0];
+
+    if (verifiedCustomerName && verifiedCustomerName !== profile?.display_name) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ display_name: verifiedCustomerName })
+        .eq('id', user.id);
+    }
+
     // 5. Créer la session Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -90,13 +101,14 @@ export default async function handler(req, res) {
           plan_id: planId,
           interval,
           customer_email: user.email,
-          customer_name: profile?.display_name || user.email.split('@')[0],
+          customer_name: finalCustomerName,
         },
       },
       metadata: {
         user_id: user.id,
         plan_id: planId,
         interval,
+        customer_name: finalCustomerName,
       },
       success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?checkout=cancel`,

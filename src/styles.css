@@ -6348,95 +6348,169 @@ footer {
   gap: 6px;
 }
 
-.cb-license-holder-box {
+/* Notice de notification d'action (annulation/reprise/verrouillage) */
+.cb-sub-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.cb-sub-notice-banner.success {
+  background: #e8f5e9;
+  border: 1px solid #81c784;
+  color: #1b5e20;
+}
+
+.cb-sub-notice-banner.error {
+  background: #ffebee;
+  border: 1px solid #e57373;
+  color: #b71c1c;
+}
+
+/* Titulaire officiel vérifié et verrouillé définitivement */
+.cb-license-holder-locked-box {
   background: #ffffff;
-  border: 1px solid #c8e6c9;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border: 1.5px solid #a5d6a7;
+  border-radius: 10px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.cb-license-holder-label {
+.cb-license-locked-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cb-license-locked-label {
   font-family: 'Patrick Hand', cursive;
   font-size: 13px;
-  color: #558b2f;
+  color: #2e7d32;
 }
 
-.cb-license-holder-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.cb-license-holder-name {
-  font-family: 'Patrick Hand SC', cursive;
-  font-size: 17px;
+.cb-license-locked-badge {
+  background: #e8f5e9;
   color: #1b5e20;
+  border: 1px solid #81c784;
+  border-radius: 6px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 11px;
+  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   letter-spacing: 0.5px;
 }
 
-.cb-btn-edit-holder {
-  background: transparent;
-  border: 1px dashed #81c784;
-  border-radius: 6px;
-  color: #2e7d32;
-  padding: 2px 8px;
+.cb-license-locked-name {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 19px;
+  color: #0d47a1;
+  letter-spacing: 0.8px;
+}
+
+.cb-license-locked-info {
   font-family: 'Patrick Hand', cursive;
   font-size: 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
+  color: #558b2f;
 }
 
-.cb-btn-edit-holder:hover {
-  background: #e8f5e9;
-  border-color: #2e7d32;
-}
-
-.cb-license-holder-edit-wrap {
+/* Formulaire de double saisie pour verrouillage de nom */
+.cb-license-holder-unlock-box {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 14px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
 
-.cb-license-holder-input {
-  flex: 1;
-  padding: 4px 8px;
+.cb-license-lock-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: 'Patrick Hand SC', cursive;
   font-size: 16px;
-  border: 1.5px solid #66bb6a;
-  border-radius: 6px;
-  outline: none;
-  background: #fafafa;
-  color: #1b5e20;
+  color: #92400e;
+  font-weight: 700;
 }
 
-.cb-license-holder-input:focus {
-  border-color: #2e7d32;
+.cb-license-lock-desc {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #78350f;
+  margin: 0;
+}
+
+.cb-lock-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .cb-lock-inputs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cb-lock-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1.5px solid #d97706;
+  border-radius: 8px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
   background: #ffffff;
+  color: #78350f;
+  outline: none;
 }
 
-.cb-btn-save-holder {
-  background: #2e7d32;
+.cb-lock-input:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.cb-lock-error-msg {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.cb-btn-lock-submit {
+  align-self: flex-start;
+  background: #d97706;
   color: #ffffff;
   border: 0;
-  border-radius: 6px;
-  padding: 4px 10px;
+  border-radius: 8px;
+  padding: 6px 14px;
   font-family: 'Patrick Hand SC', cursive;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  transition: all 0.15s ease;
 }
 
-.cb-btn-save-holder:hover {
-  background: #1b5e20;
+.cb-btn-lock-submit:hover:not(:disabled) {
+  background: #b45309;
+}
+
+.cb-btn-lock-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cb-license-dates-row {
@@ -6460,35 +6534,202 @@ footer {
   align-items: center;
   gap: 6px;
   box-shadow: 0 3px 8px rgba(46, 125, 50, 0.25);
+  transition: all 0.15s ease;
 }
 
 .cb-btn-download-license:hover {
   background: #1b5e20;
 }
 
-.cb-sub-actions-row {
-  margin-top: 4px;
+/* Gestion du renouvellement dans Colorblop sans compte Stripe */
+.cb-sub-management-box {
+  margin-top: 6px;
 }
 
-.cb-btn-portal {
-  background: #ffffff;
-  border: 2px solid #5a381d;
-  color: #5a381d;
+.cb-renewal-card {
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cb-renewal-card.active {
+  background: #ffffff;
+  border: 1.5px solid #d7ccc8;
+}
+
+.cb-renewal-card.canceled {
+  background: #fff8e1;
+  border: 1.5px solid #ffe082;
+}
+
+.cb-renewal-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.cb-renewal-info b {
   font-family: 'Patrick Hand SC', cursive;
   font-size: 16px;
+  color: #4e342e;
+  display: block;
+}
+
+.cb-renewal-info p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #6d4c41;
+  margin: 2px 0 0;
+}
+
+.cb-renewal-icon.success {
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.cb-renewal-icon.warning {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.cb-btn-cancel-sub {
+  background: transparent;
+  border: 1px solid #b71c1c;
+  color: #b71c1c;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-cancel-sub:hover:not(:disabled) {
+  background: #ffebee;
+}
+
+.cb-btn-resume-sub {
+  background: #2e7d32;
+  border: 0;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.15s ease;
 }
 
-.cb-btn-portal:hover {
-  background: #5a381d;
+.cb-btn-resume-sub:hover:not(:disabled) {
+  background: #1b5e20;
+}
+
+/* Modale de vérification d'identité Pro */
+.cb-pro-identity-card {
+  max-width: 480px !important;
+}
+
+.cb-pro-identity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cb-pro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cb-pro-field label {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #4e342e;
+  font-weight: bold;
+}
+
+.cb-pro-input {
+  padding: 8px 12px;
+  border: 2px solid #a1887f;
+  border-radius: 10px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  outline: none;
+  background: #ffffff;
+  color: #3e2723;
+}
+
+.cb-pro-input:focus {
+  border-color: #5d4037;
+  box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.15);
+}
+
+.cb-pro-warning-notice {
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #b71c1c;
+  line-height: 1.35;
+}
+
+.cb-pro-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.cb-btn-cancel-modal {
+  background: transparent;
+  border: 1.5px solid #a1887f;
+  color: #5d4037;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.cb-btn-confirm-pro {
+  background: #2e7d32;
   color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-confirm-pro:hover:not(:disabled) {
+  background: #1b5e20;
+}
+
+.cb-btn-confirm-pro:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Bouton SVG verrouillé */
