@@ -7,7 +7,8 @@ import {
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
-  Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge
+  Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
+  GripVertical, ArrowUp
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -687,6 +688,155 @@ function App() {
     }
   }
 
+  // Category management & drag-and-drop state for admin
+  const [isCatEditMode, setIsCatEditMode] = useState(false);
+  const [draggedCat, setDraggedCat] = useState(null);
+  const [dragOverTargetId, setDragOverTargetId] = useState(null);
+
+  async function saveCategories(newList) {
+    setCategoriesList(newList);
+    localStorage.setItem('cb-custom-categories', JSON.stringify(newList));
+
+    try {
+      const rows = newList.map((c, index) => ({
+        id: c.id,
+        name: c.name,
+        parent_id: c.parentId || null,
+        sort_order: index + 1,
+      }));
+      await supabase.from('categories').upsert(rows, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Database categories save notice:', e);
+    }
+  }
+
+  function handlePromoteToRoot(subId) {
+    const target = categoriesList.find(c => c.id === subId);
+    if (!target) return;
+
+    const updated = categoriesList.map(c => {
+      if (c.id === subId) {
+        return { ...c, parentId: null };
+      }
+      return c;
+    });
+
+    const roots = updated.filter(c => !c.parentId);
+    const subIdx = roots.findIndex(c => c.id === subId);
+    if (subIdx > -1) {
+      const [item] = roots.splice(subIdx, 1);
+      roots.unshift(item);
+    }
+
+    const reassembled = [];
+    roots.forEach((rc, rIdx) => {
+      reassembled.push({ ...rc, sortOrder: rIdx + 1 });
+      const subcats = updated.filter(c => c.parentId === rc.id);
+      subcats.forEach((sc, sIdx) => {
+        reassembled.push({ ...sc, sortOrder: sIdx + 1 });
+      });
+    });
+
+    saveCategories(reassembled);
+    setDraggedCat(null);
+    setDragOverTargetId(null);
+  }
+
+  function handleReorderRoots(sourceId, targetId) {
+    if (sourceId === targetId) return;
+
+    const roots = categoriesList.filter(c => !c.parentId);
+    const sourceIdx = roots.findIndex(c => c.id === sourceId);
+    const targetIdx = roots.findIndex(c => c.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    const newRoots = [...roots];
+    const [moved] = newRoots.splice(sourceIdx, 1);
+    newRoots.splice(targetIdx, 0, moved);
+
+    const reassembled = [];
+    newRoots.forEach((rc, rIdx) => {
+      reassembled.push({ ...rc, sortOrder: rIdx + 1 });
+      const subcats = categoriesList.filter(c => c.parentId === rc.id);
+      subcats.forEach((sc, sIdx) => {
+        reassembled.push({ ...sc, sortOrder: sIdx + 1 });
+      });
+    });
+
+    saveCategories(reassembled);
+    setDraggedCat(null);
+    setDragOverTargetId(null);
+  }
+
+  function handleReorderSubs(sourceId, targetId, parentId) {
+    if (sourceId === targetId) return;
+
+    const subcats = categoriesList.filter(c => c.parentId === parentId);
+    const sourceIdx = subcats.findIndex(c => c.id === sourceId);
+    const targetIdx = subcats.findIndex(c => c.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    const newSubs = [...subcats];
+    const [moved] = newSubs.splice(sourceIdx, 1);
+    newSubs.splice(targetIdx, 0, moved);
+
+    const subMap = new Map(newSubs.map((s, idx) => [s.id, idx + 1]));
+    const updated = categoriesList.map(c => {
+      if (subMap.has(c.id)) {
+        return { ...c, sortOrder: subMap.get(c.id) };
+      }
+      return c;
+    });
+
+    saveCategories(updated);
+    setDraggedCat(null);
+    setDragOverTargetId(null);
+  }
+
+  function handleMoveSubToAnotherParent(subId, newParentId) {
+    const updated = categoriesList.map(c => {
+      if (c.id === subId) {
+        return { ...c, parentId: newParentId };
+      }
+      return c;
+    });
+    setExpandedCats(prev => ({ ...prev, [newParentId]: true }));
+    saveCategories(updated);
+    setDraggedCat(null);
+    setDragOverTargetId(null);
+  }
+
+  function handleRenameCategory(catItem, e) {
+    if (e) e.stopPropagation();
+    const newName = window.prompt('Nouveau nom pour la catégorie :', catItem.name);
+    if (!newName || !newName.trim() || newName.trim() === catItem.name) return;
+    const trimmed = newName.trim();
+    const updated = categoriesList.map(c => c.id === catItem.id ? { ...c, name: trimmed } : c);
+    saveCategories(updated);
+  }
+
+  async function handleDeleteCategory(catItem, e) {
+    if (e) e.stopPropagation();
+    const isSub = Boolean(catItem.parentId);
+    const msg = isSub
+      ? `Supprimer la sous-catégorie « ${catItem.name} » ?`
+      : `Supprimer la catégorie « ${catItem.name} » et toutes ses sous-catégories ?`;
+    if (!window.confirm(msg)) return;
+
+    const updated = categoriesList.filter(c => c.id !== catItem.id && c.parentId !== catItem.id);
+    setCategoriesList(updated);
+    localStorage.setItem('cb-custom-categories', JSON.stringify(updated));
+
+    try {
+      await supabase.from('categories').delete().eq('id', catItem.id);
+      if (!isSub) {
+        await supabase.from('categories').delete().eq('parent_id', catItem.id);
+      }
+    } catch (err) {
+      console.warn('Error deleting category from Supabase:', err);
+    }
+  }
+
   async function loadDrawings() {
     let pagesData = null;
     let pagesErr = null;
@@ -770,15 +920,29 @@ function App() {
       setProfile(profileData);
       setSelectedAvatar(profileData.avatar_index || 0);
     } else if (activeSession?.user) {
-      const metaPseudo = activeSession.user.user_metadata?.display_name || activeSession.user.user_metadata?.pseudo || activeSession.user.email?.split('@')[0];
+      const metaPseudo =
+        activeSession.user.user_metadata?.full_name ||
+        activeSession.user.user_metadata?.name ||
+        activeSession.user.user_metadata?.display_name ||
+        activeSession.user.user_metadata?.pseudo ||
+        activeSession.user.email?.split('@')[0];
       const metaAvatar = Number(activeSession.user.user_metadata?.avatar_index || 0);
-      setProfile({
+      const isOwnerUser = Boolean(activeSession.user.email?.toLowerCase() === 'flo83119@gmail.com');
+      const newProfileObj = {
         id: activeSession.user.id,
         display_name: metaPseudo,
         avatar_index: metaAvatar,
-        is_admin: false,
-      });
+        is_admin: isOwnerUser,
+      };
+      setProfile(newProfileObj);
       setSelectedAvatar(metaAvatar);
+
+      // Création automatique du profil Supabase pour les nouveaux utilisateurs Google
+      try {
+        await supabase.from('profiles').upsert(newProfileObj, { onConflict: 'id' });
+      } catch (profErr) {
+        console.warn('Profile sync notice:', profErr);
+      }
     }
     setFavs(new Set((favoriteData || []).map(x => x.coloring_id)));
   }
@@ -1509,23 +1673,51 @@ function App() {
                     {isOwner && (
                       <button
                         type="button"
-                        className="cb-btn-quick-cat"
+                        className={`cb-btn-toggle-cat-edit ${isCatEditMode ? 'active' : ''}`}
                         onClick={() => {
-                          setQuickCatParentId('');
-                          setQuickCatName('');
-                          setShowCatModal(true);
+                          setIsCatEditMode(!isCatEditMode);
+                          setDraggedCat(null);
+                          setDragOverTargetId(null);
                         }}
-                        title="Créer une nouvelle catégorie"
+                        title={isCatEditMode ? 'Enregistrer et quitter le mode modification' : 'Modifier et réorganiser les catégories'}
                       >
-                        <Plus size={13} /> <span>Ajouter</span>
+                        {isCatEditMode ? (
+                          <>
+                            <Check size={13} /> <span>Terminer</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pencil size={13} /> <span>Modifier</span>
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
+
+                  {/* Zone de glisser-déposer pour convertir une sous-catégorie vers le haut en catégorie principale */}
+                  {isCatEditMode && draggedCat && draggedCat.parentId && (
+                    <div
+                      className={`cb-cat-promote-dropzone ${dragOverTargetId === '__root_promote__' ? 'drag-over' : ''}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverTargetId('__root_promote__');
+                      }}
+                      onDragLeave={() => setDragOverTargetId(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handlePromoteToRoot(draggedCat.id);
+                      }}
+                    >
+                      <ArrowUp size={16} />
+                      <span>Glisser ici pour transformer en catégorie principale</span>
+                    </div>
+                  )}
 
                   {/* Tous */}
                   <button
                     className={`cb-css-plank ${cat === 'Tous' && page === 'Accueil' ? 'active' : ''}`}
                     onClick={() => {
+                      if (isCatEditMode) return;
                       setCat('Tous');
                       setPage('Accueil');
                     }}
@@ -1541,13 +1733,46 @@ function App() {
                     const count = getCategoryDrawingsCount(rc);
                     const isRootSelected = cat === rc.name && page === 'Accueil';
                     const isChildSelected = subcats.some(s => s.name === cat) && page === 'Accueil';
-                    const isExpanded = expandedCats[rc.id] || isRootSelected || isChildSelected;
+                    const isExpanded = isCatEditMode || expandedCats[rc.id] || isRootSelected || isChildSelected;
+                    const isDropTarget = dragOverTargetId === rc.id;
 
                     return (
-                      <div key={rc.id} className="cb-plank-group">
-                        <button
-                          className={`cb-css-plank ${isRootSelected ? 'active' : isChildSelected ? 'has-child-active' : ''}`}
+                      <div
+                        key={rc.id}
+                        className={`cb-plank-group ${isDropTarget ? 'cb-drag-target' : ''}`}
+                        onDragOver={(e) => {
+                          if (!isCatEditMode || !draggedCat) return;
+                          e.preventDefault();
+                          setDragOverTargetId(rc.id);
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverTargetId === rc.id) setDragOverTargetId(null);
+                        }}
+                        onDrop={(e) => {
+                          if (!isCatEditMode || !draggedCat) return;
+                          e.preventDefault();
+                          if (draggedCat.id === rc.id) return;
+                          if (draggedCat.parentId) {
+                            handleMoveSubToAnotherParent(draggedCat.id, rc.id);
+                          } else {
+                            handleReorderRoots(draggedCat.id, rc.id);
+                          }
+                        }}
+                      >
+                        <div
+                          className={`cb-css-plank ${isRootSelected ? 'active' : isChildSelected ? 'has-child-active' : ''} ${isCatEditMode ? 'editable' : ''}`}
+                          draggable={isCatEditMode}
+                          onDragStart={(e) => {
+                            if (!isCatEditMode) return;
+                            setDraggedCat({ id: rc.id, name: rc.name, parentId: null });
+                            e.dataTransfer.setData('text/plain', rc.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedCat(null);
+                            setDragOverTargetId(null);
+                          }}
                           onClick={() => {
+                            if (isCatEditMode) return;
                             setCat(rc.name);
                             setPage('Accueil');
                             if (subcats.length > 0) {
@@ -1555,68 +1780,187 @@ function App() {
                             }
                           }}
                         >
-                          <span className="cb-plank-dot">•</span>
+                          {isCatEditMode ? (
+                            <span className="cb-plank-drag-handle" title="Glisser pour réorganiser">
+                              <GripVertical size={16} />
+                            </span>
+                          ) : (
+                            <span className="cb-plank-dot">•</span>
+                          )}
+
                           <span className="cb-plank-title">{getCatLabel(rc.name, t)}</span>
-                          {isOwner && (
-                            <span
-                              className="cb-plank-add-sub-icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setQuickCatParentId(rc.id);
-                                setQuickCatName('');
-                                setShowCatModal(true);
-                              }}
-                              title={`Créer une sous-catégorie dans ${rc.name}`}
-                            >
-                              +
-                            </span>
+
+                          {/* Mode Modification : Boutons d'action pour l'admin */}
+                          {isCatEditMode ? (
+                            <div className="cb-plank-edit-actions" onClick={e => e.stopPropagation()}>
+                              {/* Bouton + pour créer une sous-catégorie */}
+                              <button
+                                type="button"
+                                className="cb-btn-plank-plus"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setQuickCatParentId(rc.id);
+                                  setQuickCatName('');
+                                  setShowCatModal(true);
+                                }}
+                                title={`Ajouter une sous-catégorie dans « ${rc.name} »`}
+                              >
+                                <Plus size={15} />
+                              </button>
+
+                              {/* Bouton Renommer */}
+                              <button
+                                type="button"
+                                className="cb-btn-plank-icon"
+                                onClick={(e) => handleRenameCategory(rc, e)}
+                                title={`Renommer « ${rc.name} »`}
+                              >
+                                <Pencil size={13} />
+                              </button>
+
+                              {/* Bouton Supprimer */}
+                              <button
+                                type="button"
+                                className="cb-btn-plank-icon danger"
+                                onClick={(e) => handleDeleteCategory(rc, e)}
+                                title={`Supprimer « ${rc.name} »`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              {subcats.length > 0 && (
+                                <span
+                                  className={`cb-plank-arrow ${isExpanded ? 'open' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedCats(prev => ({ ...prev, [rc.id]: !prev[rc.id] }));
+                                  }}
+                                  title={isExpanded ? 'Réduire' : 'Dérouler'}
+                                >
+                                  {isExpanded ? '▾' : '▸'}
+                                </span>
+                              )}
+                              <span className="cb-plank-pill">{count}</span>
+                            </>
                           )}
-                          {subcats.length > 0 && (
-                            <span
-                              className={`cb-plank-arrow ${isExpanded ? 'open' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedCats(prev => ({ ...prev, [rc.id]: !prev[rc.id] }));
-                              }}
-                              title={isExpanded ? 'Réduire' : 'Dérouler'}
-                            >
-                              {isExpanded ? '▾' : '▸'}
-                            </span>
-                          )}
-                          <span className="cb-plank-pill">{count}</span>
-                        </button>
+                        </div>
 
                         {/* Sous-planches imbriquées si déployé */}
                         {subcats.length > 0 && isExpanded && (
                           <div className="cb-subplanks-container">
-                            <button
-                              className={`cb-css-subplank ${isRootSelected ? 'active' : ''}`}
-                              onClick={() => {
-                                setCat(rc.name);
-                                setPage('Accueil');
-                              }}
-                            >
-                              <span className="cb-subplank-branch">↳</span>
-                              <span className="cb-subplank-title">Tous les {getCatLabel(rc.name, t)}</span>
-                              <span className="cb-subplank-pill">{count}</span>
-                            </button>
+                            {!isCatEditMode && (
+                              <button
+                                className={`cb-css-subplank ${isRootSelected ? 'active' : ''}`}
+                                onClick={() => {
+                                  setCat(rc.name);
+                                  setPage('Accueil');
+                                }}
+                              >
+                                <span className="cb-subplank-branch">↳</span>
+                                <span className="cb-subplank-title">Tous les {getCatLabel(rc.name, t)}</span>
+                                <span className="cb-subplank-pill">{count}</span>
+                              </button>
+                            )}
 
                             {subcats.map(sc => {
                               const scCount = getCategoryDrawingsCount(sc);
                               const isSubActive = cat === sc.name && page === 'Accueil';
+                              const isSubDropTarget = dragOverTargetId === sc.id;
+
                               return (
-                                <button
+                                <div
                                   key={sc.id}
-                                  className={`cb-css-subplank ${isSubActive ? 'active' : ''}`}
-                                  onClick={() => {
-                                    setCat(sc.name);
-                                    setPage('Accueil');
+                                  className={`cb-subplank-wrap ${isSubDropTarget ? 'cb-drag-target' : ''}`}
+                                  onDragOver={(e) => {
+                                    if (!isCatEditMode || !draggedCat) return;
+                                    e.preventDefault();
+                                    setDragOverTargetId(sc.id);
+                                  }}
+                                  onDragLeave={() => {
+                                    if (dragOverTargetId === sc.id) setDragOverTargetId(null);
+                                  }}
+                                  onDrop={(e) => {
+                                    if (!isCatEditMode || !draggedCat) return;
+                                    e.preventDefault();
+                                    if (draggedCat.id === sc.id) return;
+                                    if (draggedCat.parentId === rc.id) {
+                                      handleReorderSubs(draggedCat.id, sc.id, rc.id);
+                                    } else if (draggedCat.parentId) {
+                                      handleMoveSubToAnotherParent(draggedCat.id, rc.id);
+                                    }
                                   }}
                                 >
-                                  <span className="cb-subplank-branch">↳</span>
-                                  <span className="cb-subplank-title">{getCatLabel(sc.name, t)}</span>
-                                  <span className="cb-subplank-pill">{scCount}</span>
-                                </button>
+                                  <div
+                                    className={`cb-css-subplank ${isSubActive ? 'active' : ''} ${isCatEditMode ? 'editable' : ''}`}
+                                    draggable={isCatEditMode}
+                                    onDragStart={(e) => {
+                                      if (!isCatEditMode) return;
+                                      setDraggedCat({ id: sc.id, name: sc.name, parentId: rc.id });
+                                      e.dataTransfer.setData('text/plain', sc.id);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedCat(null);
+                                      setDragOverTargetId(null);
+                                    }}
+                                    onClick={() => {
+                                      if (isCatEditMode) return;
+                                      setCat(sc.name);
+                                      setPage('Accueil');
+                                    }}
+                                  >
+                                    {isCatEditMode ? (
+                                      <span className="cb-plank-drag-handle" title="Glisser pour réorganiser">
+                                        <GripVertical size={14} />
+                                      </span>
+                                    ) : (
+                                      <span className="cb-subplank-branch">↳</span>
+                                    )}
+
+                                    <span className="cb-subplank-title">{getCatLabel(sc.name, t)}</span>
+
+                                    {isCatEditMode ? (
+                                      <div className="cb-plank-edit-actions" onClick={e => e.stopPropagation()}>
+                                        {/* Bouton pour promouvoir en catégorie principale */}
+                                        <button
+                                          type="button"
+                                          className="cb-btn-promote-pill"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePromoteToRoot(sc.id);
+                                          }}
+                                          title="Transformer en catégorie principale (vers le haut)"
+                                        >
+                                          <ArrowUp size={12} />
+                                          <span>En principale</span>
+                                        </button>
+
+                                        {/* Bouton Renommer */}
+                                        <button
+                                          type="button"
+                                          className="cb-btn-plank-icon"
+                                          onClick={(e) => handleRenameCategory(sc, e)}
+                                          title={`Renommer « ${sc.name} »`}
+                                        >
+                                          <Pencil size={12} />
+                                        </button>
+
+                                        {/* Bouton Supprimer */}
+                                        <button
+                                          type="button"
+                                          className="cb-btn-plank-icon danger"
+                                          onClick={(e) => handleDeleteCategory(sc, e)}
+                                          title={`Supprimer « ${sc.name} »`}
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="cb-subplank-pill">{scCount}</span>
+                                    )}
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -1624,6 +1968,23 @@ function App() {
                       </div>
                     );
                   })}
+
+                  {/* Bouton + Ajouter une catégorie (en bas de la liste en mode modification) */}
+                  {isCatEditMode && (
+                    <button
+                      type="button"
+                      className="cb-btn-add-main-cat"
+                      onClick={() => {
+                        setQuickCatParentId('');
+                        setQuickCatName('');
+                        setShowCatModal(true);
+                      }}
+                      title="Créer une nouvelle catégorie principale"
+                    >
+                      <Plus size={16} />
+                      <span>Ajouter une catégorie</span>
+                    </button>
+                  )}
 
                   {/* Bouton Favoris au bas des catégories */}
                   <button
@@ -2687,6 +3048,28 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     }
   }
 
+  async function signInWithGoogle() {
+    setBusy(true);
+    setMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + window.location.pathname,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error('Erreur Google Auth:', err);
+      setMessage(`Erreur de connexion Google : ${err.message || 'Impossible de se connecter avec Google.'}`);
+      setBusy(false);
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -2744,6 +3127,26 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
             >
               <LogIn size={16} /> {t.btnSignIn}
             </button>
+          </div>
+
+          {/* Google Instant Authentication Button */}
+          <button
+            type="button"
+            className="cb-btn-google-auth"
+            onClick={signInWithGoogle}
+            disabled={busy}
+          >
+            <svg className="cb-google-svg" viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>{authMode === 'signup' ? t.btnGoogleSignUp : t.btnGoogleSignIn}</span>
+          </button>
+
+          <div className="cb-auth-separator">
+            <span>{t.authOrEmail}</span>
           </div>
 
           {authMode === 'signup' ? (
@@ -2936,8 +3339,6 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
         </div>
       ) : (
         <div className="cb-profile-actions">
-          <p>{t.profileConnectedSync}</p>
-
           {/* Member Subscription & Commercial License */}
           <MemberSubscriptionCard
             session={session}

@@ -2975,6 +2975,277 @@ canvas.cb-pinned-drawing {
   background: #7c9868;
 }
 
+/* Mode Modification Catégories */
+.cb-btn-toggle-cat-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #7c9868 0%, #5b794a 100%);
+  border: 1.5px solid #3c542e;
+  color: #fff;
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 13.5px;
+  font-weight: bold;
+  padding: 3px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease;
+}
+
+.cb-btn-toggle-cat-edit:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #8ba876 0%, #688a56 100%);
+}
+
+.cb-btn-toggle-cat-edit.active {
+  background: linear-gradient(180deg, #e67e22 0%, #d35400 100%);
+  border-color: #a04000;
+  box-shadow: 0 0 10px rgba(230, 126, 34, 0.6);
+}
+
+.cb-cat-edit-banner {
+  background: rgba(230, 126, 34, 0.15);
+  border: 1.5px dashed #e67e22;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #ffd8a8;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+/* Zone de drop pour promouvoir en catégorie principale */
+.cb-cat-promote-dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(243, 156, 18, 0.25) 0%, rgba(211, 84, 0, 0.3) 100%);
+  border: 2px dashed #f39c12;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  color: #ffeaa7;
+  font-size: 13.5px;
+  font-weight: bold;
+  font-family: 'Patrick Hand SC', cursive;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: cb-pulse 1.5s infinite alternate;
+}
+
+.cb-cat-promote-dropzone.drag-over {
+  background: linear-gradient(180deg, #f39c12 0%, #e67e22 100%);
+  border-color: #fff;
+  color: #fff;
+  transform: scale(1.02);
+  box-shadow: 0 0 16px rgba(243, 156, 18, 0.8);
+}
+
+@keyframes cb-pulse {
+  0% { transform: scale(0.99); opacity: 0.85; }
+  100% { transform: scale(1.01); opacity: 1; }
+}
+
+/* Éléments en mode édition */
+.cb-css-plank.editable,
+.cb-css-subplank.editable {
+  cursor: grab;
+  user-select: none;
+}
+
+.cb-css-plank.editable:active,
+.cb-css-subplank.editable:active {
+  cursor: grabbing;
+}
+
+.cb-plank-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  color: #eed6b6;
+  opacity: 0.7;
+  margin-right: 2px;
+}
+
+.cb-plank-drag-handle:hover {
+  opacity: 1;
+}
+
+.cb-plank-edit-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.cb-btn-plank-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #27ae60;
+  border: 1px solid #1e8449;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+  padding: 0;
+}
+
+.cb-btn-plank-plus:hover {
+  transform: scale(1.15);
+  background: #2ecc71;
+}
+
+.cb-btn-plank-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+  padding: 0;
+}
+
+.cb-btn-plank-icon:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.cb-btn-plank-icon.danger:hover {
+  background: #c0392b;
+  border-color: #e74c3c;
+}
+
+.cb-btn-promote-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #d35400;
+  border: 1px solid #e67e22;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: 'Patrick Hand SC', cursive;
+  padding: 1px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.cb-btn-promote-pill:hover {
+  transform: scale(1.05);
+  background: #e67e22;
+}
+
+.cb-subplank-wrap {
+  width: 100%;
+}
+
+.cb-drag-target {
+  border-radius: 12px;
+  outline: 2px dashed #f39c12 !important;
+  outline-offset: 2px;
+  background: rgba(243, 156, 18, 0.15);
+}
+
+/* Bouton Ajouter une catégorie principale */
+.cb-btn-add-main-cat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 6px;
+  background: linear-gradient(180deg, #6b4325 0%, #4e2e17 100%);
+  border: 2px dashed #a06e3c;
+  border-radius: 12px;
+  color: #fcebd2;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+}
+
+.cb-btn-add-main-cat:hover {
+  background: linear-gradient(180deg, #7c4f2e 0%, #5d381e 100%);
+  border-color: #eed6b6;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* Google Auth Button */
+.cb-btn-google-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 16px;
+  background: #ffffff;
+  border: 2px solid #6b4325;
+  border-radius: 12px;
+  color: #3c2415;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+  margin-bottom: 14px;
+}
+
+.cb-btn-google-auth:hover {
+  background: #fdfaf6;
+  border-color: #432410;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cb-btn-google-auth:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cb-google-svg {
+  flex-shrink: 0;
+}
+
+/* Auth Separator */
+.cb-auth-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 12px 0 16px;
+  color: #8c684d;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+}
+
+.cb-auth-separator::before,
+.cb-auth-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1.5px solid #d8be9f;
+}
+
+.cb-auth-separator span {
+  padding: 0 12px;
+}
+
 /* Category Creator Modal */
 .cb-cat-modal {
   max-width: 440px !important;
