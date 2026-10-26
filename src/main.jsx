@@ -18,6 +18,7 @@ import { CguModal } from './CguModal';
 import { MembershipView } from './MembershipView';
 import { MembershipModal } from './MembershipModal';
 import { MemberSubscriptionCard } from './MemberSubscriptionCard';
+import { generateCommercialLicensePdf } from './licensePdf';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
@@ -3376,6 +3377,8 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
   const [totalUsersCount, setTotalUsersCount] = useState(0);
   const [registeredUsersList, setRegisteredUsersList] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [licensesList, setLicensesList] = useState([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
 
   // Form for adding single drawing (legacy/quick)
   const [edit, setEdit] = useState(null);
@@ -3880,7 +3883,29 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
   useEffect(() => {
     if (view === 'requests') loadRequests();
     if (view === 'stats') loadStats();
+    if (view === 'licenses') loadLicenses();
   }, [view]);
+
+  async function loadLicenses() {
+    setLoadingLicenses(true);
+    try {
+      const { data, error } = await supabase
+        .from('licenses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setLicensesList(data);
+      }
+    } catch (err) {
+      console.warn('Erreur chargement licences:', err);
+    } finally {
+      setLoadingLicenses(false);
+    }
+  }
+
+  useEffect(() => {
+    loadLicenses();
+  }, []);
 
   async function validateRequest(reqId, slug) {
     if (!slug) {
@@ -4218,6 +4243,12 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
           >
             <Mail size={16} /> Demandes de dessins
             {pendingRequestsCount > 0 && <span className="cb-tab-pill">{pendingRequestsCount}</span>}
+          </button>
+          <button
+            className={`cb-owner-tab ${view === 'licenses' ? 'active' : ''}`}
+            onClick={() => setView('licenses')}
+          >
+            <FileBadge size={16} /> Licences Commerciales ({licensesList.length})
           </button>
           <button
             className={`cb-owner-tab ${view === 'add' ? 'active' : ''}`}
@@ -5038,6 +5069,101 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                     : `Publier les ${batchUploadList.filter(x => x.selected).length} coloriage(s) sélectionné(s)`}
                 </span>
               </button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* VIEW 5 : REGISTRE ET CONSULTATION DES LICENCES COMMERCIALES */}
+      {view === 'licenses' && (
+        <div className="cb-owner-view-licenses">
+          <div className="cb-licenses-head-bar">
+            <div>
+              <h2><FileBadge size={22} /> Registre des Licences Commerciales ({licensesList.length})</h2>
+              <p>Consultez la base officielle des licences d'exploitation commerciale délivrées avec numéros de série uniques.</p>
+            </div>
+            <button
+              type="button"
+              className="cb-btn-refresh-licenses"
+              onClick={loadLicenses}
+              disabled={loadingLicenses}
+            >
+              <RefreshCw size={14} className={loadingLicenses ? 'cb-spin' : ''} />
+              <span>Actualiser la base</span>
+            </button>
+          </div>
+
+          {loadingLicenses ? (
+            <div className="cb-licenses-loading">Chargement des licences depuis Supabase…</div>
+          ) : licensesList.length === 0 ? (
+            <div className="cb-licenses-empty">
+              <FileBadge size={44} color="#8d6e63" />
+              <h3>Aucune licence commerciale émise</h3>
+              <p>Les licences souscrites avec la formule ColorVIP Pro apparaîtront automatiquement ici avec leur numéro de série unique.</p>
+            </div>
+          ) : (
+            <div className="cb-licenses-table-wrap">
+              <table className="cb-licenses-table">
+                <thead>
+                  <tr>
+                    <th>N° de Licence (Série)</th>
+                    <th>Titulaire (NOM et Prénom)</th>
+                    <th>Email client</th>
+                    <th>Formule</th>
+                    <th>Période de validité</th>
+                    <th>Statut</th>
+                    <th>Attestation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {licensesList.map((lic) => (
+                    <tr key={lic.id || lic.license_number}>
+                      <td>
+                        <code className="cb-license-code">{lic.license_number}</code>
+                      </td>
+                      <td>
+                        <b className="cb-license-table-holder">{lic.customer_name || 'Non renseigné'}</b>
+                      </td>
+                      <td>
+                        <span className="cb-license-table-email">{lic.customer_email || '—'}</span>
+                      </td>
+                      <td>
+                        <span className="cb-sub-plan-pill pro">
+                          Pro ({lic.interval === 'year' ? 'Annuelle' : 'Mensuelle'})
+                        </span>
+                      </td>
+                      <td>
+                        <div className="cb-license-table-dates">
+                          <span>Du <b>{new Date(lic.valid_from).toLocaleDateString('fr-FR')}</b></span>
+                          <span>Au <b>{new Date(lic.valid_until).toLocaleDateString('fr-FR')}</b></span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`cb-sub-status-pill ${lic.status === 'active' ? 'active' : ''}`}>
+                          {lic.status === 'active' ? 'Actif ✓' : lic.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="cb-btn-dl-lic-mini"
+                          onClick={() => generateCommercialLicensePdf({
+                            licenseNumber: lic.license_number,
+                            holderName: lic.customer_name,
+                            holderEmail: lic.customer_email,
+                            interval: lic.interval || 'month',
+                            validFrom: lic.valid_from,
+                            validUntil: lic.valid_until,
+                          })}
+                          title="Télécharger l'attestation PDF officielle"
+                        >
+                          <Download size={13} />
+                          <span>PDF</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

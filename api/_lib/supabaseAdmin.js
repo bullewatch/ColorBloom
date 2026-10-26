@@ -107,6 +107,34 @@ export async function syncSubscription(subData) {
 }
 
 /**
+ * Génère un véritable numéro de série unique pour licence officielle Colorblop (ex: CBL-2026-8K4F-9W2M-7X1P).
+ */
+export function generateLicenseSerialNumber(year = new Date().getFullYear()) {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const segment = (len) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `CBL-${year}-${segment(4)}-${segment(4)}-${segment(4)}`;
+}
+
+/**
+ * Calcule avec exactitude la date de fin calendaire :
+ * Début = jour de l'abonnement
+ * Fin = exactement le même jour calendaire 1 an plus tard (annuel) ou 1 mois plus tard (mensuel).
+ */
+export function computeExactCalendarDates(periodStartInput, interval = 'month') {
+  const startDate = periodStartInput ? new Date(periodStartInput) : new Date();
+  const endDate = new Date(startDate);
+  if (interval === 'year') {
+    endDate.setFullYear(startDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(startDate.getMonth() + 1);
+  }
+  return {
+    validFrom: startDate.toISOString(),
+    validUntil: endDate.toISOString(),
+  };
+}
+
+/**
  * Génère ou prolonge une licence commerciale nominative pour ColorVIP Pro.
  */
 export async function syncCommercialLicense({
@@ -114,11 +142,16 @@ export async function syncCommercialLicense({
   subscriptionId,
   customerName,
   customerEmail,
-  interval,
+  interval = 'month',
   periodStart,
   periodEnd,
   status = 'active',
 }) {
+  // Calcul exact des dates au même jour calendaire
+  const dates = computeExactCalendarDates(periodStart, interval);
+  const finalStart = dates.validFrom;
+  const finalEnd = periodEnd || dates.validUntil;
+
   // Vérifier si une licence existe déjà pour cette souscription
   const { data: existing } = await supabaseAdmin
     .from('licenses')
@@ -126,9 +159,8 @@ export async function syncCommercialLicense({
     .eq('subscription_id', subscriptionId)
     .maybeSingle();
 
-  const licenseNumber =
-    existing?.license_number ||
-    `CBL-PRO-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const startYear = new Date(finalStart).getFullYear();
+  const licenseNumber = existing?.license_number || generateLicenseSerialNumber(startYear);
 
   const licensePayload = {
     license_number: licenseNumber,
@@ -138,8 +170,8 @@ export async function syncCommercialLicense({
     customer_email: customerEmail,
     plan_type: 'colorvip_pro',
     interval,
-    valid_from: periodStart,
-    valid_until: periodEnd,
+    valid_from: finalStart,
+    valid_until: finalEnd,
     status,
     updated_at: new Date().toISOString(),
   };

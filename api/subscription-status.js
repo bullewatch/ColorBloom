@@ -41,15 +41,19 @@ export default async function handler(req, res) {
       if (licData) {
         license = licData;
       } else if (isOwner) {
-        // Licence créateur/artiste pour le propriétaire
+        // Licence créateur/artiste pour le propriétaire stockée en base
+        const start = new Date();
+        const end = new Date(start);
+        end.setFullYear(start.getFullYear() + 1);
+
         license = {
-          license_number: 'CBL-PRO-OWNER-MASTER',
-          customer_name: 'Florian (Artiste & Propriétaire Colorblop)',
+          license_number: 'CBL-2026-FL83-MSTR-9901',
+          customer_name: 'Florian',
           customer_email: 'flo83119@gmail.com',
           plan_type: 'colorvip_pro',
           interval: 'year',
-          valid_from: new Date().toISOString(),
-          valid_until: new Date(Date.now() + 10 * 365 * 24 * 3600 * 1000).toISOString(),
+          valid_from: start.toISOString(),
+          valid_until: end.toISOString(),
           status: 'active',
         };
       }

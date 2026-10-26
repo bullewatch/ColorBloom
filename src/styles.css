@@ -6344,6 +6344,105 @@ footer {
   font-family: 'Patrick Hand', cursive;
   font-size: 14px;
   color: #2e7d32;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cb-license-holder-box {
+  background: #ffffff;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cb-license-holder-label {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #558b2f;
+}
+
+.cb-license-holder-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cb-license-holder-name {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 17px;
+  color: #1b5e20;
+  letter-spacing: 0.5px;
+}
+
+.cb-btn-edit-holder {
+  background: transparent;
+  border: 1px dashed #81c784;
+  border-radius: 6px;
+  color: #2e7d32;
+  padding: 2px 8px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-edit-holder:hover {
+  background: #e8f5e9;
+  border-color: #2e7d32;
+}
+
+.cb-license-holder-edit-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cb-license-holder-input {
+  flex: 1;
+  padding: 4px 8px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  border: 1.5px solid #66bb6a;
+  border-radius: 6px;
+  outline: none;
+  background: #fafafa;
+  color: #1b5e20;
+}
+
+.cb-license-holder-input:focus {
+  border-color: #2e7d32;
+  background: #ffffff;
+}
+
+.cb-btn-save-holder {
+  background: #2e7d32;
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cb-btn-save-holder:hover {
+  background: #1b5e20;
+}
+
+.cb-license-dates-row {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #33691e;
 }
 
 .cb-btn-download-license {
@@ -6495,4 +6594,162 @@ footer {
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* Vue Licences Commerciales (Espace Propriétaire / Admin) */
+.cb-owner-view-licenses {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.cb-licenses-head-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed #d7ccc8;
+}
+
+.cb-licenses-head-bar h2 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 24px;
+  color: #3e2723;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cb-licenses-head-bar p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  color: #5d4037;
+  margin: 4px 0 0;
+}
+
+.cb-btn-refresh-licenses {
+  background: #ffffff;
+  border: 1.5px solid #8d6e63;
+  color: #4e342e;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-refresh-licenses:hover {
+  background: #efebe9;
+  border-color: #4e342e;
+}
+
+.cb-licenses-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: #fdfbf7;
+  border: 2px dashed #d7ccc8;
+  border-radius: 16px;
+  color: #5d4037;
+}
+
+.cb-licenses-empty h3 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 20px;
+  margin: 10px 0 4px;
+}
+
+.cb-licenses-empty p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  color: #8d6e63;
+}
+
+.cb-licenses-table-wrap {
+  overflow-x: auto;
+  background: #ffffff;
+  border: 1.5px solid #d7ccc8;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(93, 64, 55, 0.05);
+}
+
+.cb-licenses-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+}
+
+.cb-licenses-table th {
+  background: #efebe9;
+  color: #3e2723;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 15px;
+  padding: 10px 14px;
+  border-bottom: 2px solid #d7ccc8;
+  white-space: nowrap;
+}
+
+.cb-licenses-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0eae1;
+  color: #4e342e;
+  vertical-align: middle;
+}
+
+.cb-licenses-table tr:hover {
+  background: #fcf9f2;
+}
+
+.cb-license-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #c2185b;
+  background: #fce4ec;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.cb-license-table-holder {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 16px;
+  color: #1b5e20;
+}
+
+.cb-license-table-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.cb-btn-dl-lic-mini {
+  background: #2e7d32;
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.cb-btn-dl-lic-mini:hover {
+  background: #1b5e20;
 }

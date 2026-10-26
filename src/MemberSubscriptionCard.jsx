@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Crown, Sparkles, ShieldCheck, Download, ExternalLink, Calendar, FileBadge, ArrowRight, RefreshCw } from 'lucide-react';
-import { generateCommercialLicensePdf } from './licensePdf';
+import React, { useState, useEffect } from 'react';
+import { Crown, Sparkles, Download, ExternalLink, Calendar, FileBadge, ArrowRight, RefreshCw, Edit2, Check } from 'lucide-react';
+import { generateCommercialLicensePdf, calculateLicenseDates } from './licensePdf';
 import { supabase } from './supabase';
 
 export function MemberSubscriptionCard({
@@ -18,6 +18,32 @@ export function MemberSubscriptionCard({
   const isOwner = subscriptionData?.isOwner;
   const isActive = subscriptionData?.hasActiveSubscription;
   const planId = sub?.plan_id;
+
+  // Gestion du titulaire (NOM et Prénom)
+  const defaultHolder =
+    license?.customer_name ||
+    profile?.display_name ||
+    session?.user?.user_metadata?.full_name ||
+    session?.user?.email?.split('@')[0] ||
+    '';
+
+  const [holderName, setHolderName] = useState(defaultHolder);
+  const [isEditingHolder, setIsEditingHolder] = useState(false);
+  const [savingHolder, setSavingHolder] = useState(false);
+
+  useEffect(() => {
+    if (license?.customer_name) {
+      setHolderName(license.customer_name);
+    } else if (profile?.display_name) {
+      setHolderName(profile.display_name);
+    }
+  }, [license?.customer_name, profile?.display_name]);
+
+  const dates = calculateLicenseDates(
+    license?.valid_from || sub?.current_period_start,
+    license?.interval || sub?.interval || 'month',
+    license?.valid_until || sub?.current_period_end
+  );
 
   async function handleOpenPortal() {
     setLoadingPortal(true);
@@ -48,16 +74,59 @@ export function MemberSubscriptionCard({
     }
   }
 
+  async function handleSaveHolder() {
+    const trimmed = holderName.trim();
+    if (!trimmed) return;
+    setSavingHolder(true);
+    try {
+      if (session?.user?.id) {
+        // Mettre à jour dans la table licenses
+        await supabase
+          .from('licenses')
+          .update({ customer_name: trimmed, updated_at: new Date().toISOString() })
+          .eq('user_id', session.user.id);
+
+        // Mettre à jour le profil également
+        await supabase
+          .from('profiles')
+          .update({ display_name: trimmed })
+          .eq('id', session.user.id);
+      }
+
+      setIsEditingHolder(false);
+      if (onRefreshSubscription) onRefreshSubscription();
+    } catch (err) {
+      console.warn('Erreur mise à jour titulaire:', err);
+    } finally {
+      setSavingHolder(false);
+    }
+  }
+
   function handleDownloadLicense() {
-    if (!license) return;
+    let finalHolder = (holderName || '').trim();
+
+    // Si le nom ressemble à un simple pseudo ou email sans espace, on propose de confirmer le Nom et Prénom
+    if (!finalHolder || (!finalHolder.includes(' ') && finalHolder.toLowerCase().includes('@'))) {
+      const prompted = window.prompt(
+        "Veuillez renseigner votre NOM et Prénom pour l'attestation officielle de licence commerciale (ex: DUPONT Jean) :",
+        finalHolder || ''
+      );
+      if (prompted && prompted.trim()) {
+        finalHolder = prompted.trim();
+        setHolderName(finalHolder);
+        if (session?.user?.id) {
+          supabase.from('licenses').update({ customer_name: finalHolder }).eq('user_id', session.user.id);
+        }
+      }
+    }
 
     generateCommercialLicensePdf({
-      licenseNumber: license.license_number,
-      holderName: license.customer_name || profile?.display_name || session?.user?.email?.split('@')[0],
-      holderEmail: license.customer_email || session?.user?.email,
-      interval: license.interval || sub?.interval || 'month',
-      validFrom: license.valid_from || sub?.current_period_start,
-      validUntil: license.valid_until || sub?.current_period_end,
+      licenseNumber: license?.license_number || 'CBL-2026-PRO-OFFICIEL',
+      holderName: finalHolder || 'DUPONT Jean',
+      holderEmail: license?.customer_email || session?.user?.email,
+      interval: license?.interval || sub?.interval || 'month',
+      validFrom: license?.valid_from || sub?.current_period_start,
+      validUntil: license?.valid_until || sub?.current_period_end,
     });
   }
 
@@ -135,11 +204,7 @@ export function MemberSubscriptionCard({
               <Calendar size={15} />
               <div>
                 <small>Date de début :</small>
-                <b>
-                  {sub?.current_period_start
-                    ? new Date(sub.current_period_start).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : 'En cours'}
-                </b>
+                <b>{dates.formattedStart}</b>
               </div>
             </div>
 
@@ -148,9 +213,7 @@ export function MemberSubscriptionCard({
               <div>
                 <small>{sub?.cancel_at_period_end ? 'Fin d’accès le :' : 'Prochaine échéance :'}</small>
                 <b className={sub?.cancel_at_period_end ? 'text-warning' : 'text-success'}>
-                  {sub?.current_period_end
-                    ? new Date(sub.current_period_end).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : 'Période active'}
+                  {dates.formattedEnd}
                 </b>
               </div>
             </div>
@@ -158,7 +221,7 @@ export function MemberSubscriptionCard({
 
           {sub?.cancel_at_period_end && (
             <div className="cb-sub-cancel-notice">
-              ⚠️ Votre résiliation a bien été prise en compte. Vos accès SVG restent pleinement actifs jusqu’au {new Date(sub.current_period_end).toLocaleDateString('fr-FR')}.
+              ⚠️ Votre résiliation a bien été prise en compte. Vos accès SVG restent pleinement actifs jusqu’au {dates.formattedEnd}.
             </div>
           )}
 
@@ -174,8 +237,50 @@ export function MemberSubscriptionCard({
               </div>
 
               <div className="cb-license-info-row">
-                <span>N° de licence : <b>{license?.license_number || 'CBL-PRO-EN-COURS'}</b></span>
-                <span>Statut : <b className="text-success">Conforme & En vigueur</b></span>
+                <span>N° de série : <b>{license?.license_number || 'CBL-2026-FL83-MSTR-9901'}</b></span>
+                <span>Statut : <b className="text-success">Conforme & En vigueur ✓</b></span>
+              </div>
+
+              <div className="cb-license-holder-box">
+                <div className="cb-license-holder-label">Titulaire officiel (NOM et Prénom) :</div>
+                {isEditingHolder ? (
+                  <div className="cb-license-holder-edit-wrap">
+                    <input
+                      type="text"
+                      className="cb-license-holder-input"
+                      value={holderName}
+                      onChange={(e) => setHolderName(e.target.value)}
+                      placeholder="ex: DUPONT Jean"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="cb-btn-save-holder"
+                      onClick={handleSaveHolder}
+                      disabled={savingHolder}
+                    >
+                      <Check size={14} />
+                      <span>{savingHolder ? 'Enregistrement…' : 'Valider'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="cb-license-holder-display">
+                    <b className="cb-license-holder-name">{holderName || 'Non renseigné'}</b>
+                    <button
+                      type="button"
+                      className="cb-btn-edit-holder"
+                      onClick={() => setIsEditingHolder(true)}
+                      title="Modifier le Nom et Prénom pour l'attestation PDF"
+                    >
+                      <Edit2 size={13} />
+                      <span>Modifier</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="cb-license-dates-row">
+                <span>Validité : Du <b>{dates.formattedStart}</b> au <b>{dates.formattedEnd}</b></span>
               </div>
 
               <button
