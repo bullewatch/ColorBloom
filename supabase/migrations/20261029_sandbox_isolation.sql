@@ -1,11 +1,10 @@
 -- =============================================================================
 -- Migration Colorblop : Création des tables isolées Stripe Sandbox (MISSION 4)
 -- =============================================================================
--- Cette migration est STRICTEMENT ADDITIVE :
+-- Cette migration est STRICTEMENT LIMITÉE AUX TABLES SANDBOX :
+-- - Ne touche pas et ne modifie pas les tables de production existantes.
 -- - Ne supprime ni ne réinitialise aucune donnée existante.
--- - Ne modifie aucune ligne des tables de production (profiles, subscriptions, licenses).
--- - Crée uniquement les 3 tables de partitionnement sandbox et leurs politiques RLS.
--- - Ajoute de manière non-destructive les colonnes de suivi d'état sur stripe_events.
+-- - Crée uniquement les 3 tables isolées sandbox et leurs politiques RLS.
 -- =============================================================================
 
 -- 1. Table isolée : sandbox_subscriptions
@@ -69,18 +68,12 @@ create table if not exists public.sandbox_stripe_events (
 create index if not exists idx_sandbox_stripe_events_status 
   on public.sandbox_stripe_events(status);
 
--- 4. Évolution additive de la table de production stripe_events (sans toucher aux données)
-alter table public.stripe_events
-  add column if not exists status text not null default 'completed',
-  add column if not exists claimed_at timestamptz not null default now(),
-  add column if not exists error_message text;
-
--- 5. Sécurité : Activation du Row Level Security (RLS) sur les tables sandbox
+-- 4. Sécurité : Activation du Row Level Security (RLS) sur les tables sandbox
 alter table public.sandbox_subscriptions enable row level security;
 alter table public.sandbox_licenses enable row level security;
 alter table public.sandbox_stripe_events enable row level security;
 
--- 6. Politiques d'accès RLS (Lecture seule pour l'utilisateur propriétaire ou l'administrateur)
+-- 5. Politiques d'accès RLS (Lecture seule pour l'utilisateur propriétaire ou l'administrateur)
 drop policy if exists "users read own sandbox subscriptions" on public.sandbox_subscriptions;
 create policy "users read own sandbox subscriptions"
   on public.sandbox_subscriptions for select
@@ -95,10 +88,11 @@ create policy "users read own sandbox licenses"
 
 -- La table sandbox_stripe_events n'a aucune politique select publique (réservée au service_role backend)
 
--- 7. Permissions strictes : révocation des accès publics non sollicités
+-- 6. Permissions strictes : révocation des accès publics non sollicités
 revoke all on public.sandbox_subscriptions from anon;
 revoke all on public.sandbox_licenses from anon;
 revoke all on public.sandbox_stripe_events from anon, authenticated;
 
 grant select on public.sandbox_subscriptions to authenticated;
 grant select on public.sandbox_licenses to authenticated;
+
