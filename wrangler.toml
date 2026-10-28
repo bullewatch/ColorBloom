@@ -2,9 +2,3 @@ name = "colorblop"
 pages_build_output_dir = "dist"
 compatibility_date = "2024-04-01"
 compatibility_flags = ["nodejs_compat"]
-
-# Bucket Cloudflare R2 privé pour le coffre-fort des 123 SVGs VIP
-[[r2_buckets]]
-binding = "SVG_VAULT"
-bucket_name = "colorblop-svg-vault"
-preview_bucket_name = "colorblop-svg-vault"

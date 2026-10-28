@@ -1,13 +1,13 @@
 import { authenticateUser, getSupabaseAdmin, getUserSubscription } from '../_lib/supabaseAdmin.js';
+import { ANIMAL_SVGS } from '../_lib/privateSvgs.js';
 
 /**
  * download-svg.js
- * Téléchargement ultra-sécurisé des fichiers SVG vectoriels sur Cloudflare Pages :
- * - Vérification stricte du jeton JWT Supabase
- * - Contrôle d'abonnement actif (ColorVIP / ColorVIP Pro) ou statut propriétaire
- * - Récupération du fichier source depuis le bucket Cloudflare R2 privé (sans aucun accès web direct)
- * - Repli automatique sur Supabase Storage pour les coloriages téléversés
- * - Envoi avec en-têtes de sécurité stricts (anti-cache et pièce jointe forcée)
+ * Téléchargement sécurisé des fichiers SVG vectoriels sur Cloudflare Pages :
+ * - Aucune dépendance à Cloudflare R2 : les 123 SVGs d'animaux sont intégrés en mémoire.
+ * - Pour les coloriages ajoutés depuis l'espace propriétaire, téléchargement direct depuis le bucket Supabase Storage 'colorings'.
+ * - Contrôle d'authentification et de souscription VIP (ou statut propriétaire) côté serveur.
+ * - En-têtes stricts anti-cache et disposition 'attachment' pour forcer le téléchargement du fichier brut.
  */
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -66,48 +66,23 @@ export async function onRequestGet(context) {
       );
     }
 
-    let svgData = null;
+    let svgContent = null;
     let downloadFilename = 'coloriage.svg';
 
-    // CAS A : Dessin de la collection Animaux (animal-1.svg à animal-126.svg)
+    // CAS A : Dessin de la collection Animaux (1 à 126) servi instantanément depuis le catalogue intégré
     const animalMatch = (id || slug || filename).match(/animal[-_]?(?:svg[-_]?)?(\d+)/i);
 
     if (animalMatch) {
       const num = animalMatch[1];
-      const r2Key = `animal-${num}.svg`;
-      downloadFilename = `animal-mignon-${num}.svg`;
-
-      // 1. Extraction prioritaire depuis le bucket Cloudflare R2 privé
-      if (env.SVG_VAULT) {
-        try {
-          const r2Object = await env.SVG_VAULT.get(r2Key);
-          if (r2Object) {
-            svgData = r2Object.body;
-          }
-        } catch (r2Err) {
-          console.warn('Erreur lecture R2:', r2Err);
-        }
-      }
-
-      // 2. Repli de secours : Supabase Storage (si les SVGs y sont aussi synchronisés)
-      if (!svgData) {
-        try {
-          const supabaseAdmin = getSupabaseAdmin(env);
-          const { data: fileBlob } = await supabaseAdmin.storage
-            .from('private-svgs')
-            .download(`animaux/${r2Key}`);
-
-          if (fileBlob) {
-            svgData = fileBlob.stream();
-          }
-        } catch (supaStorageErr) {
-          // Ignorer si non présent
-        }
+      const rawSvg = ANIMAL_SVGS[num];
+      if (rawSvg) {
+        svgContent = rawSvg;
+        downloadFilename = `animal-mignon-${num}.svg`;
       }
     }
 
-    // CAS B : Dessin hébergé dans Supabase Storage (coloring_pages)
-    if (!svgData && (id || slug)) {
+    // CAS B : Dessin hébergé dans Supabase Storage (provenant de l'Espace Propriétaire)
+    if (!svgContent && (id || slug)) {
       const supabaseAdmin = getSupabaseAdmin(env);
       let query = supabaseAdmin.from('coloring_pages').select('*');
       if (id) query = query.eq('id', id);
@@ -117,26 +92,28 @@ export async function onRequestGet(context) {
 
       if (page?.image_path) {
         downloadFilename = `${page.slug || 'dessin'}.svg`;
+
+        // Téléchargement sécurisé depuis le bucket Supabase Storage existant
         const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
           .from('colorings')
           .download(page.image_path);
 
         if (!downloadErr && fileData) {
-          svgData = fileData.stream();
+          svgContent = await fileData.text();
         }
       }
     }
 
-    if (!svgData) {
+    if (!svgContent) {
       return new Response(
         JSON.stringify({ error: 'Fichier SVG vectoriel introuvable pour ce coloriage.' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 4. Envoi sécurisé en flux (Stream)
+    // 4. Envoi du fichier SVG en téléchargement direct
     const sanitizedFilename = downloadFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return new Response(svgData, {
+    return new Response(svgContent, {
       status: 200,
       headers: {
         'Content-Type': 'image/svg+xml; charset=utf-8',
