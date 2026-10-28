@@ -1,5 +1,16 @@
-import { getStripe, ensureStripeProductsAndPrices, PLANS, INTERVALS } from '../_lib/stripe.js';
-import { authenticateUser, getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import {
+  getStripe,
+  ensureStripeProductsAndPrices,
+  PLANS,
+  INTERVALS,
+  isStripeSandboxKey,
+} from '../_lib/stripe.js';
+import {
+  authenticateUser,
+  getSupabaseAdmin,
+  getUserSubscription,
+  isSandboxEnvironment,
+} from '../_lib/supabaseAdmin.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -31,11 +42,27 @@ export async function onRequestPost(context) {
       );
     }
 
+    const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
     const verifiedCustomerName = customerName?.trim() || null;
     const stripe = getStripe(env);
-    const supabaseAdmin = getSupabaseAdmin(env);
+    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
-    // 3. Tarifs Stripe
+    // 3. Vérification d'abonnement existant pour éviter les doublons accidentels
+    const existingSub = await getUserSubscription(user.id, env, { isSandbox });
+    if (existingSub && ['active', 'trialing'].includes(existingSub.status)) {
+      const isSamePlan = existingSub.plan_id === planId && existingSub.interval === interval;
+      if (isSamePlan && !existingSub.cancel_at_period_end) {
+        return new Response(
+          JSON.stringify({
+            error: `Vous bénéficiez déjà d'un abonnement actif à ${planId === PLANS.COLORVIP_PRO ? 'ColorVIP Pro' : 'ColorVIP'} (${interval === 'year' ? 'Annuel' : 'Mensuel'}).`,
+            alreadySubscribed: true,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 4. Tarifs Stripe (garantie d'existence sans doublons)
     const { prices } = await ensureStripeProductsAndPrices(stripe);
     const targetPriceKey = `${planId}_${interval}`;
     const priceId = prices[targetPriceKey];
@@ -47,7 +74,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    // 4. Récupération ou création du client Stripe
+    // 5. Récupération ou création du client Stripe
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('stripe_customer_id, display_name')
@@ -82,7 +109,7 @@ export async function onRequestPost(context) {
         .eq('id', user.id);
     }
 
-    // 5. Déterminer l'URL d'origine
+    // 6. Déterminer l'URL d'origine
     const reqUrl = new URL(request.url);
     const origin = request.headers.get('origin') || `${reqUrl.protocol}//${reqUrl.host}`;
     const finalCustomerName = verifiedCustomerName || profile?.display_name || user.email.split('@')[0];
@@ -94,7 +121,7 @@ export async function onRequestPost(context) {
         .eq('id', user.id);
     }
 
-    // 6. Création de la session Stripe Checkout
+    // 7. Création de la session Stripe Checkout (Stripe API 2026-09-30.endive)
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,

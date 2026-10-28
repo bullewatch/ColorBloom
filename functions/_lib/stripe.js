@@ -10,6 +10,8 @@ export const INTERVALS = {
   YEAR: 'year',
 };
 
+export const STRIPE_API_VERSION = '2026-09-30.endive';
+
 export const PLAN_CONFIG = {
   [PLANS.COLORVIP]: {
     name: 'ColorVIP',
@@ -66,7 +68,15 @@ export const PLAN_CONFIG = {
 };
 
 /**
- * Initialise le client Stripe configuré pour le runtime Cloudflare Pages (fetch HTTP client).
+ * Détermine si une clé secrète Stripe correspond au mode sandbox de test.
+ */
+export function isStripeSandboxKey(secretKey = '') {
+  return typeof secretKey === 'string' && secretKey.trim().startsWith('sk_test_');
+}
+
+/**
+ * Initialise le client Stripe configuré pour le runtime Cloudflare Pages (fetch HTTP client)
+ * avec la version API stable '2026-09-30.endive'.
  */
 export function getStripe(env = {}) {
   const secretKey =
@@ -78,13 +88,142 @@ export function getStripe(env = {}) {
   }
 
   return new Stripe(secretKey, {
-    apiVersion: '2023-10-16',
+    apiVersion: STRIPE_API_VERSION,
     httpClient: Stripe.createFetchHttpClient(),
     appInfo: {
       name: 'Colorblop',
       version: '1.0.0',
     },
   });
+}
+
+/**
+ * Extrait les dates exactes de début et fin de période d'un abonnement Stripe.
+ *
+ * NOTE API Stripe '2026-09-30.endive' :
+ * Les propriétés 'current_period_start' et 'current_period_end' ne sont plus sur la racine
+ * de l'objet Subscription, mais sur chaque élément d'abonnement ('items.data[0]').
+ * Cette fonction lit prioritairement la structure 2026-09-30.endive tout en conservant
+ * des fallbacks résilients pour éviter tout RangeError / Invalid time value.
+ */
+export function getSubscriptionDates(sub) {
+  if (!sub) {
+    const now = new Date();
+    const nextMonth = new Date(now);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    return {
+      periodStart: now.toISOString(),
+      periodEnd: nextMonth.toISOString(),
+      rawStartSec: Math.floor(now.getTime() / 1000),
+      rawEndSec: Math.floor(nextMonth.getTime() / 1000),
+    };
+  }
+
+  const firstItem = sub.items?.data?.[0];
+
+  // 1. Début de période : priorité item (2026-09-30.endive), puis root legacy, puis start_date / created
+  const rawStartSec =
+    firstItem?.current_period_start ??
+    sub.current_period_start ??
+    sub.start_date ??
+    sub.created;
+
+  // 2. Fin de période : priorité item (2026-09-30.endive), puis root legacy, puis cancel_at / ended_at
+  const rawEndSec =
+    firstItem?.current_period_end ??
+    sub.current_period_end ??
+    sub.cancel_at ??
+    sub.ended_at;
+
+  const startDate = rawStartSec
+    ? new Date(rawStartSec * 1000)
+    : new Date();
+
+  let endDate;
+  if (rawEndSec) {
+    endDate = new Date(rawEndSec * 1000);
+  } else {
+    // Calcul par défaut basé sur l'intervalle si non disponible
+    const interval = firstItem?.price?.recurring?.interval || 'month';
+    endDate = new Date(startDate);
+    if (interval === 'year') {
+      endDate.setFullYear(startDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(startDate.getMonth() + 1);
+    }
+  }
+
+  // Sécurité absolue contre Invalid Date
+  const validStart = isNaN(startDate.getTime()) ? new Date() : startDate;
+  const validEnd = isNaN(endDate.getTime())
+    ? new Date(validStart.getTime() + 30 * 24 * 3600 * 1000)
+    : endDate;
+
+  return {
+    periodStart: validStart.toISOString(),
+    periodEnd: validEnd.toISOString(),
+    rawStartSec: Math.floor(validStart.getTime() / 1000),
+    rawEndSec: Math.floor(validEnd.getTime() / 1000),
+  };
+}
+
+/**
+ * Extrait l'identifiant d'abonnement depuis un objet Facture Stripe (Invoice).
+ *
+ * NOTE API Stripe '2026-09-30.endive' :
+ * La propriété racine 'invoice.subscription' est désormais migrée vers :
+ * 'invoice.parent.subscription_details.subscription' (ou lignes de facture).
+ */
+export function getInvoiceSubscriptionId(invoice) {
+  if (!invoice) return null;
+
+  // 1. Structure Stripe 2026-09-30.endive : invoice.parent.subscription_details.subscription
+  const parentSub = invoice.parent?.subscription_details?.subscription;
+  if (parentSub) {
+    return typeof parentSub === 'string' ? parentSub : parentSub.id;
+  }
+
+  // 2. Lignes de facture (InvoiceLineItem parent subscription_item_details)
+  const lineSub = invoice.lines?.data?.[0]?.parent?.subscription_item_details?.subscription;
+  if (lineSub) {
+    return typeof lineSub === 'string' ? lineSub : lineSub.id;
+  }
+
+  // 3. Fallback format hérité pour compatibilité
+  if (invoice.subscription) {
+    return typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
+  }
+
+  return null;
+}
+
+/**
+ * Extrait et qualifie la formule, l'intervalle et le montant depuis un abonnement Stripe.
+ */
+export function getSubscriptionPlanInfo(sub) {
+  const item = sub.items?.data?.[0];
+  const price = item?.price;
+  const unitAmount = price?.unit_amount || 0;
+  const interval = price?.recurring?.interval || 'month';
+
+  let planId = sub.metadata?.plan_id || price?.metadata?.plan_id;
+  if (!planId) {
+    if (unitAmount >= 4999 || unitAmount === 599) {
+      planId = PLANS.COLORVIP_PRO;
+    } else {
+      planId = PLANS.COLORVIP;
+    }
+  }
+
+  return {
+    item,
+    price,
+    priceId: price?.id || '',
+    unitAmount,
+    interval,
+    planId,
+    currency: price?.currency || 'eur',
+  };
 }
 
 /**

@@ -1,5 +1,10 @@
-import { getStripe } from '../_lib/stripe.js';
-import { authenticateUser, getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { getStripe, isStripeSandboxKey } from '../_lib/stripe.js';
+import {
+  authenticateUser,
+  getSupabaseAdmin,
+  getTargetTables,
+  isSandboxEnvironment,
+} from '../_lib/supabaseAdmin.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -13,7 +18,9 @@ export async function onRequestPost(context) {
       );
     }
 
-    const supabaseAdmin = getSupabaseAdmin(env);
+    const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
+    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+    const tables = getTargetTables(env, isSandbox);
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')
@@ -25,7 +32,7 @@ export async function onRequestPost(context) {
 
     if (!customerId) {
       const { data: sub } = await supabaseAdmin
-        .from('subscriptions')
+        .from(tables.subscriptions)
         .select('stripe_customer_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })

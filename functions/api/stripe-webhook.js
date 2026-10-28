@@ -1,19 +1,31 @@
-import { getStripe, PLANS } from '../_lib/stripe.js';
+import {
+  getStripe,
+  PLANS,
+  getSubscriptionDates,
+  getInvoiceSubscriptionId,
+  getSubscriptionPlanInfo,
+  isStripeSandboxKey,
+} from '../_lib/stripe.js';
 import {
   getSupabaseAdmin,
   syncSubscription,
   syncCommercialLicense,
-  isEventProcessed,
-  markEventProcessed,
+  claimEvent,
+  getTargetTables,
+  isSandboxEnvironment,
 } from '../_lib/supabaseAdmin.js';
 
 /**
  * stripe-webhook.js
- * Réceptionnaire hautement sécurisé des webhooks Stripe sur Cloudflare Pages Functions :
- * - Validation cryptographique stricte et OBLIGATOIRE du corps brut (raw text) et de la signature Stripe.
- * - Aucune exécution sans signature valide (élimination totale de la faille de repli).
- * - Contrôle d'idempotence strict via la table Supabase `stripe_events`.
- * - Synchronisation automatique des abonnements et délivrance des licences commerciales ColorVIP Pro.
+ * Réceptionnaire sécurisé des webhooks Stripe pour Cloudflare Pages Functions :
+ * - Version API stable Stripe : 2026-09-30.endive
+ * - Validation cryptographique stricte et obligatoire du corps brut et de la signature Stripe.
+ * - Idempotence atomique stricte via table stripe_events pour éliminer tout risque de double traitement concurrent.
+ * - Protection anti-désordre (out-of-order events) par récupération directe de l'état Stripe et contrôle des horodatages.
+ * - Extraction résiliente des dates (items.data[0].current_period_start/end) sans aucune erreur RangeError.
+ * - Référence des factures adaptée à la structure 2026-09-30.endive (invoice.parent.subscription_details.subscription).
+ * - Isolation stricte des données sandbox (garde-fou protégeant les utilisateurs de production réels).
+ * - Maintien des droits commerciaux jusqu'au terme de la période payée en cas d'annulation.
  */
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -30,7 +42,7 @@ export async function onRequestPost(context) {
     const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
     const signature = request.headers.get('stripe-signature');
 
-    // 1. Contrôle absolu de présence du secret et de la signature
+    // 1. Contrôle de présence du secret et de la signature
     if (!webhookSecret) {
       console.error('CRITIQUE : STRIPE_WEBHOOK_SECRET non configuré dans Cloudflare Pages.');
       return new Response(
@@ -67,8 +79,11 @@ export async function onRequestPost(context) {
       );
     }
 
-    // 3. Contrôle d'idempotence
-    const alreadyHandled = await isEventProcessed(event.id, env);
+    // Détection du mode Sandbox
+    const isSandbox = event.livemode === false || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
+
+    // 3. Contrôle d'idempotence atomique (verrouille l'événement contre les requêtes simultanées)
+    const { alreadyHandled } = await claimEvent(event.id, event.type, env, isSandbox);
     if (alreadyHandled) {
       console.log(`Événement Stripe déjà traité (idempotent) : ${event.id} [${event.type}]`);
       return new Response(
@@ -77,56 +92,66 @@ export async function onRequestPost(context) {
       );
     }
 
-    console.log(`Traitement événement Stripe : ${event.type} [${event.id}]`);
+    console.log(`Traitement événement Stripe [${event.type}] (id: ${event.id}, sandbox: ${isSandbox})`);
 
-    // 4. Traitement des événements
+    // 4. Traitement des événements du cycle de vie des abonnements
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         if (session.mode === 'subscription' && session.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          await handleSubscriptionUpdate(subscription, session.metadata, env, stripe);
+          const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          await handleSubscriptionUpdate(subscription, session.metadata, env, stripe, isSandbox, event.created);
         }
         break;
       }
 
       case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object;
-        await handleSubscriptionUpdate(subscription, {}, env, stripe);
+      case 'customer.subscription.updated':
+      case 'customer.subscription.resumed': {
+        const sub = event.data.object;
+        // Récupération de l'état Stripe le plus récent pour parer à tout désordre réseau
+        const freshSub = await stripe.subscriptions.retrieve(sub.id);
+        await handleSubscriptionUpdate(freshSub, {}, env, stripe, isSandbox, event.created);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        await handleSubscriptionDeleted(subscription, env);
+        await handleSubscriptionDeleted(subscription, env, isSandbox, event.created);
         break;
       }
 
-      case 'invoice.payment_succeeded': {
+      case 'customer.subscription.paused': {
+        const subscription = event.data.object;
+        await handleSubscriptionPaused(subscription, env, isSandbox, event.created);
+        break;
+      }
+
+      case 'invoice.payment_succeeded':
+      case 'invoice.paid': {
         const invoice = event.data.object;
-        if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-          await handleSubscriptionUpdate(subscription, {}, env, stripe);
+        const subId = getInvoiceSubscriptionId(invoice);
+        if (subId) {
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          await handleSubscriptionUpdate(subscription, {}, env, stripe, isSandbox, event.created);
         }
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-          await handleSubscriptionPaymentFailed(subscription, env);
+        const subId = getInvoiceSubscriptionId(invoice);
+        if (subId) {
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          await handleSubscriptionPaymentFailed(subscription, env, isSandbox, event.created);
         }
         break;
       }
 
       default:
-        console.log(`Événement Stripe non traité : ${event.type}`);
+        console.log(`Événement Stripe sans action requise : ${event.type}`);
     }
-
-    // 5. Marquer l'événement comme traité
-    await markEventProcessed(event.id, event.type, env);
 
     return new Response(
       JSON.stringify({ received: true }),
@@ -141,8 +166,9 @@ export async function onRequestPost(context) {
   }
 }
 
-async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe) {
-  const supabaseAdmin = getSupabaseAdmin(env);
+async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isSandbox, eventCreated) {
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+  const tables = getTargetTables(env, isSandbox);
 
   let userId =
     sub.metadata?.user_id ||
@@ -166,22 +192,8 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe) {
     return;
   }
 
-  const item = sub.items?.data?.[0];
-  const price = item?.price;
-  const unitAmount = price?.unit_amount || 0;
-  const interval = price?.recurring?.interval || 'month';
-
-  let planId = sub.metadata?.plan_id || price?.metadata?.plan_id;
-  if (!planId) {
-    if (unitAmount >= 4999 || unitAmount === 599) {
-      planId = PLANS.COLORVIP_PRO;
-    } else {
-      planId = PLANS.COLORVIP;
-    }
-  }
-
-  const periodStart = new Date(sub.current_period_start * 1000).toISOString();
-  const periodEnd = new Date(sub.current_period_end * 1000).toISOString();
+  const { price, priceId, unitAmount, interval, planId, currency } = getSubscriptionPlanInfo(sub);
+  const { periodStart, periodEnd } = getSubscriptionDates(sub);
 
   const subData = {
     id: sub.id,
@@ -189,21 +201,23 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe) {
     stripe_customer_id: customerId,
     status: sub.status,
     plan_id: planId,
-    price_id: price?.id || '',
+    price_id: priceId,
     interval,
     amount: unitAmount,
-    currency: price?.currency || 'eur',
+    currency,
     current_period_start: periodStart,
     current_period_end: periodEnd,
     cancel_at_period_end: Boolean(sub.cancel_at_period_end),
     canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
-    updated_at: new Date().toISOString(),
+    updated_at: eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString(),
   };
 
-  await syncSubscription(subData, env);
+  await syncSubscription(subData, env, { isSandbox });
 
   // Synchronisation de la licence commerciale nominative pour ColorVIP Pro
-  if (planId === PLANS.COLORVIP_PRO && ['active', 'trialing'].includes(sub.status)) {
+  // Si résiliation demandée (cancel_at_period_end = true), la licence reste active jusqu'à la fin de la période payée !
+  const isLicensed = planId === PLANS.COLORVIP_PRO && ['active', 'trialing'].includes(sub.status);
+  if (isLicensed) {
     const { data: userProfile } = await supabaseAdmin
       .from('profiles')
       .select('display_name')
@@ -232,71 +246,117 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe) {
         periodEnd,
         status: 'active',
       },
-      env
+      env,
+      { isSandbox }
     );
   }
 }
 
-async function handleSubscriptionDeleted(sub, env) {
-  const supabaseAdmin = getSupabaseAdmin(env);
+async function handleSubscriptionDeleted(sub, env, isSandbox, eventCreated) {
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+  const tables = getTargetTables(env, isSandbox);
+  const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
 
   await supabaseAdmin
-    .from('subscriptions')
+    .from(tables.subscriptions)
     .update({
       status: 'canceled',
-      canceled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      canceled_at: ts,
+      updated_at: ts,
     })
     .eq('id', sub.id);
 
   const { data: existingSub } = await supabaseAdmin
-    .from('subscriptions')
+    .from(tables.subscriptions)
     .select('user_id')
     .eq('id', sub.id)
     .maybeSingle();
 
   if (existingSub?.user_id) {
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        subscription_plan: null,
-        subscription_status: 'canceled',
-      })
-      .eq('id', existingSub.user_id);
+    if (!tables.isProductionProject || !isSandbox) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          subscription_plan: null,
+          subscription_status: 'canceled',
+        })
+        .eq('id', existingSub.user_id);
+    }
 
     await supabaseAdmin
-      .from('licenses')
+      .from(tables.licenses)
       .update({
         status: 'expired',
-        updated_at: new Date().toISOString(),
+        updated_at: ts,
       })
       .eq('subscription_id', sub.id);
   }
 }
 
-async function handleSubscriptionPaymentFailed(sub, env) {
-  const supabaseAdmin = getSupabaseAdmin(env);
+async function handleSubscriptionPaused(sub, env, isSandbox, eventCreated) {
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+  const tables = getTargetTables(env, isSandbox);
+  const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
 
   await supabaseAdmin
-    .from('subscriptions')
+    .from(tables.subscriptions)
     .update({
-      status: 'past_due',
-      updated_at: new Date().toISOString(),
+      status: 'paused',
+      updated_at: ts,
     })
     .eq('id', sub.id);
 
   const { data: existingSub } = await supabaseAdmin
-    .from('subscriptions')
+    .from(tables.subscriptions)
+    .select('user_id')
+    .eq('id', sub.id)
+    .maybeSingle();
+
+  if (existingSub?.user_id && (!tables.isProductionProject || !isSandbox)) {
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        subscription_status: 'paused',
+      })
+      .eq('id', existingSub.user_id);
+  }
+}
+
+async function handleSubscriptionPaymentFailed(sub, env, isSandbox, eventCreated) {
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+  const tables = getTargetTables(env, isSandbox);
+  const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
+
+  await supabaseAdmin
+    .from(tables.subscriptions)
+    .update({
+      status: 'past_due',
+      updated_at: ts,
+    })
+    .eq('id', sub.id);
+
+  const { data: existingSub } = await supabaseAdmin
+    .from(tables.subscriptions)
     .select('user_id')
     .eq('id', sub.id)
     .maybeSingle();
 
   if (existingSub?.user_id) {
+    if (!tables.isProductionProject || !isSandbox) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          subscription_status: 'past_due',
+        })
+        .eq('id', existingSub.user_id);
+    }
+
     await supabaseAdmin
-      .from('profiles')
+      .from(tables.licenses)
       .update({
-        subscription_status: 'past_due',
+        status: 'suspended',
+        updated_at: ts,
       })
-      .eq('id', existingSub.user_id);
+      .eq('subscription_id', sub.id);
   }
 }

@@ -361,3 +361,64 @@ using (user_id = auth.uid() or public.current_user_is_admin());
 
 grant select on public.subscriptions to authenticated;
 grant select on public.licenses to authenticated;
+
+-- === COLORBLOP SANDBOX ISOLATION SCHEMA (MISSION 4) ===
+-- Ces tables isolées permettent d'exécuter des tests Stripe Sandbox
+-- sans jamais modifier ni écraser les abonnements, licences ou profils des utilisateurs réels.
+create table if not exists public.sandbox_subscriptions (
+  id text primary key,
+  user_id uuid references public.profiles(id) on delete cascade,
+  stripe_customer_id text not null,
+  status text not null,
+  plan_id text not null,
+  price_id text not null,
+  interval text not null,
+  amount integer not null,
+  currency text not null default 'eur',
+  current_period_start timestamptz not null,
+  current_period_end timestamptz not null,
+  cancel_at_period_end boolean not null default false,
+  canceled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.sandbox_licenses (
+  id uuid primary key default gen_random_uuid(),
+  license_number text unique not null,
+  user_id uuid references public.profiles(id) on delete cascade,
+  subscription_id text references public.sandbox_subscriptions(id) on delete cascade,
+  customer_name text not null,
+  customer_email text not null,
+  plan_type text not null default 'colorvip_pro',
+  interval text not null,
+  valid_from timestamptz not null,
+  valid_until timestamptz not null,
+  status text not null default 'active',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.sandbox_stripe_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz not null default now()
+);
+
+alter table public.sandbox_subscriptions enable row level security;
+alter table public.sandbox_licenses enable row level security;
+alter table public.sandbox_stripe_events enable row level security;
+
+create policy "users read own sandbox subscriptions"
+on public.sandbox_subscriptions for select
+to authenticated
+using (user_id = auth.uid() or public.current_user_is_admin());
+
+create policy "users read own sandbox licenses"
+on public.sandbox_licenses for select
+to authenticated
+using (user_id = auth.uid() or public.current_user_is_admin());
+
+grant select on public.sandbox_subscriptions to authenticated;
+grant select on public.sandbox_licenses to authenticated;
+

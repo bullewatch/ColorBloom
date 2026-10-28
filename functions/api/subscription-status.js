@@ -1,4 +1,11 @@
-import { authenticateUser, getSupabaseAdmin, getUserSubscription } from '../_lib/supabaseAdmin.js';
+import { isStripeSandboxKey } from '../_lib/stripe.js';
+import {
+  authenticateUser,
+  getSupabaseAdmin,
+  getUserSubscription,
+  getTargetTables,
+  isSandboxEnvironment,
+} from '../_lib/supabaseAdmin.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -22,10 +29,12 @@ export async function onRequestGet(context) {
       user.email?.toLowerCase() === 'flo83119@gmail.com' ||
       user.id === 'efd85ff7-77c2-4508-9493-156c58bbc9fa';
 
-    const supabaseAdmin = getSupabaseAdmin(env);
+    const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
+    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+    const tables = getTargetTables(env, isSandbox);
 
     // 1. Abonnement actif en base
-    const subscription = await getUserSubscription(user.id, env);
+    const subscription = await getUserSubscription(user.id, env, { isSandbox });
     const hasActiveSub = Boolean(
       subscription &&
       ['active', 'trialing'].includes(subscription.status) &&
@@ -36,7 +45,7 @@ export async function onRequestGet(context) {
     let license = null;
     if (subscription?.plan_id === 'colorvip_pro' || isOwner) {
       const { data: licData } = await supabaseAdmin
-        .from('licenses')
+        .from(tables.licenses)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })

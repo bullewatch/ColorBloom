@@ -1,4 +1,10 @@
-import { authenticateUser, getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { isStripeSandboxKey } from '../_lib/stripe.js';
+import {
+  authenticateUser,
+  getSupabaseAdmin,
+  getTargetTables,
+  isSandboxEnvironment,
+} from '../_lib/supabaseAdmin.js';
 
 /**
  * lock-license-name.js
@@ -43,12 +49,14 @@ export async function onRequestPost(context) {
       );
     }
 
+    const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
     const officialName = trimmed1.toUpperCase();
-    const supabaseAdmin = getSupabaseAdmin(env);
+    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+    const tables = getTargetTables(env, isSandbox);
 
     // Vérifier si une licence existe pour cet utilisateur
     const { data: existingLic } = await supabaseAdmin
-      .from('licenses')
+      .from(tables.licenses)
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
@@ -68,7 +76,7 @@ export async function onRequestPost(context) {
 
     if (existingLic?.id) {
       await supabaseAdmin
-        .from('licenses')
+        .from(tables.licenses)
         .update({
           customer_name: officialName,
           updated_at: new Date().toISOString(),
@@ -76,10 +84,12 @@ export async function onRequestPost(context) {
         .eq('id', existingLic.id);
     }
 
-    await supabaseAdmin
-      .from('profiles')
-      .update({ display_name: officialName })
-      .eq('id', user.id);
+    if (!tables.isProductionProject || !isSandbox) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ display_name: officialName })
+        .eq('id', user.id);
+    }
 
     return new Response(
       JSON.stringify({
