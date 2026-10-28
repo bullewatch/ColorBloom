@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "include": [
+    "/api/*"
+  ],
+  "exclude": [
+    "/previews/*",
+    "/fonts/*",
+    "/assets/*",
+    "/favicon.ico",
+    "/robots.txt",
+    "/index.html"
+  ]
+}

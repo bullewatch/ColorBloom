@@ -1,0 +1,139 @@
+import { getStripe, ensureStripeProductsAndPrices, PLANS, INTERVALS } from '../_lib/stripe.js';
+import { authenticateUser, getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  try {
+    // 1. Authentification obligatoire
+    const { user, error: authError } = await authenticateUser(request, env);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Vous devez être connecté pour vous abonner.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { planId, interval, customerName } = body;
+
+    // 2. Validation stricte des données d'entrée
+    if (![PLANS.COLORVIP, PLANS.COLORVIP_PRO].includes(planId)) {
+      return new Response(
+        JSON.stringify({ error: 'Formule d’abonnement invalide.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (![INTERVALS.MONTH, INTERVALS.YEAR].includes(interval)) {
+      return new Response(
+        JSON.stringify({ error: 'Périodicité invalide (month ou year attendu).' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const verifiedCustomerName = customerName?.trim() || null;
+    const stripe = getStripe(env);
+    const supabaseAdmin = getSupabaseAdmin(env);
+
+    // 3. Tarifs Stripe
+    const { prices } = await ensureStripeProductsAndPrices(stripe);
+    const targetPriceKey = `${planId}_${interval}`;
+    const priceId = prices[targetPriceKey];
+
+    if (!priceId) {
+      return new Response(
+        JSON.stringify({ error: `Tarif introuvable pour ${planId} (${interval}).` }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Récupération ou création du client Stripe
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('stripe_customer_id, display_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    let customerId = profile?.stripe_customer_id;
+
+    if (!customerId) {
+      const existingCustomers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+
+      if (existingCustomers.data.length > 0) {
+        customerId = existingCustomers.data[0].id;
+      } else {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: profile?.display_name || user.email.split('@')[0],
+          metadata: {
+            supabase_uid: user.id,
+            app: 'colorblop',
+          },
+        });
+        customerId = customer.id;
+      }
+
+      await supabaseAdmin
+        .from('profiles')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', user.id);
+    }
+
+    // 5. Déterminer l'URL d'origine
+    const reqUrl = new URL(request.url);
+    const origin = request.headers.get('origin') || `${reqUrl.protocol}//${reqUrl.host}`;
+    const finalCustomerName = verifiedCustomerName || profile?.display_name || user.email.split('@')[0];
+
+    if (verifiedCustomerName && verifiedCustomerName !== profile?.display_name) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ display_name: verifiedCustomerName })
+        .eq('id', user.id);
+    }
+
+    // 6. Création de la session Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId,
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+          plan_id: planId,
+          interval,
+          customer_email: user.email,
+          customer_name: finalCustomerName,
+        },
+      },
+      metadata: {
+        user_id: user.id,
+        plan_id: planId,
+        interval,
+        customer_name: finalCustomerName,
+      },
+      success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/?checkout=cancel`,
+      allow_promotion_codes: true,
+      billing_address_collection: 'auto',
+    });
+
+    return new Response(
+      JSON.stringify({ url: session.url, sessionId: session.id }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    console.error('Erreur create-checkout-session:', err);
+    return new Response(
+      JSON.stringify({ error: err.message || 'Une erreur est survenue lors de la création de la session Stripe.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}

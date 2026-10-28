@@ -1,0 +1,25 @@
+# En-têtes globaux de sécurité pour tous les fichiers statiques
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# Miniatures WebP (légères, immuables, mises en cache 1 an sur le CDN et navigateur)
+/previews/*/thumbs/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Aperçus PNG originaux
+/previews/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Polices de caractères
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Bundles Vite avec hash (JS, CSS)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML principal SPA (doit se revalider pour afficher immédiatement les mises à jour du site)
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

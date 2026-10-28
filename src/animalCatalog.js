@@ -13,6 +13,7 @@ export const animalCatalog = Array.from({ length: 126 }, (_, i) => i + 1)
     likes: ((num * 47 + 13) % 920) + 85,
     imagePath: `/previews/animaux/animal-${num}.png`,
     image: `/previews/animaux/animal-${num}.png`,
+    thumb: `/previews/animaux/thumbs/animal-${num}.webp`,
     svgAssetId: `animal-${num}`,
     isSvg: true,
     fresh: num <= 15,

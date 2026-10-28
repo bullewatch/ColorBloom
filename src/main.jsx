@@ -19,6 +19,7 @@ import { MembershipView } from './MembershipView';
 import { MembershipModal } from './MembershipModal';
 import { MemberSubscriptionCard } from './MemberSubscriptionCard';
 import { generateCommercialLicensePdf } from './licensePdf';
+import { exportDrawingToCanvas, prepareHighResSvgString } from './svgExport';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import boardArt from '../assets/board-tight.png';
@@ -85,6 +86,11 @@ function formatLikes(count) {
 
 function toDrawing(row) {
   const isSvg = (row.image_path || '').toLowerCase().endsWith('.svg');
+  const fullImage = coloringImageUrl(row.image_path);
+  let thumb = row.thumb || fullImage;
+  if (!row.thumb && row.image_path && row.image_path.includes('/previews/animaux/')) {
+    thumb = row.image_path.replace('/previews/animaux/', '/previews/animaux/thumbs/').replace('.png', '.webp');
+  }
   return {
     id: row.id,
     slug: row.slug,
@@ -93,7 +99,8 @@ function toDrawing(row) {
     likes: row.likes_count || 0,
     downloads: row.downloads_count || 0,
     imagePath: row.image_path,
-    image: coloringImageUrl(row.image_path),
+    image: fullImage,
+    thumb: thumb || fullImage,
     isSvg,
     fresh: row.created_at ? (Date.now() - new Date(row.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000 : false,
     createdAt: row.created_at,
@@ -180,7 +187,8 @@ async function getSvgBlobUrl(url) {
   try {
     const res = await fetch(url);
     const text = await res.text();
-    const blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+    const highResText = prepareHighResSvgString(text, 2400);
+    const blob = new Blob([highResText], { type: 'image/svg+xml;charset=utf-8' });
     const blobUrl = URL.createObjectURL(blob);
     svgBlobCache.set(url, blobUrl);
     return blobUrl;
@@ -191,10 +199,34 @@ async function getSvgBlobUrl(url) {
 
 function CanvasDrawingCard({ imageSrc, title }) {
   const canvasRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '350px' }
+    );
+
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let active = true;
-    if (!imageSrc || !canvasRef.current) return;
+    if (!isVisible || !imageSrc || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -236,7 +268,7 @@ function CanvasDrawingCard({ imageSrc, title }) {
     return () => {
       active = false;
     };
-  }, [imageSrc]);
+  }, [isVisible, imageSrc]);
 
   return (
     <canvas
@@ -1118,33 +1150,20 @@ function App() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } else if (format === 'PNG') {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
+        const canvas = await exportDrawingToCanvas(open, {
+          targetWidth: 2400,
+          targetHeight: 3200,
+          background: '#ffffff',
+          trimMargins: true,
+        });
 
-        if (open.isSvg || open.image.endsWith('.svg')) {
-          const res = await fetch(open.image);
-          const svgText = await res.text();
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(svgBlob);
-          img.src = url;
-          await img.decode();
-          URL.revokeObjectURL(url);
-        } else {
-          img.src = open.image;
-          await img.decode();
-        }
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error('Erreur lors de la génération de l’image PNG.'));
+          }, 'image/png');
+        });
 
-        const width = img.naturalWidth && img.naturalWidth > 1200 ? img.naturalWidth : 2400;
-        const height = img.naturalHeight && img.naturalHeight > 1600 ? img.naturalHeight : 3200;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = safe + '.png';
@@ -1152,31 +1171,12 @@ function App() {
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } else {
         // PDF A4
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        if (open.isSvg || open.image.endsWith('.svg')) {
-          const res = await fetch(open.image);
-          const svgText = await res.text();
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(svgBlob);
-          img.src = url;
-          await img.decode();
-          URL.revokeObjectURL(url);
-        } else {
-          img.src = open.image;
-          await img.decode();
-        }
-
-        const width = img.naturalWidth && img.naturalWidth > 1200 ? img.naturalWidth : 2400;
-        const height = img.naturalHeight && img.naturalHeight > 1600 ? img.naturalHeight : 3200;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const canvas = await exportDrawingToCanvas(open, {
+          targetWidth: 2400,
+          targetHeight: 3200,
+          background: '#ffffff',
+          trimMargins: true,
+        });
 
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const margin = 10;
@@ -2022,7 +2022,7 @@ function App() {
                         {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
                         {d.image ? (
                           <CanvasDrawingCard 
-                            imageSrc={d.image} 
+                            imageSrc={d.thumb || d.image} 
                             title={getDrawingTitle(d.title, lang)} 
                           />
                         ) : (
@@ -2519,7 +2519,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
     }
 
     checkValidatedRequests();
-    const interval = setInterval(checkValidatedRequests, 20000);
+    const interval = setInterval(checkValidatedRequests, 120000); // 2 minutes au lieu de 20s pour soulager le CDN et Supabase
     return () => clearInterval(interval);
   }, [session]);
 
