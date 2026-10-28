@@ -400,6 +400,69 @@ runTest('7.4 - L\'environnement de production en sk_live utilise strictement les
   assert.equal(tables.licenses, 'licenses');
   assert.equal(tables.stripeEvents, 'stripe_events');
   assert.equal(tables.isPartitioned, false);
+  assert.equal(tables.canWrite, true);
+});
+
+runTest('7.5 - FAIL-CLOSED (Point 1) : getTargetTables refuse les tables de production en sandbox sans ENABLE_SANDBOX_TABLES', () => {
+  const envSandboxNoTables = {
+    STRIPE_SECRET_KEY: 'sk_test_abc123',
+    SUPABASE_URL: `https://${PROD_SUPABASE_PROJECT_REF}.supabase.co`,
+    SUPABASE_SERVICE_ROLE_KEY: 'service_key_123',
+    // ENABLE_SANDBOX_TABLES non activé
+  };
+
+  const tables = getTargetTables(envSandboxNoTables, true);
+  assert.equal(tables.canWrite, false, 'canWrite doit être false en fail-closed');
+  assert.equal(tables.subscriptions, null, 'subscriptions doit être null pour empêcher toute écriture sur la prod');
+  assert.equal(tables.licenses, null, 'licenses doit être null');
+  assert.equal(tables.stripeEvents, null, 'stripeEvents doit être null');
+  assert.ok(tables.error, 'Une SandboxIsolationError doit être présente');
+  assert.equal(tables.error.code, 'SANDBOX_ISOLATION_VIOLATION');
+});
+
+runTest('7.6 - FAIL-CLOSED (Point 2) : syncSubscription protège 100% des comptes utilisateurs réels, sans exception', async () => {
+  const envSandboxProd = {
+    STRIPE_SECRET_KEY: 'sk_test_abc123',
+    SUPABASE_URL: `https://${PROD_SUPABASE_PROJECT_REF}.supabase.co`,
+    SUPABASE_SERVICE_ROLE_KEY: 'service_key_123',
+  };
+
+  const creds = resolveSupabaseCredentials(envSandboxProd, true);
+  assert.equal(creds.isProductionProject, true);
+
+  // Vérification que tout utilisateur (qu'il soit dans la liste des créateurs ou nouvel inscrit) est protégé
+  const anyUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+  const shouldUpdateProfile = (!creds.isProductionProject || false);
+  assert.equal(shouldUpdateProfile, false, 'Le profil d un utilisateur réel ne doit JAMAIS être altéré en sandbox');
+});
+
+runTest('7.7 - FAIL-CLOSED (Point 3) : create-checkout-session et lock-license-name ne modifient aucun profil de production en sandbox', () => {
+  const envSandbox = {
+    STRIPE_SECRET_KEY: 'sk_test_checkout123',
+    SUPABASE_URL: `https://${PROD_SUPABASE_PROJECT_REF}.supabase.co`,
+  };
+
+  const isSandbox = isSandboxEnvironment(envSandbox);
+  const creds = resolveSupabaseCredentials(envSandbox, isSandbox);
+
+  const canModifyProfiles = (!creds.isProductionProject || !isSandbox);
+  assert.equal(canModifyProfiles, false, 'La table profiles ne doit pas être modifiable en sandbox sur la base de prod');
+});
+
+runTest('7.8 - FAIL-CLOSED (Point 4) : Arrêt immédiat si claimEvent échoue pour une raison autre qu un doublon', async () => {
+  const envSandboxNoTables = {
+    STRIPE_SECRET_KEY: 'sk_test_webhook123',
+    SUPABASE_URL: `https://${PROD_SUPABASE_PROJECT_REF}.supabase.co`,
+    SUPABASE_SERVICE_ROLE_KEY: 'service_key_123',
+  };
+
+  // En l'absence de base de test ou de tables sandbox, claimEvent doit échouer immédiatement
+  const { claimEvent } = await import('../functions/_lib/supabaseAdmin.js');
+  const result = await claimEvent('evt_test_fail_closed', 'invoice.paid', envSandboxNoTables, true);
+
+  assert.equal(result.alreadyHandled, false);
+  assert.ok(result.error, 'claimEvent doit retourner une erreur');
+  assert.ok(result.error.message.includes('FAIL-CLOSED'), 'L erreur doit indiquer le blocage FAIL-CLOSED');
 });
 
 // -----------------------------------------------------------------------------

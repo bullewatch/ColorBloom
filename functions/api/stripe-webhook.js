@@ -12,6 +12,7 @@ import {
   syncCommercialLicense,
   claimEvent,
   getTargetTables,
+  resolveSupabaseCredentials,
   isSandboxEnvironment,
 } from '../_lib/supabaseAdmin.js';
 
@@ -20,12 +21,12 @@ import {
  * Réceptionnaire sécurisé des webhooks Stripe pour Cloudflare Pages Functions :
  * - Version API stable Stripe : 2026-09-30.endive
  * - Validation cryptographique stricte et obligatoire du corps brut et de la signature Stripe.
- * - Idempotence atomique stricte via table stripe_events pour éliminer tout risque de double traitement concurrent.
- * - Protection anti-désordre (out-of-order events) par récupération directe de l'état Stripe et contrôle des horodatages.
- * - Extraction résiliente des dates (items.data[0].current_period_start/end) sans aucune erreur RangeError.
- * - Référence des factures adaptée à la structure 2026-09-30.endive (invoice.parent.subscription_details.subscription).
- * - Isolation stricte des données sandbox (garde-fou protégeant les utilisateurs de production réels).
- * - Maintien des droits commerciaux jusqu'au terme de la période payée en cas d'annulation.
+ * - Idempotence atomique stricte : si claimEvent échoue pour une raison autre qu'un doublon,
+ *   le traitement s'arrête immédiatement (fail-closed HTTP 500) pour préserver l'intégrité de la base.
+ * - Isolation Sandbox stricte et Fail-Closed : aucune écriture sur les tables ou profils de production.
+ * - Protection anti-désordre (out-of-order events) par récupération de l'état Stripe et contrôle des horodatages.
+ * - Extraction des dates conforme à la structure 2026-09-30.endive (items.data[0].current_period_start/end).
+ * - Référence des factures conforme (invoice.parent.subscription_details.subscription).
  */
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -82,8 +83,20 @@ export async function onRequestPost(context) {
     // Détection du mode Sandbox
     const isSandbox = event.livemode === false || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
 
-    // 3. Contrôle d'idempotence atomique (verrouille l'événement contre les requêtes simultanées)
-    const { alreadyHandled } = await claimEvent(event.id, event.type, env, isSandbox);
+    // 3. Contrôle d'idempotence atomique (Fail-Closed)
+    // Si claimEvent échoue pour une raison autre qu'un doublon, le traitement s'arrête IMMÉDIATEMENT.
+    const { alreadyHandled, error: claimError } = await claimEvent(event.id, event.type, env, isSandbox);
+
+    if (claimError) {
+      console.error(`Arrêt immédiat du traitement webhook : échec de claimEvent pour l'événement ${event.id} :`, claimError.message);
+      return new Response(
+        JSON.stringify({
+          error: `Échec du verrouillage d’idempotence de l’événement : ${claimError.message}`,
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (alreadyHandled) {
       console.log(`Événement Stripe déjà traité (idempotent) : ${event.id} [${event.type}]`);
       return new Response(
@@ -110,7 +123,7 @@ export async function onRequestPost(context) {
       case 'customer.subscription.updated':
       case 'customer.subscription.resumed': {
         const sub = event.data.object;
-        // Récupération de l'état Stripe le plus récent pour parer à tout désordre réseau
+        // Récupération de l'état Stripe faisant foi pour parer à tout désordre réseau
         const freshSub = await stripe.subscriptions.retrieve(sub.id);
         await handleSubscriptionUpdate(freshSub, {}, env, stripe, isSandbox, event.created);
         break;
@@ -161,7 +174,7 @@ export async function onRequestPost(context) {
     console.error('Erreur traitement webhook Stripe :', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Erreur interne du webhook' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
@@ -169,6 +182,11 @@ export async function onRequestPost(context) {
 async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isSandbox, eventCreated) {
   const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const tables = getTargetTables(env, isSandbox);
+
+  if (!tables.canWrite || !tables.subscriptions) {
+    console.warn(`[FAIL-CLOSED WEBHOOK] Traitement ignoré pour abonnement ${sub.id} : écriture sandbox non autorisée sur cette base.`);
+    return;
+  }
 
   let userId =
     sub.metadata?.user_id ||
@@ -215,7 +233,6 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isS
   await syncSubscription(subData, env, { isSandbox });
 
   // Synchronisation de la licence commerciale nominative pour ColorVIP Pro
-  // Si résiliation demandée (cancel_at_period_end = true), la licence reste active jusqu'à la fin de la période payée !
   const isLicensed = planId === PLANS.COLORVIP_PRO && ['active', 'trialing'].includes(sub.status);
   if (isLicensed) {
     const { data: userProfile } = await supabaseAdmin
@@ -253,8 +270,11 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isS
 }
 
 async function handleSubscriptionDeleted(sub, env, isSandbox, eventCreated) {
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.subscriptions) return;
+
+  const creds = resolveSupabaseCredentials(env, isSandbox);
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
 
   await supabaseAdmin
@@ -273,7 +293,8 @@ async function handleSubscriptionDeleted(sub, env, isSandbox, eventCreated) {
     .maybeSingle();
 
   if (existingSub?.user_id) {
-    if (!tables.isProductionProject || !isSandbox) {
+    // FAIL-CLOSED : Ne JAMAIS modifier les profils de production en mode Sandbox
+    if (!creds.isProductionProject || !isSandbox) {
       await supabaseAdmin
         .from('profiles')
         .update({
@@ -283,19 +304,24 @@ async function handleSubscriptionDeleted(sub, env, isSandbox, eventCreated) {
         .eq('id', existingSub.user_id);
     }
 
-    await supabaseAdmin
-      .from(tables.licenses)
-      .update({
-        status: 'expired',
-        updated_at: ts,
-      })
-      .eq('subscription_id', sub.id);
+    if (tables.licenses) {
+      await supabaseAdmin
+        .from(tables.licenses)
+        .update({
+          status: 'expired',
+          updated_at: ts,
+        })
+        .eq('subscription_id', sub.id);
+    }
   }
 }
 
 async function handleSubscriptionPaused(sub, env, isSandbox, eventCreated) {
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.subscriptions) return;
+
+  const creds = resolveSupabaseCredentials(env, isSandbox);
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
 
   await supabaseAdmin
@@ -312,7 +338,7 @@ async function handleSubscriptionPaused(sub, env, isSandbox, eventCreated) {
     .eq('id', sub.id)
     .maybeSingle();
 
-  if (existingSub?.user_id && (!tables.isProductionProject || !isSandbox)) {
+  if (existingSub?.user_id && (!creds.isProductionProject || !isSandbox)) {
     await supabaseAdmin
       .from('profiles')
       .update({
@@ -323,8 +349,11 @@ async function handleSubscriptionPaused(sub, env, isSandbox, eventCreated) {
 }
 
 async function handleSubscriptionPaymentFailed(sub, env, isSandbox, eventCreated) {
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.subscriptions) return;
+
+  const creds = resolveSupabaseCredentials(env, isSandbox);
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const ts = eventCreated ? new Date(eventCreated * 1000).toISOString() : new Date().toISOString();
 
   await supabaseAdmin
@@ -342,7 +371,7 @@ async function handleSubscriptionPaymentFailed(sub, env, isSandbox, eventCreated
     .maybeSingle();
 
   if (existingSub?.user_id) {
-    if (!tables.isProductionProject || !isSandbox) {
+    if (!creds.isProductionProject || !isSandbox) {
       await supabaseAdmin
         .from('profiles')
         .update({
@@ -351,12 +380,14 @@ async function handleSubscriptionPaymentFailed(sub, env, isSandbox, eventCreated
         .eq('id', existingSub.user_id);
     }
 
-    await supabaseAdmin
-      .from(tables.licenses)
-      .update({
-        status: 'suspended',
-        updated_at: ts,
-      })
-      .eq('subscription_id', sub.id);
+    if (tables.licenses) {
+      await supabaseAdmin
+        .from(tables.licenses)
+        .update({
+          status: 'suspended',
+          updated_at: ts,
+        })
+        .eq('subscription_id', sub.id);
+    }
   }
 }

@@ -21,6 +21,7 @@ import {
  * - Arrêt ou reprise du renouvellement automatique (cancel_at_period_end)
  * - Changement de formule et de périodicité (upgrade/downgrade immédiat avec calcul de prorata)
  * - Maintien effectif des téléchargements et droits commerciaux jusqu'à la fin de la période payée
+ * - FAIL-CLOSED : Bloque toute écriture sur la production en mode Sandbox
  */
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -61,8 +62,18 @@ export async function onRequestPost(context) {
     }
 
     const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
-    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
     const tables = getTargetTables(env, isSandbox);
+
+    if (!tables.canWrite || !tables.subscriptions) {
+      return new Response(
+        JSON.stringify({
+          error: tables.error?.message || 'Gestion d’abonnement non autorisée en mode Sandbox sur la base de production.',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
     const { data: sub, error: subErr } = await supabaseAdmin
       .from(tables.subscriptions)

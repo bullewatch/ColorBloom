@@ -9,6 +9,7 @@ import {
   authenticateUser,
   getSupabaseAdmin,
   getUserSubscription,
+  resolveSupabaseCredentials,
   isSandboxEnvironment,
 } from '../_lib/supabaseAdmin.js';
 
@@ -43,6 +44,7 @@ export async function onRequestPost(context) {
     }
 
     const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
+    const creds = resolveSupabaseCredentials(env, isSandbox);
     const verifiedCustomerName = customerName?.trim() || null;
     const stripe = getStripe(env);
     const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
@@ -83,6 +85,11 @@ export async function onRequestPost(context) {
 
     let customerId = profile?.stripe_customer_id;
 
+    // En mode Sandbox face à la base de production, ne pas réutiliser le customer ID réel
+    if (isSandbox && customerId && !customerId.startsWith('cus_test_')) {
+      customerId = null;
+    }
+
     if (!customerId) {
       const existingCustomers = await stripe.customers.list({
         email: user.email,
@@ -98,15 +105,21 @@ export async function onRequestPost(context) {
           metadata: {
             supabase_uid: user.id,
             app: 'colorblop',
+            sandbox: isSandbox ? 'true' : 'false',
           },
         });
         customerId = customer.id;
       }
 
-      await supabaseAdmin
-        .from('profiles')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', user.id);
+      // FAIL-CLOSED STRICT : Ne JAMAIS altérer la table profiles de production en Sandbox
+      if (!creds.isProductionProject || !isSandbox) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id);
+      } else {
+        console.warn(`[FAIL-CLOSED PROFILES] Écriture de stripe_customer_id évitée sur le profil de production ${user.id} en Sandbox.`);
+      }
     }
 
     // 6. Déterminer l'URL d'origine
@@ -114,11 +127,16 @@ export async function onRequestPost(context) {
     const origin = request.headers.get('origin') || `${reqUrl.protocol}//${reqUrl.host}`;
     const finalCustomerName = verifiedCustomerName || profile?.display_name || user.email.split('@')[0];
 
+    // FAIL-CLOSED STRICT : Ne pas modifier display_name dans la table profiles de production en Sandbox
     if (verifiedCustomerName && verifiedCustomerName !== profile?.display_name) {
-      await supabaseAdmin
-        .from('profiles')
-        .update({ display_name: verifiedCustomerName })
-        .eq('id', user.id);
+      if (!creds.isProductionProject || !isSandbox) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ display_name: verifiedCustomerName })
+          .eq('id', user.id);
+      } else {
+        console.warn(`[FAIL-CLOSED PROFILES] Modification de display_name évitée sur le profil de production en Sandbox.`);
+      }
     }
 
     // 7. Création de la session Stripe Checkout (Stripe API 2026-09-30.endive)
@@ -138,6 +156,7 @@ export async function onRequestPost(context) {
           interval,
           customer_email: user.email,
           customer_name: finalCustomerName,
+          sandbox: isSandbox ? 'true' : 'false',
         },
       },
       metadata: {
@@ -145,6 +164,7 @@ export async function onRequestPost(context) {
         plan_id: planId,
         interval,
         customer_name: finalCustomerName,
+        sandbox: isSandbox ? 'true' : 'false',
       },
       success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?checkout=cancel`,

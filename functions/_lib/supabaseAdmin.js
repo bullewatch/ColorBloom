@@ -4,22 +4,46 @@ export const PROD_SUPABASE_PROJECT_REF = 'jlyzoxqihqofvsfyqwsw';
 export const OWNER_USER_ID = 'efd85ff7-77c2-4508-9493-156c58bbc9fa';
 
 /**
- * Détermine si l'environnement ou les options courantes correspondent au mode test/sandbox.
+ * Erreur levée lorsqu'une opération Sandbox tente d'altérer la base de production
+ * sans environnement de test isolé.
+ */
+export class SandboxIsolationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'SandboxIsolationError';
+    this.code = 'SANDBOX_ISOLATION_VIOLATION';
+  }
+}
+
+/**
+ * Détermine si la requête s'exécute en mode Sandbox/Test :
+ * - Détection prioritaire par clé secrète Stripe (sk_test_*)
+ * - Détection par variable d'environnement (ENVIRONMENT=test|sandbox)
+ * - Indépendant du statut de déploiement Cloudflare Pages (fonctionne même si la branche
+ *   est configurée comme branche de "Production" dans Cloudflare).
  */
 export function isSandboxEnvironment(env = {}, options = {}) {
   if (options.isSandbox !== undefined) return Boolean(options.isSandbox);
-  const stripeKey = env.STRIPE_SECRET_KEY || (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY) || '';
-  if (stripeKey.startsWith('sk_test_')) return true;
-  if (env.ENVIRONMENT === 'test' || env.ENVIRONMENT === 'sandbox' || env.CF_PAGES_BRANCH === 'test') return true;
+  const stripeKey =
+    env.STRIPE_SECRET_KEY ||
+    (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY) ||
+    '';
+  if (typeof stripeKey === 'string' && stripeKey.trim().startsWith('sk_test_')) {
+    return true;
+  }
+  if (env.ENVIRONMENT === 'test' || env.ENVIRONMENT === 'sandbox') {
+    return true;
+  }
   return false;
 }
 
 /**
- * Résout les URLs et clés Supabase appropriées selon que l'on s'exécute
- * en environnement réel ou en environnement de test isolé.
+ * Résout les identifiants Supabase en privilégiant une base de test séparée :
+ * 1. SUPABASE_TEST_URL / SUPABASE_TEST_SERVICE_ROLE_KEY si configurés
+ * 2. SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY globaux
  */
 export function resolveSupabaseCredentials(env = {}, isSandbox = false) {
-  // 1. Si nous sommes en mode Sandbox et que des identifiants de test dédiés sont configurés
+  // Priorité 1 : Base de test dédiée configurée via variables dédiées
   if (isSandbox && env.SUPABASE_TEST_URL && env.SUPABASE_TEST_SERVICE_ROLE_KEY) {
     return {
       url: env.SUPABASE_TEST_URL,
@@ -29,7 +53,7 @@ export function resolveSupabaseCredentials(env = {}, isSandbox = false) {
     };
   }
 
-  // 2. Configuration standard Cloudflare Pages
+  // Priorité 2 : Variables Supabase standard de l'environnement Cloudflare Pages
   const url =
     env.SUPABASE_URL ||
     env.VITE_SUPABASE_URL ||
@@ -40,7 +64,7 @@ export function resolveSupabaseCredentials(env = {}, isSandbox = false) {
     env.SUPABASE_SERVICE_ROLE_KEY ||
     (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_ROLE_KEY);
 
-  const isProductionProject = url.includes(PROD_SUPABASE_PROJECT_REF);
+  const isProductionProject = Boolean(url && url.includes(PROD_SUPABASE_PROJECT_REF));
 
   return {
     url,
@@ -52,7 +76,6 @@ export function resolveSupabaseCredentials(env = {}, isSandbox = false) {
 
 /**
  * Initialise le client Supabase privilégié (service_role) pour Cloudflare Pages Functions.
- * Garantit l'isolation stricte entre la base de production et l'environnement de test.
  */
 export function getSupabaseAdmin(env = {}, options = {}) {
   const isSandbox = isSandboxEnvironment(env, options);
@@ -71,14 +94,18 @@ export function getSupabaseAdmin(env = {}, options = {}) {
 }
 
 /**
- * Détermine les tables cibles en fonction du mode (production vs sandbox).
- * Si des tests sandbox sont exécutés alors que l'environnement pointe encore vers la base de production,
- * le système bascule sur les tables partitionnées 'sandbox_*' pour protéger intégralement les utilisateurs réels.
+ * Détermine les tables cibles en appliquant un principe STRICT de Fail-Closed :
+ * - Si environnement réel (sk_live), retourne les tables de production.
+ * - Si sandbox avec base de test dédiée (SUPABASE_TEST_URL ou URL non-prod), retourne les tables standard de cette base isolée.
+ * - Si sandbox pointant sur la base de production (jlyzoxqihqofvsfyqwsw) :
+ *   - Si ENABLE_SANDBOX_TABLES === 'true', retourne les tables isolées 'sandbox_*'.
+ *   - Si ENABLE_SANDBOX_TABLES n'est PAS activé, REFUSE d'autoriser toute écriture (canWrite: false, tables à null).
+ *   - Ne retourne JAMAIS les tables de production en sandbox sur la base réelle.
  */
 export function getTargetTables(env = {}, isSandbox = false) {
   const creds = resolveSupabaseCredentials(env, isSandbox);
 
-  // Si c'est un projet Supabase de test dédié, on utilise les tables standard sur cette base isolée
+  // Cas A : Projet de test Supabase complètement séparé (recommandé pour bout-en-bout)
   if (creds.isTestProject) {
     return {
       subscriptions: 'subscriptions',
@@ -87,22 +114,44 @@ export function getTargetTables(env = {}, isSandbox = false) {
       isPartitioned: false,
       isTestProject: true,
       isProductionProject: false,
+      canWrite: true,
     };
   }
 
-  // Si c'est la base de production et que nous sommes en sandbox
+  // Cas B : Sandbox exécutée face à la base de production (jlyzoxqihqofvsfyqwsw)
   if (isSandbox && creds.isProductionProject) {
     const useSandboxTables = env.ENABLE_SANDBOX_TABLES === 'true';
+    if (useSandboxTables) {
+      return {
+        subscriptions: 'sandbox_subscriptions',
+        licenses: 'sandbox_licenses',
+        stripeEvents: 'sandbox_stripe_events',
+        isPartitioned: true,
+        isTestProject: false,
+        isProductionProject: true,
+        canWrite: true,
+      };
+    }
+
+    // FAIL-CLOSED STRICT : Ni base de test séparée, ni tables sandbox activées.
+    // Interdiction formelle de retourner ou d'écrire dans les tables de production.
     return {
-      subscriptions: useSandboxTables ? 'sandbox_subscriptions' : 'subscriptions',
-      licenses: useSandboxTables ? 'sandbox_licenses' : 'licenses',
-      stripeEvents: useSandboxTables ? 'sandbox_stripe_events' : 'stripe_events',
-      isPartitioned: useSandboxTables,
+      subscriptions: null,
+      licenses: null,
+      stripeEvents: null,
+      isPartitioned: false,
       isTestProject: false,
       isProductionProject: true,
+      canWrite: false,
+      error: new SandboxIsolationError(
+        `[FAIL-CLOSED CRITIQUE] Tentative d'accès Sandbox Stripe sur la base Supabase de Production (${PROD_SUPABASE_PROJECT_REF}). ` +
+        `Pour protéger l'intégralité des données et profils réels, vous devez soit connecter un projet Supabase de test dédié (SUPABASE_TEST_URL), ` +
+        `soit activer explicitement ENABLE_SANDBOX_TABLES='true'.`
+      ),
     };
   }
 
+  // Cas C : Production normale (sk_live) sur la base de production
   return {
     subscriptions: 'subscriptions',
     licenses: 'licenses',
@@ -110,6 +159,7 @@ export function getTargetTables(env = {}, isSandbox = false) {
     isPartitioned: false,
     isTestProject: false,
     isProductionProject: true,
+    canWrite: true,
   };
 }
 
@@ -119,7 +169,6 @@ export function getTargetTables(env = {}, isSandbox = false) {
 export async function authenticateUser(request, env = {}) {
   let authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
 
-  // Support du paramètre ?token= pour les téléchargements de fichiers
   if (!authHeader) {
     const url = new URL(request.url);
     const token = url.searchParams.get('token');
@@ -149,8 +198,9 @@ export async function authenticateUser(request, env = {}) {
 export async function getUserSubscription(userId, env = {}, options = {}) {
   if (!userId) return null;
   const isSandbox = isSandboxEnvironment(env, options);
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+  const creds = resolveSupabaseCredentials(env, isSandbox);
   const tables = getTargetTables(env, isSandbox);
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
   // Privilège permanent pour le compte propriétaire
   const { data: profile } = await supabaseAdmin
@@ -174,6 +224,11 @@ export async function getUserSubscription(userId, env = {}, options = {}) {
     };
   }
 
+  // Si sandbox sans droit d'accès
+  if (!tables.canWrite && !tables.subscriptions) {
+    return null;
+  }
+
   const { data, error } = await supabaseAdmin
     .from(tables.subscriptions)
     .select('*')
@@ -192,26 +247,22 @@ export async function getUserSubscription(userId, env = {}, options = {}) {
 
 /**
  * Met à jour ou insère un abonnement dans la base et synchronise le profil.
- * Protège contre les événements reçus dans le désordre et isole les écritures de test.
+ * FAIL-CLOSED : Bloque toute écriture sur les tables ou profils de production en Sandbox.
  */
 export async function syncSubscription(subData, env = {}, options = {}) {
   const isSandbox = isSandboxEnvironment(env, options);
   const tables = getTargetTables(env, isSandbox);
   const creds = resolveSupabaseCredentials(env, isSandbox);
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
-  // GARDE-FOU STRICT MISSION 4 :
-  // Si transaction de test sur le projet de production sans tables de sandbox partitionnées ni projet test dédié,
-  // interdiction formelle d'altérer un compte utilisateur de production.
-  if (isSandbox && creds.isProductionProject && !tables.isPartitioned) {
-    const isProtectedProdUser = [OWNER_USER_ID, 'c1ce8b33-8017-46a3-bcec-b1b02be0db7e', 'e9e4a37f-cc5d-402f-b9b3-436bcb425067'].includes(subData.user_id);
-    if (isProtectedProdUser) {
-      console.warn(`[BLOCAGE SÉCURITÉ SANDBOX] Tentative d'écriture Stripe Sandbox sur l'utilisateur de production ${subData.user_id} bloquée.`);
-      return;
-    }
+  // 1. CONTRÔLE FAIL-CLOSED STRICT SUR LES TABLES D'ABONNEMENT
+  if (!tables.canWrite || !tables.subscriptions) {
+    console.error(`[FAIL-CLOSED] ${tables.error?.message || "Écriture d'abonnement refusée en mode Sandbox."}`);
+    throw (tables.error || new SandboxIsolationError("Écriture d'abonnement refusée : environnement non autorisé."));
   }
 
-  // Protection contre les événements reçus dans le désordre (Out-of-order events)
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
+
+  // 2. Protection contre les événements reçus dans le désordre (Out-of-order events)
   const { data: existingSub } = await supabaseAdmin
     .from(tables.subscriptions)
     .select('updated_at, status')
@@ -236,19 +287,24 @@ export async function syncSubscription(subData, env = {}, options = {}) {
     throw subErr;
   }
 
-  // Mise à jour du profil utilisateur (uniquement si projet test ou utilisateur non-protégé)
-  if (!creds.isProductionProject || !isSandbox) {
-    const isActive = ['active', 'trialing'].includes(subData.status);
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        stripe_customer_id: subData.stripe_customer_id,
-        subscription_plan: isActive ? subData.plan_id : null,
-        subscription_status: subData.status,
-        subscription_period_end: subData.current_period_end,
-      })
-      .eq('id', subData.user_id);
+  // 3. CONTRÔLE FAIL-CLOSED STRICT SUR LES PROFILS UTILISATEURS
+  // Si connexion sur la base de production et mode Sandbox, AUCUN profil de production ne peut être altéré.
+  if (creds.isProductionProject && isSandbox) {
+    console.warn(`[FAIL-CLOSED PROFILES] Aucune altération du profil de production pour l'utilisateur ${subData.user_id} en mode Sandbox.`);
+    return;
   }
+
+  // Mise à jour normale du profil (uniquement sur base de test dédiée, ou en production sk_live)
+  const isActive = ['active', 'trialing'].includes(subData.status);
+  await supabaseAdmin
+    .from('profiles')
+    .update({
+      stripe_customer_id: subData.stripe_customer_id,
+      subscription_plan: isActive ? subData.plan_id : null,
+      subscription_status: subData.status,
+      subscription_period_end: subData.current_period_end,
+    })
+    .eq('id', subData.user_id);
 }
 
 /**
@@ -279,8 +335,7 @@ export function computeExactCalendarDates(periodStartInput, interval = 'month') 
 
 /**
  * Génère ou prolonge une licence commerciale nominative pour ColorVIP Pro.
- * Les droits commerciaux correspondent à la période effectivement payée et restent valables
- * jusqu'au terme de celle-ci même en cas de résiliation anticipée.
+ * FAIL-CLOSED : Aucune écriture de licence sur la production en mode Sandbox.
  */
 export async function syncCommercialLicense({
   userId,
@@ -294,18 +349,13 @@ export async function syncCommercialLicense({
 }, env = {}, options = {}) {
   const isSandbox = isSandboxEnvironment(env, options);
   const tables = getTargetTables(env, isSandbox);
-  const creds = resolveSupabaseCredentials(env, isSandbox);
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
-  // GARDE-FOU SANDBOX
-  if (isSandbox && creds.isProductionProject && !tables.isPartitioned) {
-    const isProtectedProdUser = [OWNER_USER_ID, 'c1ce8b33-8017-46a3-bcec-b1b02be0db7e', 'e9e4a37f-cc5d-402f-b9b3-436bcb425067'].includes(userId);
-    if (isProtectedProdUser) {
-      console.warn(`[BLOCAGE SÉCURITÉ SANDBOX] Génération de licence sandbox sur utilisateur prod ${userId} bloquée.`);
-      return null;
-    }
+  if (!tables.canWrite || !tables.licenses) {
+    console.error(`[FAIL-CLOSED] ${tables.error?.message || "Écriture de licence refusée en mode Sandbox."}`);
+    throw (tables.error || new SandboxIsolationError("Écriture de licence refusée : environnement non autorisé."));
   }
 
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const dates = computeExactCalendarDates(periodStart, interval);
   const finalStart = periodStart ? new Date(periodStart).toISOString() : dates.validFrom;
   const finalEnd = periodEnd ? new Date(periodEnd).toISOString() : dates.validUntil;
@@ -350,6 +400,7 @@ export async function syncCommercialLicense({
 
   if (error) {
     console.error('Erreur sync commercial license:', error);
+    throw error;
   }
 
   return data;
@@ -357,14 +408,22 @@ export async function syncCommercialLicense({
 
 /**
  * Idempotence atomique pour webhooks Stripe.
- * Tente d'enregistrer l'événement avant tout traitement.
- * En cas de requêtes concurrentes simultanées, le premier insert verrouille l'événement,
- * et le doublon échoue immédiatement (code 23505 / duplicate key).
+ * FAIL-CLOSED : Si l'écriture échoue ou est bloquée par l'isolation Sandbox,
+ * retourne une erreur explicite qui stoppe immédiatement le webhook.
  */
 export async function claimEvent(eventId, type, env = {}, isSandbox = false) {
   const tables = getTargetTables(env, isSandbox);
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
+  if (!tables.canWrite || !tables.stripeEvents) {
+    return {
+      alreadyHandled: false,
+      error: tables.error || new SandboxIsolationError(
+        `[FAIL-CLOSED] Enregistrement d'événement Stripe refusé sur la base de production en mode Sandbox.`
+      ),
+    };
+  }
+
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const { error } = await supabaseAdmin.from(tables.stripeEvents).insert({
     id: eventId,
     type,
@@ -372,19 +431,19 @@ export async function claimEvent(eventId, type, env = {}, isSandbox = false) {
   });
 
   if (error) {
-    // Clé primaire déjà existante : événement déjà traité ou en cours
+    // Clé primaire déjà existante : événement déjà traité en toute sécurité
     if (
       error.code === '23505' ||
       error.message?.includes('duplicate key') ||
       error.message?.includes('unique constraint')
     ) {
-      return { alreadyHandled: true };
+      return { alreadyHandled: true, error: null };
     }
     console.error(`Erreur claimEvent [${eventId}]:`, error);
     return { alreadyHandled: false, error };
   }
 
-  return { alreadyHandled: false };
+  return { alreadyHandled: false, error: null };
 }
 
 /**
@@ -392,6 +451,7 @@ export async function claimEvent(eventId, type, env = {}, isSandbox = false) {
  */
 export async function isEventProcessed(eventId, env = {}, isSandbox = false) {
   const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.stripeEvents) return false;
   const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const { data } = await supabaseAdmin
     .from(tables.stripeEvents)
@@ -404,6 +464,7 @@ export async function isEventProcessed(eventId, env = {}, isSandbox = false) {
 
 export async function markEventProcessed(eventId, type, env = {}, isSandbox = false) {
   const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.stripeEvents) return;
   const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   await supabaseAdmin.from(tables.stripeEvents).upsert({
     id: eventId,

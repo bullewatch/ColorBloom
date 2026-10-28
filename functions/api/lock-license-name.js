@@ -3,6 +3,7 @@ import {
   authenticateUser,
   getSupabaseAdmin,
   getTargetTables,
+  resolveSupabaseCredentials,
   isSandboxEnvironment,
 } from '../_lib/supabaseAdmin.js';
 
@@ -10,6 +11,7 @@ import {
  * lock-license-name.js
  * Valide et verrouille définitivement le Nom & Prénom officiel du titulaire de licence commerciale ColorVIP Pro.
  * Sécurité anti-fraude irréversible.
+ * FAIL-CLOSED : Aucune altération des profils ou licences de production en mode Sandbox.
  */
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -50,9 +52,20 @@ export async function onRequestPost(context) {
     }
 
     const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
+    const creds = resolveSupabaseCredentials(env, isSandbox);
+    const tables = getTargetTables(env, isSandbox);
+
+    if (!tables.canWrite || !tables.licenses) {
+      return new Response(
+        JSON.stringify({
+          error: tables.error?.message || 'Opération non autorisée en mode Sandbox sur la base de production.',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const officialName = trimmed1.toUpperCase();
     const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
-    const tables = getTargetTables(env, isSandbox);
 
     // Vérifier si une licence existe pour cet utilisateur
     const { data: existingLic } = await supabaseAdmin
@@ -84,7 +97,8 @@ export async function onRequestPost(context) {
         .eq('id', existingLic.id);
     }
 
-    if (!tables.isProductionProject || !isSandbox) {
+    // FAIL-CLOSED STRICT : Ne JAMAIS modifier la table profiles de production en Sandbox
+    if (!creds.isProductionProject || !isSandbox) {
       await supabaseAdmin
         .from('profiles')
         .update({ display_name: officialName })
