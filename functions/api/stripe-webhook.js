@@ -11,6 +11,8 @@ import {
   syncSubscription,
   syncCommercialLicense,
   claimEvent,
+  markEventCompleted,
+  markEventFailed,
   getTargetTables,
   resolveSupabaseCredentials,
   isSandboxEnvironment,
@@ -85,7 +87,7 @@ export async function onRequestPost(context) {
 
     // 3. Contrôle d'idempotence atomique (Fail-Closed)
     // Si claimEvent échoue pour une raison autre qu'un doublon, le traitement s'arrête IMMÉDIATEMENT.
-    const { alreadyHandled, error: claimError } = await claimEvent(event.id, event.type, env, isSandbox);
+    const { alreadyHandled, state: claimState, error: claimError } = await claimEvent(event.id, event.type, env, isSandbox);
 
     if (claimError) {
       console.error(`Arrêt immédiat du traitement webhook : échec de claimEvent pour l'événement ${event.id} :`, claimError.message);
@@ -98,78 +100,96 @@ export async function onRequestPost(context) {
     }
 
     if (alreadyHandled) {
-      console.log(`Événement Stripe déjà traité (idempotent) : ${event.id} [${event.type}]`);
+      console.log(`Événement Stripe déjà traité ou en cours (idempotent) : ${event.id} [${event.type}, status: ${claimState || 'handled'}]`);
       return new Response(
-        JSON.stringify({ received: true, idempotent: true }),
+        JSON.stringify({ received: true, idempotent: true, status: claimState || 'handled' }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Traitement événement Stripe [${event.type}] (id: ${event.id}, sandbox: ${isSandbox})`);
+    console.log(`Traitement événement Stripe [${event.type}] (id: ${event.id}, sandbox: ${isSandbox}, state: ${claimState || 'processing'})`);
 
     // 4. Traitement des événements du cycle de vie des abonnements
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        if (session.mode === 'subscription' && session.subscription) {
-          const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
-          const subscription = await stripe.subscriptions.retrieve(subId);
-          await handleSubscriptionUpdate(subscription, session.metadata, env, stripe, isSandbox, event.created);
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          if (session.mode === 'subscription' && session.subscription) {
+            const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+            const subscription = await stripe.subscriptions.retrieve(subId);
+            await handleSubscriptionUpdate(subscription, session.metadata, env, stripe, isSandbox, event.created);
+          }
+          break;
         }
-        break;
-      }
 
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.resumed': {
-        const sub = event.data.object;
-        // Récupération de l'état Stripe faisant foi pour parer à tout désordre réseau
-        const freshSub = await stripe.subscriptions.retrieve(sub.id);
-        await handleSubscriptionUpdate(freshSub, {}, env, stripe, isSandbox, event.created);
-        break;
-      }
-
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        await handleSubscriptionDeleted(subscription, env, isSandbox, event.created);
-        break;
-      }
-
-      case 'customer.subscription.paused': {
-        const subscription = event.data.object;
-        await handleSubscriptionPaused(subscription, env, isSandbox, event.created);
-        break;
-      }
-
-      case 'invoice.payment_succeeded':
-      case 'invoice.paid': {
-        const invoice = event.data.object;
-        const subId = getInvoiceSubscriptionId(invoice);
-        if (subId) {
-          const subscription = await stripe.subscriptions.retrieve(subId);
-          await handleSubscriptionUpdate(subscription, {}, env, stripe, isSandbox, event.created);
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.resumed': {
+          const sub = event.data.object;
+          // Récupération de l'état Stripe faisant foi pour parer à tout désordre réseau
+          const freshSub = await stripe.subscriptions.retrieve(sub.id);
+          await handleSubscriptionUpdate(freshSub, {}, env, stripe, isSandbox, event.created);
+          break;
         }
-        break;
-      }
 
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object;
-        const subId = getInvoiceSubscriptionId(invoice);
-        if (subId) {
-          const subscription = await stripe.subscriptions.retrieve(subId);
-          await handleSubscriptionPaymentFailed(subscription, env, isSandbox, event.created);
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          await handleSubscriptionDeleted(subscription, env, isSandbox, event.created);
+          break;
         }
-        break;
+
+        case 'customer.subscription.paused': {
+          const subscription = event.data.object;
+          await handleSubscriptionPaused(subscription, env, isSandbox, event.created);
+          break;
+        }
+
+        case 'invoice.payment_succeeded':
+        case 'invoice.paid': {
+          const invoice = event.data.object;
+          const subId = getInvoiceSubscriptionId(invoice);
+          if (subId) {
+            const subscription = await stripe.subscriptions.retrieve(subId);
+            await handleSubscriptionUpdate(subscription, {}, env, stripe, isSandbox, event.created);
+          }
+          break;
+        }
+
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object;
+          const subId = getInvoiceSubscriptionId(invoice);
+          if (subId) {
+            const subscription = await stripe.subscriptions.retrieve(subId);
+            await handleSubscriptionPaymentFailed(subscription, env, isSandbox, event.created);
+          }
+          break;
+        }
+
+        default:
+          console.log(`Événement Stripe sans action requise : ${event.type}`);
       }
 
-      default:
-        console.log(`Événement Stripe sans action requise : ${event.type}`);
+      // 5. Marquer l'événement comme COMPLETED une fois le traitement terminé sans erreur
+      await markEventCompleted(event.id, env, isSandbox);
+
+      return new Response(
+        JSON.stringify({ received: true, status: 'completed' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (procErr) {
+      console.error(`Erreur lors du traitement de l'événement Stripe ${event.id}:`, procErr);
+
+      // 6. Marquer l'événement comme FAILED pour que la prochaine tentative Stripe soit acceptée
+      await markEventFailed(event.id, procErr.message, env, isSandbox);
+
+      return new Response(
+        JSON.stringify({
+          error: procErr.message || 'Erreur interne du webhook',
+          retryAllowed: true,
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
     }
-
-    return new Response(
-      JSON.stringify({ received: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
   } catch (err) {
     console.error('Erreur traitement webhook Stripe :', err);
     return new Response(

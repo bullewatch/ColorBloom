@@ -336,8 +336,17 @@ create table if not exists public.licenses (
 create table if not exists public.stripe_events (
   id text primary key,
   type text not null,
-  processed_at timestamptz not null default now()
+  status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
+  claimed_at timestamptz not null default now(),
+  processed_at timestamptz default now(),
+  error_message text,
+  created_at timestamptz not null default now()
 );
+
+alter table public.stripe_events
+  add column if not exists status text not null default 'completed',
+  add column if not exists claimed_at timestamptz not null default now(),
+  add column if not exists error_message text;
 
 alter table public.profiles
   add column if not exists stripe_customer_id text,
@@ -402,8 +411,17 @@ create table if not exists public.sandbox_licenses (
 create table if not exists public.sandbox_stripe_events (
   id text primary key,
   type text not null,
-  processed_at timestamptz not null default now()
+  status text not null default 'completed' check (status in ('processing', 'completed', 'failed')),
+  claimed_at timestamptz not null default now(),
+  processed_at timestamptz default now(),
+  error_message text,
+  created_at timestamptz not null default now()
 );
+
+alter table public.sandbox_stripe_events
+  add column if not exists status text not null default 'completed',
+  add column if not exists claimed_at timestamptz not null default now(),
+  add column if not exists error_message text;
 
 alter table public.sandbox_subscriptions enable row level security;
 alter table public.sandbox_licenses enable row level security;

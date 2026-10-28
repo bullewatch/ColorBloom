@@ -26,6 +26,10 @@ import {
   getTargetTables,
   PROD_SUPABASE_PROJECT_REF,
   OWNER_USER_ID,
+  claimEvent,
+  markEventCompleted,
+  markEventFailed,
+  EVENT_STATUS,
 } from '../functions/_lib/supabaseAdmin.js';
 
 let passedTests = 0;
@@ -501,6 +505,169 @@ runTest('8.3 - Rejet immédiat si STRIPE_SECRET_KEY ou STRIPE_WEBHOOK_SECRET man
     () => getStripe({}),
     (err) => err.message.includes('STRIPE_SECRET_KEY manquante')
   );
+});
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 9 : Idempotence et Nouvelle Tentative après Échec (Stripe Retry)
+// -----------------------------------------------------------------------------
+console.log('\n--- TEST SUITE 9 : Idempotence et Nouvelle Tentative après Échec (Stripe Retry) ---');
+
+function createInMemorySupabaseClient() {
+  const tableData = new Map();
+
+  return {
+    from: (tableName) => {
+      if (!tableData.has(tableName)) {
+        tableData.set(tableName, new Map());
+      }
+      const store = tableData.get(tableName);
+
+      let currentFilters = [];
+
+      const queryBuilder = {
+        select: (fields = '*') => {
+          return queryBuilder;
+        },
+        eq: (col, val) => {
+          currentFilters.push(row => row[col] === val);
+          return queryBuilder;
+        },
+        maybeSingle: async () => {
+          const rows = Array.from(store.values());
+          const match = rows.find(r => currentFilters.every(f => f(r)));
+          return { data: match ? { ...match } : null, error: null };
+        },
+        single: async () => {
+          const rows = Array.from(store.values());
+          const match = rows.find(r => currentFilters.every(f => f(r)));
+          return { data: match ? { ...match } : null, error: match ? null : new Error('Row not found') };
+        },
+        insert: async (payload) => {
+          const id = payload.id;
+          if (store.has(id)) {
+            return {
+              error: {
+                code: '23505',
+                message: 'duplicate key value violates unique constraint',
+              },
+            };
+          }
+          store.set(id, { ...payload });
+          return { data: payload, error: null };
+        },
+        update: (updates) => {
+          return {
+            eq: async (col, val) => {
+              const rows = Array.from(store.values());
+              const match = rows.find(r => r[col] === val && currentFilters.every(f => f(r)));
+              if (match) {
+                Object.assign(match, updates);
+                return { data: match, error: null };
+              }
+              return { data: null, error: null };
+            },
+          };
+        },
+        delete: () => {
+          return {
+            eq: async (col, val) => {
+              store.delete(val);
+              return { error: null };
+            },
+          };
+        },
+      };
+
+      return queryBuilder;
+    },
+  };
+}
+
+await runAsyncTest('9.1 - Scénario complet : Échec après claimEvent() suivi d\'une nouvelle tentative (retry) réussie', async () => {
+  const mockClient = createInMemorySupabaseClient();
+  const testEnv = {
+    STRIPE_SECRET_KEY: 'sk_test_mock_123',
+    SUPABASE_TEST_URL: 'https://test-isolated.supabase.co',
+    SUPABASE_TEST_SERVICE_ROLE_KEY: 'test_key',
+  };
+  const eventId = 'evt_simulate_stripe_retry_001';
+  const eventType = 'invoice.payment_succeeded';
+  const options = { supabaseClient: mockClient };
+
+  // --- ÉTAPE 1 : PREMIÈRE TENTATIVE DE STRIPE ---
+  // claimEvent réserve l'événement avec status='processing'
+  const firstClaim = await claimEvent(eventId, eventType, testEnv, true, options);
+  assert.equal(firstClaim.alreadyHandled, false, 'Le premier appel doit réclamer l\'événement');
+  assert.equal(firstClaim.state, 'claimed');
+  assert.equal(firstClaim.error, null);
+
+  // Simulation d'une exécution qui rencontre une erreur (panne réseau ou API)
+  let executionFailed = false;
+  try {
+    throw new Error('Simulation panne transitoire Stripe API');
+  } catch (err) {
+    executionFailed = true;
+    // En cas d'erreur, le webhook appelle markEventFailed pour autoriser les retries Stripe
+    await markEventFailed(eventId, err.message, testEnv, true, options);
+  }
+  assert.equal(executionFailed, true, 'L\'erreur simulée a bien été déclenchée');
+
+  // Vérification de l'état en base : status doit être 'failed'
+  const failedRecord = await mockClient.from('stripe_events').select('*').eq('id', eventId).maybeSingle();
+  assert.equal(failedRecord.data.status, EVENT_STATUS.FAILED);
+  assert.equal(failedRecord.data.error_message, 'Simulation panne transitoire Stripe API');
+
+  // --- ÉTAPE 2 : NOUVELLE TENTATIVE STRIPE (RETRY) ---
+  // Stripe renvoie le même eventId quelques secondes plus tard
+  // claimEvent NE DOIT PAS le considérer comme un doublon terminé !
+  const retryClaim = await claimEvent(eventId, eventType, testEnv, true, options);
+  assert.equal(retryClaim.alreadyHandled, false, 'La nouvelle tentative doit être acceptée après un échec');
+  assert.equal(retryClaim.state, 'reclaimed_failed', 'L\'événement doit passer en reclaimed_failed');
+  assert.equal(retryClaim.error, null);
+
+  // Cette fois, le traitement réussit complètement
+  let retrySucceeded = false;
+  try {
+    retrySucceeded = true;
+    await markEventCompleted(eventId, testEnv, true, options);
+  } catch (err) {
+    retrySucceeded = false;
+  }
+  assert.equal(retrySucceeded, true, 'Le retry s\'est exécuté avec succès');
+
+  // Vérification de l'état en base : status doit être 'completed'
+  const completedRecord = await mockClient.from('stripe_events').select('*').eq('id', eventId).maybeSingle();
+  assert.equal(completedRecord.data.status, EVENT_STATUS.COMPLETED);
+  assert.equal(completedRecord.data.error_message, null);
+
+  // --- ÉTAPE 3 : APPEL ULTÉRIEUR (DOUBLON POST-SUCCÈS) ---
+  // Tout appel ultérieur pour ce même événement doit désormais être bloqué comme déjà traité
+  const duplicateClaim = await claimEvent(eventId, eventType, testEnv, true, options);
+  assert.equal(duplicateClaim.alreadyHandled, true, 'L\'événement terminé doit être rejeté comme doublon');
+  assert.equal(duplicateClaim.state, 'completed');
+});
+
+await runAsyncTest('9.2 - Verrouillage anti-concurrence : Rejet des requêtes simultanées en cours de traitement (inFlight)', async () => {
+  const mockClient = createInMemorySupabaseClient();
+  const testEnv = {
+    STRIPE_SECRET_KEY: 'sk_test_mock_123',
+    SUPABASE_TEST_URL: 'https://test-isolated.supabase.co',
+    SUPABASE_TEST_SERVICE_ROLE_KEY: 'test_key',
+  };
+  const eventId = 'evt_concurrent_flight_test_999';
+  const eventType = 'customer.subscription.updated';
+  const options = { supabaseClient: mockClient };
+
+  // Worker A commence le traitement
+  const claimA = await claimEvent(eventId, eventType, testEnv, true, options);
+  assert.equal(claimA.alreadyHandled, false);
+  assert.equal(claimA.state, 'claimed');
+
+  // Worker B reçoit un appel simultané (ex: doublon réseau 10ms plus tard) alors que A n'a pas fini
+  const claimB = await claimEvent(eventId, eventType, testEnv, true, options);
+  assert.equal(claimB.alreadyHandled, true, 'La requête concurrente doit être interceptée');
+  assert.equal(claimB.inFlight, true, 'Elle doit être identifiée comme inFlight pour éviter le double traitement');
+  assert.equal(claimB.state, 'processing');
 });
 
 // -----------------------------------------------------------------------------

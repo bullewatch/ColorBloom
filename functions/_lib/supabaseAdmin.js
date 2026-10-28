@@ -78,6 +78,9 @@ export function resolveSupabaseCredentials(env = {}, isSandbox = false) {
  * Initialise le client Supabase privilégié (service_role) pour Cloudflare Pages Functions.
  */
 export function getSupabaseAdmin(env = {}, options = {}) {
+  if (options.supabaseClient) {
+    return options.supabaseClient;
+  }
   const isSandbox = isSandboxEnvironment(env, options);
   const { url, serviceKey } = resolveSupabaseCredentials(env, isSandbox);
 
@@ -406,12 +409,25 @@ export async function syncCommercialLicense({
   return data;
 }
 
+export const EVENT_STATUS = {
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+};
+
+export const LOCK_TIMEOUT_MS = 60 * 1000; // 60 secondes pour éviter les traitements simultanés
+
 /**
- * Idempotence atomique pour webhooks Stripe.
+ * Idempotence avec gestion d'état et verrou de traitement pour webhooks Stripe.
+ * Différencie :
+ * - 'processing' : traitement en cours (évite les exécutions simultanées)
+ * - 'completed'  : traitement réussi (bloque les doublons réels)
+ * - 'failed'     : traitement ayant échoué (autorise les retries Stripe sans réinitialisation manuelle)
+ *
  * FAIL-CLOSED : Si l'écriture échoue ou est bloquée par l'isolation Sandbox,
  * retourne une erreur explicite qui stoppe immédiatement le webhook.
  */
-export async function claimEvent(eventId, type, env = {}, isSandbox = false) {
+export async function claimEvent(eventId, type, env = {}, isSandbox = false, options = {}) {
   const tables = getTargetTables(env, isSandbox);
 
   if (!tables.canWrite || !tables.stripeEvents) {
@@ -423,27 +439,172 @@ export async function claimEvent(eventId, type, env = {}, isSandbox = false) {
     };
   }
 
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
-  const { error } = await supabaseAdmin.from(tables.stripeEvents).insert({
-    id: eventId,
-    type,
-    processed_at: new Date().toISOString(),
-  });
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox, ...options });
 
-  if (error) {
-    // Clé primaire déjà existante : événement déjà traité en toute sécurité
-    if (
-      error.code === '23505' ||
-      error.message?.includes('duplicate key') ||
-      error.message?.includes('unique constraint')
-    ) {
-      return { alreadyHandled: true, error: null };
-    }
-    console.error(`Erreur claimEvent [${eventId}]:`, error);
-    return { alreadyHandled: false, error };
+  // 1. Vérifier si l'événement a déjà été enregistré
+  const { data: existing, error: selectErr } = await supabaseAdmin
+    .from(tables.stripeEvents)
+    .select('id, status, claimed_at, processed_at')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (selectErr && !selectErr.message?.includes('column "status"')) {
+    console.error(`Erreur select claimEvent [${eventId}]:`, selectErr);
+    return { alreadyHandled: false, error: selectErr };
   }
 
-  return { alreadyHandled: false, error: null };
+  // 2. Gestion des états si l'événement existe déjà
+  if (existing) {
+    // CAS A : Déjà traité avec succès
+    if (existing.status === EVENT_STATUS.COMPLETED) {
+      return { alreadyHandled: true, state: 'completed', error: null };
+    }
+
+    // CAS B : Traitement en cours (concurrence simultanée)
+    if (existing.status === EVENT_STATUS.PROCESSING) {
+      const lockTime = new Date(existing.claimed_at || existing.processed_at || 0).getTime();
+      const lockAge = Date.now() - lockTime;
+
+      // Si le verrou est récent (< 60 secondes), une autre requête traite activement l'événement
+      if (lockAge < LOCK_TIMEOUT_MS) {
+        return {
+          alreadyHandled: true,
+          inFlight: true,
+          state: 'processing',
+          error: null,
+        };
+      }
+
+      // Si le verrou a expiré (> 60s), l'exécution précédente s'est interrompue/crashée : on réclame le verrou
+      const nowIso = new Date().toISOString();
+      const { error: reclaimErr } = await supabaseAdmin
+        .from(tables.stripeEvents)
+        .update({
+          status: EVENT_STATUS.PROCESSING,
+          claimed_at: nowIso,
+        })
+        .eq('id', eventId);
+
+      if (reclaimErr) return { alreadyHandled: false, error: reclaimErr };
+      return { alreadyHandled: false, state: 'reclaimed_timeout', error: null };
+    }
+
+    // CAS C : Échec lors de la tentative précédente -> Stripe réessaie !
+    if (existing.status === EVENT_STATUS.FAILED) {
+      const nowIso = new Date().toISOString();
+      const { error: retryErr } = await supabaseAdmin
+        .from(tables.stripeEvents)
+        .update({
+          status: EVENT_STATUS.PROCESSING,
+          claimed_at: nowIso,
+          error_message: null,
+        })
+        .eq('id', eventId);
+
+      if (retryErr) return { alreadyHandled: false, error: retryErr };
+      return { alreadyHandled: false, state: 'reclaimed_failed', error: null };
+    }
+
+    // Cas de compatibilité hérité (status null / schéma ancien)
+    return { alreadyHandled: true, state: 'legacy_completed', error: null };
+  }
+
+  // 3. Nouvel événement : création avec status 'processing'
+  const nowIso = new Date().toISOString();
+  const { error: insertErr } = await supabaseAdmin
+    .from(tables.stripeEvents)
+    .insert({
+      id: eventId,
+      type,
+      status: EVENT_STATUS.PROCESSING,
+      claimed_at: nowIso,
+      processed_at: null,
+    });
+
+  if (insertErr) {
+    // Rétrocompatibilité : si les colonnes 'status'/'claimed_at' ne sont pas encore créées
+    if (insertErr.message?.includes('column "status"') || insertErr.message?.includes('column "claimed_at"')) {
+      const { error: fallbackErr } = await supabaseAdmin
+        .from(tables.stripeEvents)
+        .insert({ id: eventId, type, processed_at: nowIso });
+
+      if (fallbackErr) {
+        if (fallbackErr.code === '23505' || fallbackErr.message?.includes('duplicate key')) {
+          return { alreadyHandled: true, state: 'legacy_duplicate', error: null };
+        }
+        return { alreadyHandled: false, error: fallbackErr };
+      }
+      return { alreadyHandled: false, state: 'claimed_legacy', error: null };
+    }
+
+    // Doublon sur requête concurrente simultanée
+    if (
+      insertErr.code === '23505' ||
+      insertErr.message?.includes('duplicate key') ||
+      insertErr.message?.includes('unique constraint')
+    ) {
+      return { alreadyHandled: true, state: 'concurrent_duplicate', error: null };
+    }
+
+    console.error(`Erreur insert claimEvent [${eventId}]:`, insertErr);
+    return { alreadyHandled: false, error: insertErr };
+  }
+
+  return { alreadyHandled: false, state: 'claimed', error: null };
+}
+
+/**
+ * Marque l'événement comme COMPLETED après succès du traitement complet.
+ */
+export async function markEventCompleted(eventId, env = {}, isSandbox = false, options = {}) {
+  const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.stripeEvents) return;
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox, ...options });
+  const nowIso = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from(tables.stripeEvents)
+    .update({
+      status: EVENT_STATUS.COMPLETED,
+      processed_at: nowIso,
+      error_message: null,
+    })
+    .eq('id', eventId);
+
+  if (error && error.message?.includes('column "status"')) {
+    await supabaseAdmin
+      .from(tables.stripeEvents)
+      .update({ processed_at: nowIso })
+      .eq('id', eventId);
+  }
+}
+
+/**
+ * Marque l'événement comme FAILED en cas d'erreur de traitement,
+ * permettant à Stripe de retenter l'événement ultérieurement sans le considérer comme un doublon.
+ */
+export async function markEventFailed(eventId, errorMessage = '', env = {}, isSandbox = false, options = {}) {
+  const tables = getTargetTables(env, isSandbox);
+  if (!tables.canWrite || !tables.stripeEvents) return;
+  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox, ...options });
+  const nowIso = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from(tables.stripeEvents)
+    .update({
+      status: EVENT_STATUS.FAILED,
+      processed_at: nowIso,
+      error_message: String(errorMessage || 'Erreur inconnue'),
+    })
+    .eq('id', eventId);
+
+  if (error && error.message?.includes('column "status"')) {
+    // Si pas de colonne status, on supprime la ligne pour que le retry Stripe ne soit pas bloqué par clé dupliquée
+    await supabaseAdmin
+      .from(tables.stripeEvents)
+      .delete()
+      .eq('id', eventId);
+  }
 }
 
 /**
@@ -455,20 +616,14 @@ export async function isEventProcessed(eventId, env = {}, isSandbox = false) {
   const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
   const { data } = await supabaseAdmin
     .from(tables.stripeEvents)
-    .select('id')
+    .select('id, status')
     .eq('id', eventId)
     .maybeSingle();
 
-  return Boolean(data?.id);
+  if (!data) return false;
+  return data.status === EVENT_STATUS.COMPLETED || !data.status;
 }
 
 export async function markEventProcessed(eventId, type, env = {}, isSandbox = false) {
-  const tables = getTargetTables(env, isSandbox);
-  if (!tables.canWrite || !tables.stripeEvents) return;
-  const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
-  await supabaseAdmin.from(tables.stripeEvents).upsert({
-    id: eventId,
-    type,
-    processed_at: new Date().toISOString(),
-  });
+  await markEventCompleted(eventId, env, isSandbox);
 }
