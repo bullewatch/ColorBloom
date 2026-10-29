@@ -12,9 +12,12 @@ export const INTERVALS = {
 
 export const STRIPE_API_VERSION = '2026-09-30.endive';
 
+export const STRIPE_TAX_CODE = 'txcd_10505002';
+
 export const PLAN_CONFIG = {
   [PLANS.COLORVIP]: {
     name: 'ColorVIP',
+    tax_code: STRIPE_TAX_CODE,
     description: 'Accès illimité aux téléchargements vectoriels SVG (Usage personnel)',
     features: [
       'Téléchargements SVG vectoriels illimités',
@@ -40,6 +43,7 @@ export const PLAN_CONFIG = {
   },
   [PLANS.COLORVIP_PRO]: {
     name: 'ColorVIP Pro',
+    tax_code: STRIPE_TAX_CODE,
     description: 'Accès illimité aux téléchargements vectoriels SVG (Usage personnel & Licence commerciale incluse)',
     features: [
       'Téléchargements SVG vectoriels illimités',
@@ -79,6 +83,9 @@ export function isStripeSandboxKey(secretKey = '') {
  * avec la version API stable '2026-09-30.endive'.
  */
 export function getStripe(env = {}) {
+  if (env.stripeClient) {
+    return env.stripeClient;
+  }
   const secretKey =
     env.STRIPE_SECRET_KEY ||
     (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY);
@@ -228,6 +235,7 @@ export function getSubscriptionPlanInfo(sub) {
 
 /**
  * Assure que les fiches produits et tarifs existent dans Stripe sans doublon.
+ * Ajoute et synchronise le code fiscal Stripe (txcd_10505002) requis pour Managed Payments.
  */
 export async function ensureStripeProductsAndPrices(stripe) {
   const existingProducts = await stripe.products.list({ limit: 100, active: true });
@@ -243,11 +251,16 @@ export async function ensureStripeProductsAndPrices(stripe) {
     prodVip = await stripe.products.create({
       name: 'ColorVIP',
       description: PLAN_CONFIG[PLANS.COLORVIP].description,
+      tax_code: STRIPE_TAX_CODE,
       metadata: {
         app: 'colorblop',
         plan_id: PLANS.COLORVIP,
         commercial_license: 'false',
       },
+    });
+  } else if (!prodVip.tax_code) {
+    prodVip = await stripe.products.update(prodVip.id, {
+      tax_code: STRIPE_TAX_CODE,
     });
   }
 
@@ -255,11 +268,16 @@ export async function ensureStripeProductsAndPrices(stripe) {
     prodPro = await stripe.products.create({
       name: 'ColorVIP Pro',
       description: PLAN_CONFIG[PLANS.COLORVIP_PRO].description,
+      tax_code: STRIPE_TAX_CODE,
       metadata: {
         app: 'colorblop',
         plan_id: PLANS.COLORVIP_PRO,
         commercial_license: 'true',
       },
+    });
+  } else if (!prodPro.tax_code) {
+    prodPro = await stripe.products.update(prodPro.id, {
+      tax_code: STRIPE_TAX_CODE,
     });
   }
 

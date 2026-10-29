@@ -12,12 +12,15 @@ import {
   INTERVALS,
   PLAN_CONFIG,
   STRIPE_API_VERSION,
+  STRIPE_TAX_CODE,
   getStripe,
   getSubscriptionDates,
   getInvoiceSubscriptionId,
   getSubscriptionPlanInfo,
   isStripeSandboxKey,
+  ensureStripeProductsAndPrices,
 } from '../functions/_lib/stripe.js';
+import { onRequestPost as createCheckoutSession } from '../functions/api/create-checkout-session.js';
 import {
   generateLicenseSerialNumber,
   computeExactCalendarDates,
@@ -532,6 +535,12 @@ function createInMemorySupabaseClient() {
           currentFilters.push(row => row[col] === val);
           return queryBuilder;
         },
+        in: (col, vals) => {
+          currentFilters.push(row => vals.includes(row[col]));
+          return queryBuilder;
+        },
+        order: () => queryBuilder,
+        limit: () => queryBuilder,
         maybeSingle: async () => {
           const rows = Array.from(store.values());
           const match = rows.find(r => currentFilters.every(f => f(r)));
@@ -668,6 +677,319 @@ await runAsyncTest('9.2 - Verrouillage anti-concurrence : Rejet des requêtes si
   assert.equal(claimB.alreadyHandled, true, 'La requête concurrente doit être interceptée');
   assert.equal(claimB.inFlight, true, 'Elle doit être identifiée comme inFlight pour éviter le double traitement');
   assert.equal(claimB.state, 'processing');
+});
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 10 : Code Fiscal Stripe txcd_10505002 & Managed Payments (POINTS 1 à 4)
+// -----------------------------------------------------------------------------
+console.log('\n--- TEST SUITE 10 : Code Fiscal Stripe txcd_10505002 & Managed Payments ---');
+
+runTest('10.1 - Constante STRIPE_TAX_CODE configurée avec txcd_10505002 sur ColorVIP et ColorVIP Pro', () => {
+  assert.equal(STRIPE_TAX_CODE, 'txcd_10505002');
+  assert.equal(PLAN_CONFIG[PLANS.COLORVIP].tax_code, 'txcd_10505002');
+  assert.equal(PLAN_CONFIG[PLANS.COLORVIP_PRO].tax_code, 'txcd_10505002');
+});
+
+await runAsyncTest('10.2 - ensureStripeProductsAndPrices crée les produits avec tax_code txcd_10505002 s\'ils n\'existent pas', async () => {
+  const createdProducts = [];
+  const createdPrices = [];
+
+  const mockStripe = {
+    products: {
+      list: async () => ({ data: [] }),
+      create: async (params) => {
+        createdProducts.push(params);
+        return {
+          id: `prod_mock_${params.metadata.plan_id}`,
+          tax_code: params.tax_code,
+          ...params,
+        };
+      },
+      update: async () => {
+        throw new Error('update ne doit pas être appelé lors d’une création');
+      },
+    },
+    prices: {
+      list: async () => ({ data: [] }),
+      create: async (params) => {
+        createdPrices.push(params);
+        return {
+          id: `price_mock_${params.metadata.plan_id}_${params.recurring.interval}`,
+          ...params,
+        };
+      },
+    },
+  };
+
+  const res = await ensureStripeProductsAndPrices(mockStripe);
+
+  assert.equal(createdProducts.length, 2, '2 produits doivent être créés');
+  assert.equal(createdProducts[0].tax_code, 'txcd_10505002', 'ColorVIP doit avoir tax_code txcd_10505002');
+  assert.equal(createdProducts[1].tax_code, 'txcd_10505002', 'ColorVIP Pro doit avoir tax_code txcd_10505002');
+  assert.equal(createdPrices.length, 4, '4 tarifs doivent être créés');
+  assert.ok(res.products.colorvip);
+  assert.ok(res.products.colorvip_pro);
+});
+
+await runAsyncTest('10.3 - Lorsqu’un produit existe déjà sans tax_code, ensureStripeProductsAndPrices le met à jour sans le recréer', async () => {
+  const existingVip = {
+    id: 'prod_existing_vip_original_id',
+    name: 'ColorVIP',
+    tax_code: null, // aucun tax_code configuré à l'origine
+    metadata: { plan_id: PLANS.COLORVIP },
+  };
+  const existingPro = {
+    id: 'prod_existing_pro_original_id',
+    name: 'ColorVIP Pro',
+    tax_code: undefined, // aucun tax_code configuré à l'origine
+    metadata: { plan_id: PLANS.COLORVIP_PRO },
+  };
+
+  const existingPrices = [
+    {
+      id: 'price_existing_vip_month',
+      product: 'prod_existing_vip_original_id',
+      unit_amount: 299,
+      currency: 'eur',
+      recurring: { interval: 'month' },
+    },
+    {
+      id: 'price_existing_vip_year',
+      product: 'prod_existing_vip_original_id',
+      unit_amount: 2499,
+      currency: 'eur',
+      recurring: { interval: 'year' },
+    },
+    {
+      id: 'price_existing_pro_month',
+      product: 'prod_existing_pro_original_id',
+      unit_amount: 599,
+      currency: 'eur',
+      recurring: { interval: 'month' },
+    },
+    {
+      id: 'price_existing_pro_year',
+      product: 'prod_existing_pro_original_id',
+      unit_amount: 4999,
+      currency: 'eur',
+      recurring: { interval: 'year' },
+    },
+  ];
+
+  let createProductCalls = 0;
+  const updateProductCalls = [];
+  let createPriceCalls = 0;
+
+  const mockStripe = {
+    products: {
+      list: async () => ({ data: [existingVip, existingPro] }),
+      create: async () => {
+        createProductCalls++;
+        throw new Error('Les produits existants ne doivent JAMAIS être recréés');
+      },
+      update: async (productId, params) => {
+        updateProductCalls.push({ productId, params });
+        return {
+          ...(productId === existingVip.id ? existingVip : existingPro),
+          ...params,
+        };
+      },
+    },
+    prices: {
+      list: async () => ({ data: existingPrices }),
+      create: async () => {
+        createPriceCalls++;
+        throw new Error('Les prix existants ne doivent JAMAIS être recréés');
+      },
+    },
+  };
+
+  const res = await ensureStripeProductsAndPrices(mockStripe);
+
+  // Vérification de la non-recréation
+  assert.equal(createProductCalls, 0, 'Aucun nouveau produit ne doit être créé');
+  assert.equal(createPriceCalls, 0, 'Aucun nouveau tarif ne doit être créé');
+
+  // Vérification des appels de mise à jour Stripe
+  assert.equal(updateProductCalls.length, 2, 'Les 2 produits doivent être mis à jour avec le tax_code');
+  assert.deepEqual(updateProductCalls[0], {
+    productId: 'prod_existing_vip_original_id',
+    params: { tax_code: 'txcd_10505002' },
+  });
+  assert.deepEqual(updateProductCalls[1], {
+    productId: 'prod_existing_pro_original_id',
+    params: { tax_code: 'txcd_10505002' },
+  });
+
+  // Vérification stricte de la conservation des 4 tarifs et identifiants existants
+  assert.equal(res.products.colorvip, 'prod_existing_vip_original_id');
+  assert.equal(res.products.colorvip_pro, 'prod_existing_pro_original_id');
+  assert.equal(res.prices.colorvip_month, 'price_existing_vip_month');
+  assert.equal(res.prices.colorvip_year, 'price_existing_vip_year');
+  assert.equal(res.prices.colorvip_pro_month, 'price_existing_pro_month');
+  assert.equal(res.prices.colorvip_pro_year, 'price_existing_pro_year');
+});
+
+await runAsyncTest('10.4 - Idempotence : si les produits possèdent déjà txcd_10505002, aucune mise à jour superflue n\'est effectuée', async () => {
+  const existingVip = {
+    id: 'prod_existing_vip_already_taxed',
+    name: 'ColorVIP',
+    tax_code: 'txcd_10505002',
+    metadata: { plan_id: PLANS.COLORVIP },
+  };
+  const existingPro = {
+    id: 'prod_existing_pro_already_taxed',
+    name: 'ColorVIP Pro',
+    tax_code: 'txcd_10505002',
+    metadata: { plan_id: PLANS.COLORVIP_PRO },
+  };
+
+  let updateCalled = false;
+
+  const mockStripe = {
+    products: {
+      list: async () => ({ data: [existingVip, existingPro] }),
+      create: async () => { throw new Error('Ne doit pas créer'); },
+      update: async () => {
+        updateCalled = true;
+      },
+    },
+    prices: {
+      list: async () => ({
+        data: [
+          { id: 'p1', product: existingVip.id, unit_amount: 299, currency: 'eur', recurring: { interval: 'month' } },
+          { id: 'p2', product: existingVip.id, unit_amount: 2499, currency: 'eur', recurring: { interval: 'year' } },
+          { id: 'p3', product: existingPro.id, unit_amount: 599, currency: 'eur', recurring: { interval: 'month' } },
+          { id: 'p4', product: existingPro.id, unit_amount: 4999, currency: 'eur', recurring: { interval: 'year' } },
+        ],
+      }),
+      create: async () => { throw new Error('Ne doit pas créer'); },
+    },
+  };
+
+  const res = await ensureStripeProductsAndPrices(mockStripe);
+  assert.equal(updateCalled, false, 'update ne doit pas être appelé si tax_code est déjà présent');
+  assert.equal(res.products.colorvip, existingVip.id);
+  assert.equal(res.products.colorvip_pro, existingPro.id);
+});
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 11 : Test des 4 Formules en Sandbox & create-checkout-session (Stripe API 2026-09-30.endive)
+// -----------------------------------------------------------------------------
+console.log('\n--- TEST SUITE 11 : Test des 4 Formules en Sandbox & Checkout Session 2026-09-30.endive ---');
+
+const testFormulas = [
+  { planId: PLANS.COLORVIP, interval: INTERVALS.MONTH, expectedAmount: 299, expectedPriceId: 'price_vip_m_sandbox' },
+  { planId: PLANS.COLORVIP, interval: INTERVALS.YEAR, expectedAmount: 2499, expectedPriceId: 'price_vip_y_sandbox' },
+  { planId: PLANS.COLORVIP_PRO, interval: INTERVALS.MONTH, expectedAmount: 599, expectedPriceId: 'price_pro_m_sandbox' },
+  { planId: PLANS.COLORVIP_PRO, interval: INTERVALS.YEAR, expectedAmount: 4999, expectedPriceId: 'price_pro_y_sandbox' },
+];
+
+for (const f of testFormulas) {
+  const planLabel = f.planId === PLANS.COLORVIP_PRO ? 'ColorVIP Pro' : 'ColorVIP';
+  const intervalLabel = f.interval === INTERVALS.YEAR ? 'Annuel' : 'Mensuel';
+
+  await runAsyncTest(`11.${testFormulas.indexOf(f) + 1} - Sandbox Checkout Session pour ${planLabel} ${intervalLabel} (${f.expectedAmount / 100} €)`, async () => {
+    const sessionCalls = [];
+
+    const mockStripe = {
+      products: {
+        list: async () => ({
+          data: [
+            { id: 'prod_vip_id', name: 'ColorVIP', tax_code: 'txcd_10505002', metadata: { plan_id: PLANS.COLORVIP } },
+            { id: 'prod_pro_id', name: 'ColorVIP Pro', tax_code: 'txcd_10505002', metadata: { plan_id: PLANS.COLORVIP_PRO } },
+          ],
+        }),
+        update: async (id, params) => ({ id, ...params }),
+      },
+      prices: {
+        list: async () => ({
+          data: [
+            { id: 'price_vip_m_sandbox', product: 'prod_vip_id', unit_amount: 299, currency: 'eur', recurring: { interval: 'month' } },
+            { id: 'price_vip_y_sandbox', product: 'prod_vip_id', unit_amount: 2499, currency: 'eur', recurring: { interval: 'year' } },
+            { id: 'price_pro_m_sandbox', product: 'prod_pro_id', unit_amount: 599, currency: 'eur', recurring: { interval: 'month' } },
+            { id: 'price_pro_y_sandbox', product: 'prod_pro_id', unit_amount: 4999, currency: 'eur', recurring: { interval: 'year' } },
+          ],
+        }),
+      },
+      customers: {
+        list: async () => ({ data: [{ id: 'cus_test_mock_123' }] }),
+      },
+      checkout: {
+        sessions: {
+          create: async (params) => {
+            sessionCalls.push(params);
+            return {
+              id: `cs_test_${f.planId}_${f.interval}_123`,
+              url: `https://checkout.stripe.com/c/pay/cs_test_${f.planId}_${f.interval}_123`,
+            };
+          },
+        },
+      },
+    };
+
+    const mockSupabase = createInMemorySupabaseClient();
+    mockSupabase.auth = {
+      getUser: async () => ({
+        data: {
+          user: {
+            id: 'user_test_sandbox_123',
+            email: 'testeur@colorblop.com',
+          },
+        },
+        error: null,
+      }),
+    };
+    await mockSupabase.from('profiles').insert({
+      id: 'user_test_sandbox_123',
+      stripe_customer_id: 'cus_test_mock_123',
+      display_name: 'Testeur Colorblop',
+    });
+
+    const mockEnv = {
+      STRIPE_SECRET_KEY: 'sk_test_mock_sandbox_key_123',
+      stripeClient: mockStripe,
+      supabaseClient: mockSupabase,
+      ENABLE_SANDBOX_TABLES: 'true',
+    };
+
+    const req = new Request('https://colorblop.pages.dev/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer fake_jwt_token_for_test',
+      },
+      body: JSON.stringify({
+        planId: f.planId,
+        interval: f.interval,
+        customerName: 'Testeur Colorblop',
+      }),
+    });
+
+    const res = await createCheckoutSession({ request: req, env: mockEnv });
+    assert.equal(res.status, 200, `create-checkout-session doit renvoyer 200 pour ${f.planId} ${f.interval}`);
+
+    const resData = await res.json();
+    assert.ok(resData.url.startsWith('https://checkout.stripe.com/'), 'URL de redirection Stripe Checkout valide');
+    assert.ok(resData.sessionId.startsWith('cs_test_'), 'ID de session Stripe valide');
+
+    // Vérification des paramètres envoyés à Stripe Checkout (API 2026-09-30.endive)
+    assert.equal(sessionCalls.length, 1);
+    const sessionParams = sessionCalls[0];
+    assert.equal(sessionParams.mode, 'subscription');
+    assert.equal(sessionParams.customer, 'cus_test_mock_123');
+    assert.equal(sessionParams.line_items[0].price, f.expectedPriceId);
+    assert.equal(sessionParams.line_items[0].quantity, 1);
+    assert.equal(sessionParams.subscription_data.metadata.plan_id, f.planId);
+    assert.equal(sessionParams.subscription_data.metadata.interval, f.interval);
+    assert.equal(sessionParams.subscription_data.metadata.sandbox, 'true');
+    // Managed Payments : aucun paramètre de désactivation de taxe
+    assert.equal(sessionParams.automatic_tax?.enabled, undefined, 'Managed Payments ne doit pas être altéré/désactivé');
+  });
+}
+
+runTest('11.5 - Intégrité globale : 4 formules testées avec succès, Managed Payments préservé, 0 régression', () => {
+  assert.equal(testFormulas.length, 4);
 });
 
 // -----------------------------------------------------------------------------

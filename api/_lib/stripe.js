@@ -10,10 +10,13 @@ export const INTERVALS = {
   YEAR: 'year',
 };
 
+export const STRIPE_TAX_CODE = 'txcd_10505002';
+
 // Plan definitions with pricing in EUR cents
 export const PLAN_CONFIG = {
   [PLANS.COLORVIP]: {
     name: 'ColorVIP',
+    tax_code: STRIPE_TAX_CODE,
     description: 'Accès illimité aux téléchargements vectoriels SVG (Usage personnel)',
     features: [
       'Téléchargements SVG vectoriels illimités',
@@ -39,6 +42,7 @@ export const PLAN_CONFIG = {
   },
   [PLANS.COLORVIP_PRO]: {
     name: 'ColorVIP Pro',
+    tax_code: STRIPE_TAX_CODE,
     description: 'Accès illimité aux téléchargements vectoriels SVG (Usage personnel & Licence commerciale incluse)',
     features: [
       'Téléchargements SVG vectoriels illimités',
@@ -99,11 +103,16 @@ export async function ensureStripeProductsAndPrices(stripe) {
     prodVip = await stripe.products.create({
       name: 'ColorVIP',
       description: PLAN_CONFIG[PLANS.COLORVIP].description,
+      tax_code: STRIPE_TAX_CODE,
       metadata: {
         app: 'colorblop',
         plan_id: PLANS.COLORVIP,
         commercial_license: 'false',
       },
+    });
+  } else if (!prodVip.tax_code) {
+    prodVip = await stripe.products.update(prodVip.id, {
+      tax_code: STRIPE_TAX_CODE,
     });
   }
 
@@ -111,11 +120,16 @@ export async function ensureStripeProductsAndPrices(stripe) {
     prodPro = await stripe.products.create({
       name: 'ColorVIP Pro',
       description: PLAN_CONFIG[PLANS.COLORVIP_PRO].description,
+      tax_code: STRIPE_TAX_CODE,
       metadata: {
         app: 'colorblop',
         plan_id: PLANS.COLORVIP_PRO,
         commercial_license: 'true',
       },
+    });
+  } else if (!prodPro.tax_code) {
+    prodPro = await stripe.products.update(prodPro.id, {
+      tax_code: STRIPE_TAX_CODE,
     });
   }
 

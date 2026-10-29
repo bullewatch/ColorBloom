@@ -81,6 +81,9 @@ export function getSupabaseAdmin(env = {}, options = {}) {
   if (options.supabaseClient) {
     return options.supabaseClient;
   }
+  if (env.supabaseClient) {
+    return env.supabaseClient;
+  }
   const isSandbox = isSandboxEnvironment(env, options);
   const { url, serviceKey } = resolveSupabaseCredentials(env, isSandbox);
 
