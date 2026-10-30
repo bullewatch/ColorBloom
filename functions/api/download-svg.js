@@ -13,8 +13,46 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
-    // 1. Authentification obligatoire
-    const { user, error: authErr } = await authenticateUser(request, env);
+    // 1. Authentification obligatoire via l'en-tête Authorization: Bearer uniquement
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+    if (!authHeader || !authHeader.trim().toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({
+          error: 'Vous devez être connecté pour télécharger les fichiers SVG.',
+          code: 'AUTH_REQUIRED',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const bearerToken = authHeader.trim().slice(7).trim();
+    if (!bearerToken) {
+      return new Response(
+        JSON.stringify({
+          error: 'Vous devez être connecté pour télécharger les fichiers SVG.',
+          code: 'AUTH_REQUIRED',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Interdiction formelle d'authentifier cet endpoint via ?token= :
+    // On retire tout paramètre token de l'URL pour ne jamais s'appuyer sur la query string
+    let authRequest = request;
+    try {
+      const parsedUrl = new URL(request.url);
+      if (parsedUrl.searchParams.has('token')) {
+        parsedUrl.searchParams.delete('token');
+        authRequest = new Request(parsedUrl.toString(), {
+          method: request.method || 'GET',
+          headers: request.headers,
+        });
+      }
+    } catch {
+      // Conserve authRequest avec l'en-tête Authorization vérifié
+    }
+
+    const { user, error: authErr } = await authenticateUser(authRequest, env);
     if (authErr || !user) {
       return new Response(
         JSON.stringify({

@@ -1127,16 +1127,31 @@ function App() {
 
         // Téléchargement sécurisé via l'API protégée
         const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token || '';
+        const token = sessionData?.session?.access_token;
 
-        const downloadUrl = `/api/download-svg?id=${encodeURIComponent(open.id)}&slug=${encodeURIComponent(open.slug || '')}&token=${encodeURIComponent(token)}`;
+        if (!token) {
+          if (!sessionData?.session) {
+            setSession(null);
+          }
+          setIsMembershipModalOpen(true);
+          return;
+        }
+
+        const downloadUrl = `/api/download-svg?id=${encodeURIComponent(open.id)}&slug=${encodeURIComponent(open.slug || '')}`;
 
         const res = await fetch(downloadUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (!res.ok) {
-          if (res.status === 403 || res.status === 401) {
+          if (res.status === 401) {
+            setSession(null);
+            setIsMembershipModalOpen(true);
+            return;
+          }
+          if (res.status === 403) {
             setIsMembershipModalOpen(true);
             return;
           }
