@@ -203,7 +203,7 @@ export function MembershipView({
                 disabled={loadingPlan === 'colorvip'}
               >
                 {loadingPlan === 'colorvip' ? (
-                  'Redirection Stripe…'
+                  'Veuillez patienter…'
                 ) : currentPlan === 'colorvip' ? (
                   'Gérer mon abonnement'
                 ) : (
@@ -303,7 +303,7 @@ export function MembershipView({
                 disabled={loadingPlan === 'colorvip_pro'}
               >
                 {loadingPlan === 'colorvip_pro' ? (
-                  'Redirection Stripe…'
+                  'Veuillez patienter…'
                 ) : currentPlan === 'colorvip_pro' ? (
                   'Gérer mon abonnement Pro'
                 ) : (

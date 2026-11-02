@@ -2713,6 +2713,7 @@ button, input, select, textarea {
 }
 
 .cb-active-avatar-wrap {
+  position: relative;
   width: 100px;
   height: 100px;
   margin: 0 auto 10px;
@@ -6785,57 +6786,6 @@ footer {
   }
 }
 
-/* Toast de célébration après succès de paiement Stripe */
-.cb-checkout-celebration-toast {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
-  color: #ffffff;
-  padding: 14px 22px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  z-index: 10001;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border: 2px solid #ffffff;
-  animation: cbSlideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.cb-checkout-celebration-toast b {
-  font-family: 'Patrick Hand SC', cursive;
-  font-size: 19px;
-  display: block;
-}
-
-.cb-checkout-celebration-toast p {
-  font-family: 'Patrick Hand', cursive;
-  font-size: 15px;
-  margin: 2px 0 0;
-}
-
-.cb-checkout-celebration-toast button {
-  background: transparent;
-  border: 0;
-  color: #ffffff;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-}
-
-@keyframes cbSlideDown {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -20px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
 
 /* Vue Licences Commerciales (Espace Propriétaire / Admin) */
 .cb-owner-view-licenses {
@@ -6993,4 +6943,352 @@ footer {
 
 .cb-btn-dl-lic-mini:hover {
   background: #1b5e20;
+}
+
+/* === BADGES VIP COLORBLOP (ColorVIP & ColorVIP Pro) === */
+.cb-avatar-header-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cb-vip-badge-header {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  height: 38px;
+  width: auto;
+  max-width: 38px;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cb-avatar-header-wrap:hover .cb-vip-badge-header {
+  transform: scale(1.1) rotate(4deg);
+}
+
+.cb-vip-badge-profile {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  height: 48px;
+  width: auto;
+  max-width: 48px;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease;
+}
+
+.cb-active-avatar-wrap:hover .cb-vip-badge-profile {
+  transform: scale(1.08) rotate(3deg);
+}
+
+@media (max-width: 600px) {
+  .cb-vip-badge-header {
+    height: 30px;
+    max-width: 30px;
+    bottom: -3px;
+    right: -4px;
+  }
+
+  .cb-vip-badge-profile {
+    height: 40px;
+    max-width: 40px;
+    bottom: -4px;
+    right: -6px;
+  }
+}
+
+/* === PAGE RÉINITIALISATION DU MOT DE PASSE === */
+.cb-reset-password-page {
+  max-width: 520px;
+  margin: 24px auto 60px;
+  padding: 32px 24px;
+}
+
+.cb-reset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cb-reset-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fdf6e2 0%, #e8d09b 100%);
+  border: 3px solid #8c5b32;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #684528;
+  margin-bottom: 14px;
+}
+
+.cb-reset-card h1 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 32px;
+  color: #3b220e;
+  margin: 0 0 10px;
+}
+
+.cb-reset-intro {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  color: #5c3b20;
+  margin: 0 0 20px;
+  line-height: 1.4;
+}
+
+.cb-reset-form {
+  width: 100%;
+  text-align: left;
+}
+
+.cb-reset-field {
+  margin-bottom: 18px;
+}
+
+.cb-reset-field label {
+  display: block;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 18px;
+  color: #4a2c13;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.cb-reset-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cb-reset-input-wrap input {
+  width: 100%;
+  padding: 12px 46px 12px 14px;
+  border-radius: 12px;
+  border: 2.5px solid #8c5b32;
+  background: #fffdf9;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  color: #2b180a;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.cb-reset-input-wrap input:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.18);
+}
+
+.cb-reset-eye-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: 0;
+  color: #7a5230;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.cb-reset-eye-btn:hover {
+  color: #2e7d32;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.cb-reset-criteria {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 16px 0 24px;
+  padding: 12px 14px;
+  background: rgba(140, 91, 50, 0.08);
+  border-radius: 12px;
+  border: 1.5px dashed #bfa27a;
+}
+
+.cb-criterion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #8c5b32;
+  transition: color 0.2s ease;
+}
+
+.cb-criterion.valid {
+  color: #1b5e20;
+  font-weight: 700;
+}
+
+.cb-crit-bullet {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.cb-btn-save-password {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #388e3c 0%, #1b5e20 100%);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(27, 94, 32, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.cb-btn-save-password:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(27, 94, 32, 0.45);
+}
+
+.cb-btn-save-password:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cb-btn-back-login {
+  width: 100%;
+  margin-top: 14px;
+  background: transparent;
+  border: 0;
+  color: #5c3b20;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  transition: color 0.15s ease;
+}
+
+.cb-btn-back-login:hover {
+  color: #1b5e20;
+}
+
+.cb-reset-error-banner {
+  background: #fde8e8;
+  color: #9b1c1c;
+  border: 1.5px solid #f8b4b4;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+
+.cb-reset-warning-banner {
+  background: #fff8e1;
+  color: #b78103;
+  border: 1.5px solid #ffe082;
+  padding: 8px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.cb-reset-success-box,
+.cb-reset-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 0;
+  width: 100%;
+}
+
+.cb-success-check-icon {
+  color: #2e7d32;
+  margin-bottom: 14px;
+}
+
+.cb-error-alert-icon {
+  color: #c62828;
+  margin-bottom: 14px;
+}
+
+.cb-reset-success-box h3 {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 26px;
+  color: #1b5e20;
+  margin: 0 0 10px;
+}
+
+.cb-reset-success-box p,
+.cb-reset-error-state p {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  color: #4a2c13;
+  margin: 0 0 20px;
+  line-height: 1.45;
+}
+
+.cb-reset-error-text {
+  font-weight: 700;
+  color: #c62828 !important;
+  font-size: 19px !important;
+}
+
+.cb-reset-error-hint {
+  font-size: 15px !important;
+  color: #7a5230 !important;
+}
+
+.cb-btn-reset-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #388e3c 0%, #1b5e20 100%);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 19px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(27, 94, 32, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.cb-btn-reset-login:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .cb-reset-criteria {
+    grid-template-columns: 1fr;
+  }
 }

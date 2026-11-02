@@ -20,8 +20,11 @@ import { MembershipModal } from './MembershipModal';
 import { MemberSubscriptionCard } from './MemberSubscriptionCard';
 import { generateCommercialLicensePdf } from './licensePdf';
 import { exportDrawingToCanvas, prepareHighResSvgString } from './svgExport';
+import { ResetPasswordView } from './ResetPasswordView';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
+import colorVipBadge from '../assets/colorvip.png';
+import colorVipProBadge from '../assets/colorvippro.png';
 import boardArt from '../assets/board-tight.png';
 import likeArt from '../assets/like-tight.png';
 import likeLikedArt from '../assets/like-liked-tight.png';
@@ -406,7 +409,7 @@ function App() {
   // Stripe Subscriptions State
   const [subscriptionData, setSubscriptionData] = useState(null);
   const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
-  const [checkoutNotice, setCheckoutNotice] = useState(null);
+  const [resetPasswordError, setResetPasswordError] = useState(null);
 
   const fetchSubscriptionStatus = async () => {
     try {
@@ -429,9 +432,22 @@ function App() {
   }, [session]);
 
   useEffect(() => {
+    // Détection d'erreurs de récupération de mot de passe (liens expirés, déjà utilisés ou invalides)
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('error=') || search.includes('error=')) {
+      const params = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : search);
+      const errCode = params.get('error_code') || params.get('error');
+      const errDesc = params.get('error_description') || '';
+      if (errCode || errDesc) {
+        setResetPasswordError('Ce lien de réinitialisation est invalide, expiré ou a déjà été utilisé. Veuillez faire une nouvelle demande.');
+        setPage('ResetPassword');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('checkout') === 'success' || urlParams.get('payment') === 'success') {
-      setCheckoutNotice('success');
       fetchSubscriptionStatus();
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (urlParams.get('tab') === 'abonnement') {
@@ -620,6 +636,34 @@ function App() {
     session?.user?.email?.toLowerCase() === 'flo83119@gmail.com'
   );
   const canDownloadSvg = Boolean(subscriptionData?.canDownloadSvg || isOwner);
+
+  // Badge VIP officiel selon les droits réels confirmés par le serveur
+  const vipBadge = useMemo(() => {
+    if (!session && !isOwner) return null;
+
+    const isOwnerUser = Boolean(isOwner || subscriptionData?.isOwner);
+    if (isOwnerUser) {
+      return { type: 'colorvip_pro', src: colorVipProBadge, label: 'ColorVIP Pro' };
+    }
+
+    const sub = subscriptionData?.subscription;
+    const isSubActive = Boolean(
+      sub &&
+      ['active', 'trialing'].includes(sub.status) &&
+      new Date(sub.current_period_end).getTime() > Date.now()
+    );
+
+    if (isSubActive) {
+      if (sub.plan_id === 'colorvip_pro') {
+        return { type: 'colorvip_pro', src: colorVipProBadge, label: 'ColorVIP Pro' };
+      }
+      if (sub.plan_id === 'colorvip') {
+        return { type: 'colorvip', src: colorVipBadge, label: 'ColorVIP' };
+      }
+    }
+
+    return null;
+  }, [session, subscriptionData, isOwner]);
 
   // Visitor IP Quota management (blocks incognito / private browsing bypass)
   const [visitorIp, setVisitorIp] = useState(null);
@@ -1002,6 +1046,15 @@ function App() {
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (_event === 'PASSWORD_RECOVERY') {
+        // Parcours dédié de réinitialisation de mot de passe : ne pas connecter normalement
+        setResetPasswordError(null);
+        setPage('ResetPassword');
+        // Nettoyer immédiatement les fragments d'URL pour ne jamais exposer de jetons
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
       setSession(nextSession);
       loadAccount(nextSession);
 
@@ -1327,15 +1380,25 @@ function App() {
               </button>
             )}
 
-            {/* Selected Avatar Circle */}
-            <button
-              className="cb-avatar-circle"
-              onClick={() => { setPage('Profil'); setOwnerOpen(false); }}
-              title="Mon Profil"
-              aria-label="Mon Profil"
-            >
-              <img src={activeAvatarSrc} alt="Mon Avatar" />
-            </button>
+            {/* Selected Avatar Circle with VIP Badge */}
+            <div className="cb-avatar-header-wrap">
+              <button
+                className="cb-avatar-circle"
+                onClick={() => { setPage('Profil'); setOwnerOpen(false); }}
+                title="Mon Profil"
+                aria-label="Mon Profil"
+              >
+                <img src={activeAvatarSrc} alt="Mon Avatar" />
+              </button>
+              {vipBadge && (
+                <img
+                  src={vipBadge.src}
+                  alt={vipBadge.label}
+                  className="cb-vip-badge-header"
+                  title={`Membre ${vipBadge.label}`}
+                />
+              )}
+            </div>
 
             {/* Settings Cogwheel Button */}
             <button
@@ -1591,6 +1654,15 @@ function App() {
           pendingRequestsCount={pendingRequestsCount}
           refreshPendingRequests={checkPendingRequests}
         />
+      ) : page === 'ResetPassword' ? (
+        <ResetPasswordView
+          initialError={resetPasswordError}
+          onNavigateToLogin={() => {
+            setResetPasswordError(null);
+            setPage('Profil');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       ) : page === 'DevenirMembre' ? (
         <MembershipView
           session={session}
@@ -1614,6 +1686,7 @@ function App() {
             setPage('DevenirMembre');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          vipBadge={vipBadge}
           lang={lang}
           t={t}
         />
@@ -2468,27 +2541,6 @@ function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
-
-      {/* Checkout Success Toast Notification */}
-      {checkoutNotice === 'success' && (
-        <div className="cb-checkout-celebration-toast" role="alert">
-          <div className="cb-celebration-content">
-            <Sparkles className="cb-celebration-icon" />
-            <div>
-              <h4>Félicitations et bienvenue !</h4>
-              <p>Votre abonnement COLORBLOP est désormais actif. Tous les SVG vectoriels sont débloqués !</p>
-            </div>
-            <button
-              type="button"
-              className="cb-toast-close"
-              onClick={() => setCheckoutNotice(null)}
-              aria-label="Fermer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
@@ -2832,7 +2884,7 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   );
 }
 
-function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin, subscriptionData, onRefreshSubscription, onNavigateToMembership, lang = 'FR', t = translations.FR }) {
+function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady, isOwner, openAdmin, subscriptionData, onRefreshSubscription, onNavigateToMembership, vipBadge, lang = 'FR', t = translations.FR }) {
   const [authMode, setAuthMode] = useState('signup'); // 'signup' | 'signin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -3096,6 +3148,14 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     <section className="profile cb-profile-box">
       <div className="cb-active-avatar-wrap">
         <img src={avatarList[selectedAvatar] || avatar1} alt="Avatar sélectionné" className="cb-profile-current-avatar" />
+        {vipBadge && (
+          <img
+            src={vipBadge.src}
+            alt={vipBadge.label}
+            className="cb-vip-badge-profile"
+            title={`Membre ${vipBadge.label}`}
+          />
+        )}
       </div>
 
       <h1>{session ? userDisplayName : t.profileTitleVisitor}</h1>
