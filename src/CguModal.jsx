@@ -184,7 +184,7 @@ export function LegalModal({
                   <li><b>Nom du service :</b> Colorblop</li>
                   <li><b>Activité :</b> Création artistique, coloriages numériques et fichiers vectoriels</li>
                   <li><b>Directeur de la publication :</b> L'équipe fondatrice Colorblop</li>
-                  <li><b>Contact e-mail :</b> <a href="mailto:contact@colorblop.com" className="cb-legal-link">contact@colorblop.com</a> / <a href="mailto:flo83119@gmail.com" className="cb-legal-link">flo83119@gmail.com</a></li>
+                  <li><b>Contact e-mail :</b> <a href="mailto:contact@colorblop.com" className="cb-legal-link">contact@colorblop.com</a></li>
                   <li><b>Formulaire de contact :</b> Boîte à lettres interactive accessible directement sur le site</li>
                 </ul>
               </section>
