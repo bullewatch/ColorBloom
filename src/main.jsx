@@ -5,7 +5,7 @@ import {
   Search, Heart, Settings, Download, X, Leaf, Globe2, Moon, Sun,
   LogIn, Mail, Send, ShieldCheck, Plus, FolderOpen, Tags,
   UploadCloud, Trash2, Pencil, CheckCircle2, LogOut, UserPlus,
-  Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
+  Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check, History,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
   Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
   GripVertical, ArrowUp, Building2
@@ -62,8 +62,14 @@ function getNavItems(t, latestBadge = '5') {
 function getCatLabel(catName, t) {
   switch (catName) {
     case 'Tous': return t.catAll;
+    case 'Nouveautes':
+    case 'Nouveautés': return t.navNews;
     case 'Animaux': return t.catAnimals;
     case 'Chats': return t.catCats;
+    case 'Animaux du Monde': return 'Animaux du Monde';
+    case 'Couronnes': return 'Couronnes';
+    case 'Couronnes Noël': return 'Couronnes Noël';
+    case 'Couronnes Halloween': return 'Couronnes Halloween';
     case 'Fées': return t.catFairies;
     case 'Fille': return t.catGirls;
     case 'Garçon': return t.catBoys;
@@ -122,14 +128,18 @@ function slugify(value) {
 export const INITIAL_CATEGORIES = [
   { id: 'animaux', name: 'Animaux', parent_id: null, sort_order: 1 },
   { id: 'chats', name: 'Chats', parent_id: 'animaux', sort_order: 2 },
-  { id: 'fees', name: 'Fées', parent_id: null, sort_order: 3 },
-  { id: 'fille', name: 'Fille', parent_id: null, sort_order: 4 },
-  { id: 'garcon', name: 'Garçon', parent_id: null, sort_order: 5 },
-  { id: 'halloween', name: 'Halloween', parent_id: null, sort_order: 6 },
-  { id: 'dinosaures', name: 'Dinosaures', parent_id: null, sort_order: 7 },
-  { id: 'vehicules', name: 'Véhicules', parent_id: null, sort_order: 8 },
-  { id: 'vip', name: 'VIP', parent_id: null, sort_order: 9 },
-  { id: 'divers', name: 'Divers', parent_id: null, sort_order: 10 },
+  { id: 'animaux-du-monde', name: 'Animaux du Monde', parent_id: 'animaux', sort_order: 3 },
+  { id: 'fees', name: 'Fées', parent_id: null, sort_order: 4 },
+  { id: 'fille', name: 'Fille', parent_id: null, sort_order: 5 },
+  { id: 'garcon', name: 'Garçon', parent_id: null, sort_order: 6 },
+  { id: 'halloween', name: 'Halloween', parent_id: null, sort_order: 7 },
+  { id: 'dinosaures', name: 'Dinosaures', parent_id: null, sort_order: 8 },
+  { id: 'vehicules', name: 'Véhicules', parent_id: null, sort_order: 9 },
+  { id: 'couronnes', name: 'Couronnes', parent_id: null, sort_order: 10 },
+  { id: 'couronnes-noel', name: 'Couronnes Noël', parent_id: 'couronnes', sort_order: 1 },
+  { id: 'couronnes-halloween', name: 'Couronnes Halloween', parent_id: 'couronnes', sort_order: 2 },
+  { id: 'vip', name: 'VIP', parent_id: null, sort_order: 11 },
+  { id: 'divers', name: 'Divers', parent_id: null, sort_order: 12 },
 ];
 
 function normalizeCategory(c) {
@@ -169,11 +179,11 @@ function getParentCategoryFor(catNameOrId, allCats) {
 }
 
 export const DEFAULT_NEWS = [
+  { id: 'news-0', dateKey: '2026-10-26', displayDate: '26/10', count: 47 },
   { id: 'news-1', dateKey: '2026-10-25', displayDate: '25/10', count: 34 },
   { id: 'news-2', dateKey: '2026-10-23', displayDate: '23/10', count: 22 },
   { id: 'news-3', dateKey: '2026-10-20', displayDate: '20/10', count: 18 },
   { id: 'news-4', dateKey: '2026-10-16', displayDate: '16/10', count: 25 },
-  { id: 'news-5', dateKey: '2026-10-12', displayDate: '12/10', count: 30 },
 ];
 
 function normalizeCatStr(s) {
@@ -392,10 +402,18 @@ function App() {
     const local = JSON.parse(localStorage.getItem('cb-news-list') || '[]');
     return local.length ? local.slice(0, 5) : DEFAULT_NEWS;
   });
+  const [selectedNewsDate, setSelectedNewsDate] = useState(null);
+  const latestNewsCount = newsList[0]?.count || 47;
   const navItems = useMemo(
-    () => getNavItems(t, newsList[0]?.count ? String(newsList[0].count) : '5'),
-    [t, newsList]
+    () => getNavItems(t, String(latestNewsCount)),
+    [t, latestNewsCount]
   );
+
+  useEffect(() => {
+    if (cat !== 'Nouveautes' && cat !== 'Nouveautés') {
+      setSelectedNewsDate(null);
+    }
+  }, [cat]);
   const [nouveautesOpen, setNouveautesOpen] = useState(false);
   const [downloads, setDownloads] = useState(Number(localStorage.getItem('cb-downloads') || 0));
   const [downloading, setDownloading] = useState(null);
@@ -550,23 +568,62 @@ function App() {
     }
   }
 
-  async function loadNews() {
+  async function loadNews(overrideDrawings = null) {
     try {
       const { data, error } = await supabase
         .from('addition_logs')
         .select('*')
         .order('date_key', { ascending: false })
-        .limit(5);
+        .limit(10);
 
+      const logMap = new Map();
       if (!error && data && data.length) {
-        const formatted = data.map(r => ({
-          id: r.id,
-          dateKey: r.date_key,
-          displayDate: r.display_date,
-          count: r.drawings_count || 1,
-        }));
-        setNewsList(formatted);
-        localStorage.setItem('cb-news-list', JSON.stringify(formatted));
+        data.forEach(r => {
+          logMap.set(r.date_key, {
+            id: r.id,
+            dateKey: r.date_key,
+            displayDate: r.display_date,
+            count: r.drawings_count || 1,
+          });
+        });
+      }
+
+      // Dynamically verify real drawings to ensure all recent addition batches are included
+      const targetDrawings = overrideDrawings || drawings || [];
+      if (targetDrawings.length > 0) {
+        const dateCounts = {};
+        targetDrawings.forEach(d => {
+          if (!d.createdAt) return;
+          const dKey = d.createdAt.slice(0, 10);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dKey)) {
+            dateCounts[dKey] = (dateCounts[dKey] || 0) + 1;
+          }
+        });
+
+        Object.entries(dateCounts).forEach(([dKey, cnt]) => {
+          const parts = dKey.split('-');
+          const displayDate = `${parts[2]}/${parts[1]}`;
+          const existing = logMap.get(dKey);
+          if (!existing) {
+            logMap.set(dKey, {
+              id: `auto-${dKey}`,
+              dateKey: dKey,
+              displayDate,
+              count: cnt,
+            });
+          } else if (existing.count < cnt) {
+            existing.count = cnt;
+          }
+        });
+      }
+
+      const sortedNews = Array.from(logMap.values())
+        .sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+        .slice(0, 5);
+
+      if (sortedNews.length > 0) {
+        setNewsList(sortedNews);
+        localStorage.setItem('cb-news-list', JSON.stringify(sortedNews));
       }
     } catch (err) {
       console.warn('Error loading addition news:', err);
@@ -983,6 +1040,7 @@ function App() {
 
     setDatabaseReady(!pagesErr);
     setDrawings(combined);
+    loadNews(combined);
   }
 
   async function checkPendingRequests() {
@@ -1317,6 +1375,18 @@ function App() {
       if (q && !matchesSearchWithTranslations(d.title, q, lang)) {
         return false;
       }
+      if (cat === 'Nouveautes' || cat === 'Nouveautés') {
+        if (selectedNewsDate) {
+          const dKey = d.createdAt ? d.createdAt.slice(0, 10) : '';
+          return dKey === selectedNewsDate;
+        }
+        const latestKey = newsList[0]?.dateKey;
+        if (latestKey) {
+          const dKey = d.createdAt ? d.createdAt.slice(0, 10) : '';
+          if (dKey === latestKey) return true;
+        }
+        return d.fresh || (d.createdAt && (Date.now() - new Date(d.createdAt).getTime()) < 30 * 24 * 60 * 60 * 1000);
+      }
       if (cat === 'Tous') return true;
 
       const targetCat = categoriesList.find(c => 
@@ -1359,7 +1429,7 @@ function App() {
       });
     }
     return result;
-  }, [q, cat, page, favs, sort, drawings, categoriesList, lang]);
+  }, [q, cat, selectedNewsDate, newsList, page, favs, sort, drawings, categoriesList, lang]);
 
   const activeAvatarSrc = avatarList[selectedAvatar] || avatar1;
 
@@ -1496,11 +1566,18 @@ function App() {
             })}
             <button
               type="button"
-              className="cb-mobile-cat-pill"
-              onClick={() => setNouveautesOpen(true)}
+              className={`cb-mobile-cat-pill ${cat === 'Nouveautes' && page === 'Accueil' ? 'active' : ''}`}
+              onClick={() => {
+                setCat('Nouveautes');
+                setSelectedNewsDate(null);
+                setSort('recent');
+                setPage('Accueil');
+                setOwnerOpen(false);
+              }}
             >
               <Sparkles size={14} />
               <span>{t.navNews}</span>
+              <span className="cb-mobile-pill-count">({latestNewsCount})</span>
             </button>
             <button
               type="button"
@@ -1835,6 +1912,22 @@ function App() {
                     <span className="cb-plank-pill">{drawings.length}</span>
                   </button>
 
+                  {/* Nouveautés */}
+                  <button
+                    className={`cb-css-plank cb-plank-news ${cat === 'Nouveautes' && page === 'Accueil' ? 'active' : ''}`}
+                    onClick={() => {
+                      if (isCatEditMode) return;
+                      setCat('Nouveautes');
+                      setSelectedNewsDate(null);
+                      setSort('recent');
+                      setPage('Accueil');
+                    }}
+                  >
+                    <span className="cb-plank-dot"><Sparkles size={14} /></span>
+                    <span className="cb-plank-title">{t.navNews}</span>
+                    <span className="cb-plank-pill">{latestNewsCount}</span>
+                  </button>
+
                   {/* Catégories principales et sous-catégories imbriquées */}
                   {rootCategories.map(rc => {
                     const subcats = getSubcategoriesFor(rc, categoriesList);
@@ -2113,6 +2206,53 @@ function App() {
 
           {/* Center Gallery: Grid of Wooden Boards with Pinned Drawings */}
           <section className="cb-gallery">
+            {cat === 'Nouveautes' && page === 'Accueil' && (
+              <div className="cb-news-gallery-banner">
+                <div className="cb-news-banner-content">
+                  <Sparkles size={22} className="cb-news-banner-sparkle" />
+                  <div>
+                    <h3 className="cb-news-banner-title">
+                      {selectedNewsDate ? (
+                        lang === 'EN' ? `Drawings added on ${newsList.find(n => n.dateKey === selectedNewsDate)?.displayDate || selectedNewsDate}`
+                        : lang === 'ES' ? `Dibujos añadidos el ${newsList.find(n => n.dateKey === selectedNewsDate)?.displayDate || selectedNewsDate}`
+                        : lang === 'DE' ? `Ausmalbilder hinzugefügt am ${newsList.find(n => n.dateKey === selectedNewsDate)?.displayDate || selectedNewsDate}`
+                        : `Coloriages ajoutés le ${newsList.find(n => n.dateKey === selectedNewsDate)?.displayDate || selectedNewsDate}`
+                      ) : (
+                        lang === 'EN' ? 'Latest Additions'
+                        : lang === 'ES' ? 'Últimas Novedades'
+                        : lang === 'DE' ? 'Neueste Bilder'
+                        : 'Derniers coloriages ajoutés'
+                      )}
+                      <span className="cb-news-banner-count"> ({shown.length})</span>
+                    </h3>
+                    <p className="cb-news-banner-sub">
+                      {lang === 'EN' ? 'Discover the newly published coloring drawings'
+                      : lang === 'ES' ? 'Descubre los dibujos recién publicados'
+                      : lang === 'DE' ? 'Entdecke die neu veröffentlichten Ausmalbilder'
+                      : 'Découvre les dessins fraîchement publiés'}
+                    </p>
+                  </div>
+                </div>
+                <div className="cb-news-banner-actions">
+                  <button
+                    type="button"
+                    className="cb-news-banner-btn-history"
+                    onClick={() => setNouveautesOpen(true)}
+                  >
+                    <History size={15} />
+                    <span>{lang === 'EN' ? 'All additions' : lang === 'ES' ? 'Ver fechas' : lang === 'DE' ? 'Alle Daten' : 'Voir les 5 dates d’ajouts'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="cb-news-banner-btn-all"
+                    onClick={() => { setCat('Tous'); setSelectedNewsDate(null); }}
+                  >
+                    <X size={15} />
+                    <span>{lang === 'EN' ? 'Show all' : lang === 'ES' ? 'Ver todos' : lang === 'DE' ? 'Alle anzeigen' : 'Voir tous les coloriages'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {shown.length ? (
               <div className={`cb-boards-grid cb-grid-cols-${gridDensity}`}>
                 {shown.map((d) => (
@@ -2127,6 +2267,9 @@ function App() {
                       {/* Pinned Drawing on the Inner Parchment Canvas */}
                       <div className="cb-board-canvas" onContextMenu={(e) => e.preventDefault()}>
                         {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
+                        {((newsList[0] && d.createdAt && d.createdAt.slice(0, 10) === newsList[0].dateKey) || d.fresh) && (
+                          <span className="cb-fresh-card-tag" title="Nouveau coloriage"><Sparkles size={10} /> {lang === 'EN' ? 'New' : lang === 'ES' ? 'Nuevo' : lang === 'DE' ? 'Neu' : 'Nouveau'}</span>
+                        )}
                         {d.image ? (
                           <CanvasDrawingCard 
                             imageSrc={d.thumb || d.image} 
@@ -2377,8 +2520,22 @@ function App() {
             <div className="cb-news-dates-list">
               {newsList.slice(0, 5).map((item, index) => {
                 const isLatest = index === 0;
+                const isSelected = selectedNewsDate === item.dateKey;
                 return (
-                  <div key={item.id || item.dateKey} className={`cb-news-date-card ${isLatest ? 'latest' : ''}`}>
+                  <button
+                    key={item.id || item.dateKey}
+                    type="button"
+                    className={`cb-news-date-card ${isLatest ? 'latest' : ''} ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedNewsDate(item.dateKey);
+                      setCat('Nouveautes');
+                      setPage('Accueil');
+                      setSort('recent');
+                      setNouveautesOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    title={lang === 'EN' ? `Click to view these ${item.count} drawings` : lang === 'ES' ? `Haz clic para ver estos ${item.count} dibujos` : lang === 'DE' ? `Klicken, um diese ${item.count} Bilder zu sehen` : `Cliquer pour voir ces ${item.count} dessins`}
+                  >
                     <div className="cb-news-date-head">
                       <span className="cb-news-date-badge">
                         {isLatest && <span className="cb-news-pulse-dot" />}
@@ -2388,12 +2545,17 @@ function App() {
                         {formatNewsItem(item.displayDate, item.count, lang)}
                       </b>
                     </div>
-                    {isLatest && (
-                      <span className="cb-news-fresh-tag">
-                        ✨ {lang === 'EN' ? 'Latest' : lang === 'ES' ? 'Último' : lang === 'DE' ? 'Neu' : 'Dernier ajout'}
+                    <div className="cb-news-date-tail">
+                      {isLatest && (
+                        <span className="cb-news-fresh-tag">
+                          ✨ {lang === 'EN' ? 'Latest' : lang === 'ES' ? 'Último' : lang === 'DE' ? 'Neu' : 'Dernier ajout'}
+                        </span>
+                      )}
+                      <span className="cb-news-card-action">
+                        {lang === 'EN' ? 'View' : lang === 'ES' ? 'Ver' : lang === 'DE' ? 'Ansehen' : 'Voir'} →
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  </button>
                 );
               })}
             </div>
@@ -2403,10 +2565,11 @@ function App() {
                 type="button"
                 className="cb-btn-view-recent-drawings"
                 onClick={() => {
-                  setNouveautesOpen(false);
+                  setSelectedNewsDate(newsList[0]?.dateKey || null);
+                  setCat('Nouveautes');
                   setPage('Accueil');
-                  setCat('Tous');
                   setSort('recent');
+                  setNouveautesOpen(false);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >

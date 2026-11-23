@@ -16,6 +16,6 @@ export const animalCatalog = Array.from({ length: 126 }, (_, i) => i + 1)
     thumb: `/previews/animaux/thumbs/animal-${num}.webp`,
     svgAssetId: `animal-${num}`,
     isSvg: true,
-    fresh: num <= 15,
-    createdAt: new Date(Date.now() - (126 - num) * 12 * 3600 * 1000).toISOString(),
+    fresh: false,
+    createdAt: new Date(Date.parse('2026-10-25T09:00:00.000Z') + num * 1000).toISOString(),
   }));
