@@ -19,20 +19,30 @@ Pour que les e-mails de confirmation renvoient vers la bonne adresse (et non plu
 
 ---
 
-## 2. Personnaliser le modèle d'e-mail de confirmation (Multilingue & Joli)
+## 2. Personnaliser les modèles d'e-mails (Naturel, humain, sans emojis)
 
-Un modèle soigné reprenant l'univers boisé de Colorblop et s'adaptant automatiquement à la langue choisie par l'utilisateur (FR, EN, ES, DE) est disponible dans le fichier `supabase/templates/confirmation.html`.
+Des modèles soignés, écrits avec authenticité par Florian (fondateur et illustrateur) et sans aucun emoji, sont disponibles dans le dossier `supabase/templates/`.
 
+### A. E-mail de confirmation d'inscription (Confirm signup)
 1. Dans Supabase, va dans **Authentication** > **Email Templates**.
 2. Clique sur l'onglet **Confirm signup**.
 3. **Subject** :
    ```text
-   Bienvenue sur Colorblop ! Confirmez votre adresse e-mail 🌸
+   Confirmez votre inscription sur Colorblop
    ```
 4. **Body** : Copie-colle l'intégralité du contenu de [`supabase/templates/confirmation.html`](./supabase/templates/confirmation.html).
 5. Clique sur **Save**.
 
-Désormais, le mail s'affiche avec la signature « Cordialement, Mme Colorblop 🌸 », un joli bouton en bois et s'adapte à la langue (Français par défaut, Anglais, Espagnol, Allemand).
+### B. E-mail de réinitialisation de mot de passe (Reset password)
+1. Clique sur l'onglet **Reset password**.
+2. **Subject** :
+   ```text
+   Réinitialisation de votre mot de passe Colorblop
+   ```
+3. **Body** : Copie-colle l'intégralité du contenu de [`supabase/templates/reset_password.html`](./supabase/templates/reset_password.html).
+4. Clique sur **Save**.
+
+Le mail est chaleureux, authentique, signé par Florian, et s'adapte automatiquement à la langue choisie par l'utilisateur (Français, Anglais, Espagnol, Allemand).
 
 ---
 
