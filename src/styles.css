@@ -2963,14 +2963,19 @@ button, input, select, textarea {
   inset: 0;
   background: rgba(10, 25, 15, 0.85);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 10000;
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modalbox {
   position: relative;
+  margin: auto;
   background: #f5e7c8;
   border: 6px solid #60412d;
   border-radius: 18px;
@@ -2978,6 +2983,7 @@ button, input, select, textarea {
   text-align: center;
   max-width: 460px;
   width: 100%;
+  box-sizing: border-box;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
 }
 
@@ -4349,18 +4355,155 @@ footer, .cb-main-footer {
     padding: 0 10px 105px;
   }
 
-  /* Mailbox widget above Instagram bottom bar */
+  /* Mailbox widget above bottom bar on mobile: plus compacte pour ne jamais bloquer le contenu */
   .cb-corner-mailbox {
-    width: 95px !important;
-    bottom: 74px !important;
-    right: 12px !important;
+    width: 72px !important;
+    bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+    right: 8px !important;
   }
 
   .cb-mailbox-toast {
-    bottom: 175px !important;
-    right: 12px !important;
-    font-size: 16px !important;
-    padding: 7px 14px !important;
+    bottom: calc(145px + env(safe-area-inset-bottom)) !important;
+    right: 8px !important;
+    font-size: 14px !important;
+    padding: 6px 12px !important;
+  }
+
+  /* FOOTER BAS DE PAGE MOBILE : marge généreuse pour que la barre de navigation et la boîte aux lettres ne cachent rien */
+  footer, .cb-main-footer {
+    padding-top: 24px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: calc(115px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .cb-footer-inner {
+    padding-right: 80px !important; /* Dégage la zone droite pour laisser la boîte aux lettres sans chevauchement */
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .cb-footer-brand {
+    justify-content: flex-start !important;
+  }
+
+  .cb-footer-links {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    margin: 6px 0 !important;
+  }
+
+  .cb-footer-sep {
+    display: none !important;
+  }
+
+  .cb-footer-copy {
+    text-align: left !important;
+    font-size: 11px !important;
+    margin-top: 4px !important;
+  }
+
+  /* MODALE DESSIN AGRANDI SUR MOBILE : cadrage parfait, 0 rognage, accessible et lisible */
+  .modal {
+    padding: 10px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modalbox {
+    margin: auto !important;
+    padding: 14px 10px 10px !important;
+    border-width: 4px !important;
+    border-radius: 16px !important;
+    max-width: min(94vw, 380px) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  /* Bouton fermer toujours visible à l'intérieur du cadre en haut à droite */
+  .modalbox .close {
+    top: 6px !important;
+    right: 6px !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-width: 2.5px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  /* Cadre du dessin optimisé pour la hauteur des écrans mobiles */
+  .bigpaper {
+    max-height: 40dvh !important;
+    max-width: 100% !important;
+    aspect-ratio: 3 / 4 !important;
+    margin: 0 auto !important;
+    border-radius: 6px !important;
+  }
+
+  .modalbox h2 {
+    font-size: 20px !important;
+    margin: 6px 0 2px !important;
+    line-height: 1.2 !important;
+  }
+
+  .modalbox p {
+    font-size: 13px !important;
+    margin: 2px 0 6px !important;
+  }
+
+  /* Boutons d'actions en grille 2x2 propre : aucun débordement */
+  .actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    margin-top: 6px !important;
+    width: 100% !important;
+  }
+
+  .actions button {
+    width: 100% !important;
+    padding: 7px 4px !important;
+    font-size: 12.5px !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    border-width: 2px !important;
+    gap: 4px !important;
+  }
+
+  .actions button:first-child:nth-last-child(3) {
+    grid-column: span 2 !important;
+  }
+
+  .download-note {
+    font-size: 11px !important;
+    margin-top: 4px !important;
+  }
+
+  .cb-limit-cta-box {
+    padding: 8px 10px !important;
+    margin-top: 6px !important;
+  }
+
+  .cb-limit-cta-desc {
+    font-size: 12px !important;
+  }
+
+  .letter {
+    width: min(94vw, 420px) !important;
+    padding: 16px 12px !important;
+    border-width: 5px !important;
+    margin: auto !important;
+  }
+
+  .letter .close {
+    top: 6px !important;
+    right: 6px !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 
   /* INSTAGRAM-STYLE MOBILE BOTTOM BAR */

@@ -433,6 +433,99 @@ function App() {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('cgu');
 
+  // Références d'état pour la gestion native du bouton retour mobile (Android & Navigateurs)
+  const openRef = useRef(open);
+  openRef.current = open;
+  const nouveautesOpenRef = useRef(nouveautesOpen);
+  nouveautesOpenRef.current = nouveautesOpen;
+  const isLegalModalOpenRef = useRef(isLegalModalOpen);
+  isLegalModalOpenRef.current = isLegalModalOpen;
+  const isMembershipModalOpenRef = useRef(isMembershipModalOpen);
+  isMembershipModalOpenRef.current = isMembershipModalOpen;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  // Ouvrir / Fermer le dessin agrandi avec gestion d'historique native
+  const openDrawing = (drawing) => {
+    if (!window.history.state?.cbDrawingOpen) {
+      window.history.pushState({ cbDrawingOpen: true, id: drawing?.id || drawing?.slug }, '');
+    }
+    setOpen(drawing);
+  };
+
+  const closeDrawing = () => {
+    if (window.history.state?.cbDrawingOpen) {
+      window.history.back();
+    } else {
+      setOpen(null);
+    }
+  };
+
+  const openNouveautes = () => {
+    if (!window.history.state?.cbNouveautesOpen) {
+      window.history.pushState({ cbNouveautesOpen: true }, '');
+    }
+    setNouveautesOpen(true);
+  };
+
+  const closeNouveautes = () => {
+    if (window.history.state?.cbNouveautesOpen) {
+      window.history.back();
+    } else {
+      setNouveautesOpen(false);
+    }
+  };
+
+  // Gestion du bouton retour mobile et de la touche Échap
+  useEffect(() => {
+    const handlePopState = () => {
+      // Si la modale dessin est ouverte, la fermeture s'opère sans quitter le site
+      if (openRef.current) {
+        setOpen(null);
+        return;
+      }
+      if (nouveautesOpenRef.current) {
+        setNouveautesOpen(false);
+        return;
+      }
+      if (isLegalModalOpenRef.current) {
+        setIsLegalModalOpen(false);
+        return;
+      }
+      if (isMembershipModalOpenRef.current) {
+        setIsMembershipModalOpen(false);
+        return;
+      }
+      if (settingsRef.current) {
+        setSettings(false);
+        return;
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (openRef.current) {
+          closeDrawing();
+        } else if (nouveautesOpenRef.current) {
+          closeNouveautes();
+        } else if (isLegalModalOpenRef.current) {
+          setIsLegalModalOpen(false);
+        } else if (isMembershipModalOpenRef.current) {
+          setIsMembershipModalOpen(false);
+        } else if (settingsRef.current) {
+          setSettings(false);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const fetchSubscriptionStatus = async () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -1511,7 +1604,7 @@ function App() {
                 className={`cb-nav-tab ${page === id && !ownerOpen ? 'active' : ''}`}
                 onClick={() => {
                   if (id === 'Nouveautes') {
-                    setNouveautesOpen(true);
+                    openNouveautes();
                     return;
                   }
                   setPage(id);
@@ -2237,7 +2330,7 @@ function App() {
                   <button
                     type="button"
                     className="cb-news-banner-btn-history"
-                    onClick={() => setNouveautesOpen(true)}
+                    onClick={openNouveautes}
                   >
                     <History size={15} />
                     <span>{lang === 'EN' ? 'All additions' : lang === 'ES' ? 'Ver fechas' : lang === 'DE' ? 'Alle Daten' : 'Voir les 5 dates d’ajouts'}</span>
@@ -2259,7 +2352,7 @@ function App() {
                   <article 
                     className="cb-board-item" 
                     key={d.id} 
-                    onClick={() => setOpen(d)}
+                    onClick={() => openDrawing(d)}
                     onContextMenu={(e) => e.preventDefault()}
                   >
                     {/* The Wooden Board Frame Background */}
@@ -2401,9 +2494,9 @@ function App() {
 
       {/* Drawing Modal (En grand & Téléchargements SVG, PNG, PDF) */}
       {open && (
-        <div className="modal" onClick={() => setOpen(null)} onContextMenu={(e) => e.preventDefault()}>
+        <div className="modal" onClick={closeDrawing} onContextMenu={(e) => e.preventDefault()}>
           <div className="modalbox" onClick={e => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-            <button className="close" onClick={() => setOpen(null)}><X /></button>
+            <button className="close" onClick={closeDrawing}><X /></button>
             <div className="bigpaper" onContextMenu={(e) => e.preventDefault()}>
               <ModalDrawingPreview
                 drawing={open}
@@ -2432,7 +2525,7 @@ function App() {
                   type="button"
                   className="cb-btn-create-account-limit"
                   onClick={() => {
-                    setOpen(null);
+                    closeDrawing();
                     setPage('Profil');
                   }}
                 >
@@ -2502,9 +2595,9 @@ function App() {
 
       {/* Nouveautés / Notifications Modal */}
       {nouveautesOpen && (
-        <div className="modal" onClick={() => setNouveautesOpen(false)}>
+        <div className="modal" onClick={closeNouveautes}>
           <div className="letter" onClick={e => e.stopPropagation()}>
-            <button className="close" onClick={() => setNouveautesOpen(false)}><X /></button>
+            <button className="close" onClick={closeNouveautes}><X /></button>
             <Bell className="letter-icon" />
             <h2>{t.navNews || 'Nouveautés'}</h2>
             <p className="cb-news-modal-sub">
@@ -2531,7 +2624,7 @@ function App() {
                       setCat('Nouveautes');
                       setPage('Accueil');
                       setSort('recent');
-                      setNouveautesOpen(false);
+                      closeNouveautes();
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     title={lang === 'EN' ? `Click to view these ${item.count} drawings` : lang === 'ES' ? `Haz clic para ver estos ${item.count} dibujos` : lang === 'DE' ? `Klicken, um diese ${item.count} Bilder zu sehen` : `Cliquer pour voir ces ${item.count} dessins`}
@@ -2569,7 +2662,7 @@ function App() {
                   setCat('Nouveautes');
                   setPage('Accueil');
                   setSort('recent');
-                  setNouveautesOpen(false);
+                  closeNouveautes();
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >
@@ -2664,7 +2757,7 @@ function App() {
           setOwnerOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenDrawing={(d) => setOpen(d)}
+        onOpenDrawing={(d) => openDrawing(d)}
         onOpenOwnerRequests={() => {
           setOwnerOpen(true);
           setAdminView('requests');
