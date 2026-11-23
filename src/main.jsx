@@ -547,18 +547,22 @@ function App() {
   }, [session]);
 
   useEffect(() => {
-    // Détection d'erreurs de récupération de mot de passe (liens expirés, déjà utilisés ou invalides)
+    // Détection d'erreurs d'authentification ou de récupération de mot de passe dans l'URL
     const hash = window.location.hash || '';
     const search = window.location.search || '';
     if (hash.includes('error=') || search.includes('error=')) {
       const params = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : search);
       const errCode = params.get('error_code') || params.get('error');
       const errDesc = params.get('error_description') || '';
-      if (errCode || errDesc) {
+      const type = params.get('type');
+      
+      // On ne redirige vers ResetPassword que s'il s'agit explicitement d'un lien de récupération
+      if (type === 'recovery' || errDesc.toLowerCase().includes('recovery') || errDesc.toLowerCase().includes('password')) {
         setResetPasswordError('Ce lien de réinitialisation est invalide, expiré ou a déjà été utilisé. Veuillez faire une nouvelle demande.');
         setPage('ResetPassword');
-        window.history.replaceState({}, document.title, window.location.pathname);
       }
+      // Nettoyer l'URL pour ne pas polluer l'historique
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -3465,17 +3469,23 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     setBusy(true);
     setMessage('');
     try {
+      const redirectUrl = window.location.origin ? `${window.location.origin}/` : 'https://colorblop.com/';
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + window.location.pathname,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account',
           },
         },
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+          throw new Error("L'authentification Google n'est pas encore activée dans la console Supabase (Client ID Google manquant).");
+        }
+        throw error;
+      }
     } catch (err) {
       console.error('Erreur Google Auth:', err);
       setMessage(`Erreur de connexion Google : ${err.message || 'Impossible de se connecter avec Google.'}`);
