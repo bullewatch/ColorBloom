@@ -172,6 +172,9 @@ export function MemberSubscriptionCard({
     generateCommercialLicensePdf({
       licenseNumber: license?.license_number || 'CBL-2026-PRO-OFFICIEL',
       holderName: verifiedHolder,
+      firstName: license?.first_name || null,
+      lastName: license?.last_name || null,
+      shopName: license?.shop_name || null,
       holderEmail: license?.customer_email || session?.user?.email,
       interval: license?.interval || sub?.interval || 'month',
       validFrom: license?.valid_from || sub?.current_period_start,
@@ -295,6 +298,11 @@ export function MemberSubscriptionCard({
                     </span>
                   </div>
                   <div className="cb-license-locked-name">{currentLicName || 'FLORIAN'}</div>
+                  {license?.shop_name && (
+                    <div style={{ fontSize: '13px', color: '#1e3a8a', fontWeight: 'bold', marginTop: '2px' }}>
+                      Boutique / Atelier : {license.shop_name}
+                    </div>
+                  )}
                   <small className="cb-license-locked-info">
                     Ce nom est inscrit sur votre attestation officielle et ne peut plus être modifié (protection anti-fraude).
                   </small>

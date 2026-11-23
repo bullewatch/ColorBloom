@@ -272,11 +272,29 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isS
       fallbackMeta?.customer_email ||
       '';
 
+    const firstName =
+      sub.metadata?.first_name ||
+      fallbackMeta?.first_name ||
+      null;
+
+    const lastName =
+      sub.metadata?.last_name ||
+      fallbackMeta?.last_name ||
+      null;
+
+    const shopName =
+      sub.metadata?.shop_name ||
+      fallbackMeta?.shop_name ||
+      null;
+
     await syncCommercialLicense(
       {
         userId,
         subscriptionId: sub.id,
         customerName,
+        firstName,
+        lastName,
+        shopName,
         customerEmail,
         interval,
         periodStart,

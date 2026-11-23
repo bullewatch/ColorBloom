@@ -3706,6 +3706,71 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
   const [loadingStats, setLoadingStats] = useState(false);
   const [licensesList, setLicensesList] = useState([]);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
+  const [licenseSearch, setLicenseSearch] = useState('');
+  const [licenseSortBy, setLicenseSortBy] = useState('date_desc');
+  const [licenseFilterStatus, setLicenseFilterStatus] = useState('all');
+
+  const filteredLicenses = useMemo(() => {
+    let list = [...licensesList];
+
+    if (licenseFilterStatus === 'active') {
+      list = list.filter(lic => lic.status === 'active');
+    } else if (licenseFilterStatus === 'expired') {
+      list = list.filter(lic => lic.status !== 'active');
+    }
+
+    if (licenseSearch.trim()) {
+      const q = licenseSearch.trim().toLowerCase();
+      list = list.filter(lic => {
+        const serial = (lic.license_number || '').toLowerCase();
+        const holder = (lic.customer_name || '').toLowerCase();
+        const first = (lic.first_name || '').toLowerCase();
+        const last = (lic.last_name || '').toLowerCase();
+        const shop = (lic.shop_name || '').toLowerCase();
+        const email = (lic.customer_email || '').toLowerCase();
+        return (
+          serial.includes(q) ||
+          holder.includes(q) ||
+          first.includes(q) ||
+          last.includes(q) ||
+          shop.includes(q) ||
+          email.includes(q)
+        );
+      });
+    }
+
+    list.sort((a, b) => {
+      if (licenseSortBy === 'date_desc') {
+        return new Date(b.created_at || b.valid_from || 0) - new Date(a.created_at || a.valid_from || 0);
+      }
+      if (licenseSortBy === 'date_asc') {
+        return new Date(a.created_at || a.valid_from || 0) - new Date(b.created_at || b.valid_from || 0);
+      }
+      if (licenseSortBy === 'name_asc') {
+        const nameA = (a.last_name || a.customer_name || '').toLowerCase();
+        const nameB = (b.last_name || b.customer_name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      if (licenseSortBy === 'first_name_asc') {
+        const firstA = (a.first_name || '').toLowerCase();
+        const firstB = (b.first_name || '').toLowerCase();
+        return firstA.localeCompare(firstB);
+      }
+      if (licenseSortBy === 'shop_asc') {
+        const shopA = (a.shop_name || '').toLowerCase();
+        const shopB = (b.shop_name || '').toLowerCase();
+        return shopA.localeCompare(shopB);
+      }
+      if (licenseSortBy === 'serial_asc') {
+        const serialA = (a.license_number || '').toLowerCase();
+        const serialB = (b.license_number || '').toLowerCase();
+        return serialA.localeCompare(serialB);
+      }
+      return 0;
+    });
+
+    return list;
+  }, [licensesList, licenseSearch, licenseSortBy, licenseFilterStatus]);
 
   // Form for adding single drawing (legacy/quick)
   const [edit, setEdit] = useState(null);
@@ -5405,8 +5470,8 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
         <div className="cb-owner-view-licenses">
           <div className="cb-licenses-head-bar">
             <div>
-              <h2><FileBadge size={22} /> Registre des Licences Commerciales ({licensesList.length})</h2>
-              <p>Consultez la base officielle des licences d'exploitation commerciale délivrées avec numéros de série uniques.</p>
+              <h2><FileBadge size={22} /> Registre Officiel des Licences ({licensesList.length})</h2>
+              <p>Recherchez et téléchargez les attestations officielles avec titulaire (Nom/Prénom), boutique et n° de licence unique.</p>
             </div>
             <button
               type="button"
@@ -5419,6 +5484,67 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
             </button>
           </div>
 
+          {/* BARRE D'OUTILS : RECHERCHE RAPIDE, TRI ET FILTRE DE STATUT */}
+          <div className="cb-licenses-toolbar">
+            <div className="cb-licenses-search-box">
+              <Search size={16} className="cb-licenses-search-icon" />
+              <input
+                type="text"
+                placeholder="Rechercher par nom, prénom, boutique, email ou n° de licence..."
+                value={licenseSearch}
+                onChange={e => setLicenseSearch(e.target.value)}
+                className="cb-licenses-search-input"
+              />
+              {licenseSearch && (
+                <button
+                  type="button"
+                  className="cb-licenses-search-clear"
+                  onClick={() => setLicenseSearch('')}
+                  title="Effacer la recherche"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="cb-licenses-filters-wrap">
+              <div className="cb-licenses-select-wrap">
+                <label htmlFor="cb-sort-licenses">Trier par :</label>
+                <select
+                  id="cb-sort-licenses"
+                  value={licenseSortBy}
+                  onChange={e => setLicenseSortBy(e.target.value)}
+                  className="cb-licenses-select"
+                >
+                  <option value="date_desc">📅 Plus récentes d'abord</option>
+                  <option value="name_asc">👤 Nom de famille (A-Z)</option>
+                  <option value="first_name_asc">👤 Prénom (A-Z)</option>
+                  <option value="shop_asc">🏪 Nom de Boutique (A-Z)</option>
+                  <option value="serial_asc">🔢 Numéro de licence</option>
+                  <option value="date_asc">⏳ Plus anciennes d'abord</option>
+                </select>
+              </div>
+
+              <div className="cb-licenses-select-wrap">
+                <label htmlFor="cb-filter-licenses">Statut :</label>
+                <select
+                  id="cb-filter-licenses"
+                  value={licenseFilterStatus}
+                  onChange={e => setLicenseFilterStatus(e.target.value)}
+                  className="cb-licenses-select"
+                >
+                  <option value="all">Tous ({licensesList.length})</option>
+                  <option value="active">Actives uniquement</option>
+                  <option value="expired">Expirées uniquement</option>
+                </select>
+              </div>
+
+              <div className="cb-licenses-count-pill">
+                {filteredLicenses.length} / {licensesList.length} affichée(s)
+              </div>
+            </div>
+          </div>
+
           {loadingLicenses ? (
             <div className="cb-licenses-loading">Chargement des licences depuis Supabase…</div>
           ) : licensesList.length === 0 ? (
@@ -5427,13 +5553,28 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               <h3>Aucune licence commerciale émise</h3>
               <p>Les licences souscrites avec la formule ColorVIP Pro apparaîtront automatiquement ici avec leur numéro de série unique.</p>
             </div>
+          ) : filteredLicenses.length === 0 ? (
+            <div className="cb-licenses-empty">
+              <Search size={36} color="#8d6e63" />
+              <h3>Aucun résultat pour « {licenseSearch} »</h3>
+              <p>Vérifiez l'orthographe du nom, prénom, boutique ou du numéro de série.</p>
+              <button
+                type="button"
+                className="cb-btn-refresh-licenses"
+                style={{ marginTop: '12px' }}
+                onClick={() => { setLicenseSearch(''); setLicenseFilterStatus('all'); }}
+              >
+                Réinitialiser les filtres
+              </button>
+            </div>
           ) : (
             <div className="cb-licenses-table-wrap">
               <table className="cb-licenses-table">
                 <thead>
                   <tr>
                     <th>N° de Licence (Série)</th>
-                    <th>Titulaire (NOM et Prénom)</th>
+                    <th>Titulaire (Nom & Prénom)</th>
+                    <th>Boutique / Marque</th>
                     <th>Email client</th>
                     <th>Formule</th>
                     <th>Période de validité</th>
@@ -5442,13 +5583,26 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                   </tr>
                 </thead>
                 <tbody>
-                  {licensesList.map((lic) => (
+                  {filteredLicenses.map((lic) => (
                     <tr key={lic.id || lic.license_number}>
                       <td>
                         <code className="cb-license-code">{lic.license_number}</code>
                       </td>
                       <td>
-                        <b className="cb-license-table-holder">{lic.customer_name || 'Non renseigné'}</b>
+                        {lic.last_name || lic.first_name ? (
+                          <div className="cb-license-table-holder">
+                            <b>{lic.last_name}</b> {lic.first_name}
+                          </div>
+                        ) : (
+                          <b className="cb-license-table-holder">{lic.customer_name || 'Non renseigné'}</b>
+                        )}
+                      </td>
+                      <td>
+                        {lic.shop_name ? (
+                          <span className="cb-license-shop-badge">{lic.shop_name}</span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>
+                        )}
                       </td>
                       <td>
                         <span className="cb-license-table-email">{lic.customer_email || '—'}</span>
@@ -5476,6 +5630,9 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                           onClick={() => generateCommercialLicensePdf({
                             licenseNumber: lic.license_number,
                             holderName: lic.customer_name,
+                            firstName: lic.first_name,
+                            lastName: lic.last_name,
+                            shopName: lic.shop_name,
                             holderEmail: lic.customer_email,
                             interval: lic.interval || 'month',
                             validFrom: lic.valid_from,

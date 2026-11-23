@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { planId, interval, customerName } = body;
+    const { planId, interval, customerName, firstName, lastName, shopName } = body;
 
     // 2. Validation stricte des données d'entrée
     if (![PLANS.COLORVIP, PLANS.COLORVIP_PRO].includes(planId)) {
@@ -45,7 +45,17 @@ export async function onRequestPost(context) {
 
     const isSandbox = isSandboxEnvironment(env) || isStripeSandboxKey(env.STRIPE_SECRET_KEY);
     const creds = resolveSupabaseCredentials(env, isSandbox);
-    const verifiedCustomerName = customerName?.trim() || null;
+
+    const cleanFirstName = firstName ? String(firstName).trim() : null;
+    const cleanLastName = lastName ? String(lastName).trim().toUpperCase() : null;
+    const cleanShopName = shopName ? String(shopName).trim() : null;
+
+    let computedName = null;
+    if (cleanLastName && cleanFirstName) {
+      computedName = `${cleanLastName} ${cleanFirstName}${cleanShopName ? ` (${cleanShopName})` : ''}`;
+    }
+
+    const verifiedCustomerName = computedName || customerName?.trim() || null;
     const stripe = getStripe(env);
     const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
@@ -156,6 +166,9 @@ export async function onRequestPost(context) {
           interval,
           customer_email: user.email,
           customer_name: finalCustomerName,
+          first_name: cleanFirstName || '',
+          last_name: cleanLastName || '',
+          shop_name: cleanShopName || '',
           sandbox: isSandbox ? 'true' : 'false',
         },
       },
@@ -164,6 +177,9 @@ export async function onRequestPost(context) {
         plan_id: planId,
         interval,
         customer_name: finalCustomerName,
+        first_name: cleanFirstName || '',
+        last_name: cleanLastName || '',
+        shop_name: cleanShopName || '',
         sandbox: isSandbox ? 'true' : 'false',
       },
       success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

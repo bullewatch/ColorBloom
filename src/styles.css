@@ -7109,6 +7109,127 @@ footer, .cb-main-footer {
   border-color: #4e342e;
 }
 
+/* Toolbar du Registre des Licences (Recherche, Tri & Filtres) */
+.cb-licenses-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fdfbf7;
+  border: 1.5px solid #d7ccc8;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.cb-licenses-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 260px;
+}
+
+.cb-licenses-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #8d6e63;
+  pointer-events: none;
+}
+
+.cb-licenses-search-input {
+  width: 100%;
+  padding: 7px 32px 7px 34px;
+  border: 1.5px solid #bcaaa4;
+  border-radius: 8px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 14px;
+  color: #3e2723;
+  background: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.cb-licenses-search-input:focus {
+  border-color: #5d4037;
+  box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.12);
+}
+
+.cb-licenses-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  color: #8d6e63;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+}
+
+.cb-licenses-search-clear:hover {
+  color: #3e2723;
+  background: #efebe9;
+}
+
+.cb-licenses-filters-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cb-licenses-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #5d4037;
+}
+
+.cb-licenses-select {
+  padding: 6px 10px;
+  border: 1.5px solid #bcaaa4;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  color: #3e2723;
+  outline: none;
+  cursor: pointer;
+}
+
+.cb-licenses-select:focus {
+  border-color: #5d4037;
+}
+
+.cb-licenses-count-pill {
+  background: #efebe9;
+  color: #4e342e;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #d7ccc8;
+  white-space: nowrap;
+}
+
+.cb-license-shop-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 13px;
+  font-weight: bold;
+}
+
 .cb-licenses-empty {
   text-align: center;
   padding: 40px 20px;

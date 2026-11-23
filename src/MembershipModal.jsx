@@ -17,13 +17,27 @@ export function MembershipModal({
 
   if (!isOpen) return null;
 
-  async function executeCheckout(planId, customerName = null) {
+  async function executeCheckout(planId, identityData = null) {
     setErrorMsg('');
     setLoadingPlan(planId);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
+
+      let payloadCustomerName = null;
+      let firstName = null;
+      let lastName = null;
+      let shopName = null;
+
+      if (identityData && typeof identityData === 'object') {
+        firstName = identityData.firstName || null;
+        lastName = identityData.lastName || null;
+        shopName = identityData.shopName || null;
+        payloadCustomerName = identityData.customerName || null;
+      } else if (typeof identityData === 'string') {
+        payloadCustomerName = identityData;
+      }
 
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -34,7 +48,10 @@ export function MembershipModal({
         body: JSON.stringify({
           planId,
           interval,
-          customerName,
+          customerName: payloadCustomerName,
+          firstName,
+          lastName,
+          shopName,
         }),
       });
 

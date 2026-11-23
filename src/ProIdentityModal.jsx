@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldAlert, CheckCircle2, Lock, ArrowRight } from 'lucide-react';
+import { X, ShieldAlert, CheckCircle2, Lock, ArrowRight, Store, UserCheck } from 'lucide-react';
 
 export function ProIdentityModal({
   isOpen,
@@ -7,8 +7,9 @@ export function ProIdentityModal({
   onConfirm,
   loading = false,
 }) {
-  const [name, setName] = useState('');
-  const [nameConfirm, setNameConfirm] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [shopName, setShopName] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
@@ -17,26 +18,32 @@ export function ProIdentityModal({
     if (e) e.preventDefault();
     setError('');
 
-    const n1 = name.trim();
-    const n2 = nameConfirm.trim();
+    const cleanFirst = firstName.trim();
+    const cleanLast = lastName.trim().toUpperCase();
+    const cleanShop = shopName.trim();
 
-    if (!n1 || !n2) {
-      setError('Veuillez renseigner votre Nom et Prénom dans les deux champs.');
+    if (!cleanFirst || !cleanLast) {
+      setError('Veuillez renseigner votre Prénom et votre Nom officiel.');
       return;
     }
 
-    if (!n1.includes(' ')) {
-      setError('Veuillez renseigner à la fois votre NOM et votre Prénom (séparés par un espace).');
+    if (cleanFirst.length < 2 || cleanLast.length < 2) {
+      setError('Le prénom et le nom doivent comporter au moins 2 caractères chacun.');
       return;
     }
 
-    if (n1.toLowerCase() !== n2.toLowerCase()) {
-      setError('Les deux saisies ne correspondent pas exactement. Veuillez vérifier l’orthographe.');
-      return;
-    }
+    const formattedCustomerName = `${cleanLast} ${cleanFirst}${cleanShop ? ` (${cleanShop})` : ''}`;
 
-    onConfirm(n1.toUpperCase());
+    onConfirm({
+      firstName: cleanFirst,
+      lastName: cleanLast,
+      shopName: cleanShop,
+      customerName: formattedCustomerName,
+    });
   }
+
+  const previewName = `${(lastName || 'NOM').trim().toUpperCase()} ${(firstName || 'Prénom').trim()}`;
+  const previewShop = shopName.trim() || 'Artisan / Créateur Indépendant';
 
   return (
     <div className="modal cb-membership-modal-overlay" onClick={onClose} style={{ zIndex: 10002 }}>
@@ -45,14 +52,14 @@ export function ProIdentityModal({
 
         <div className="cb-modal-vip-badge pro">
           <Lock size={16} />
-          <span>Vérification d’Identité — Licence Commerciale Pro</span>
+          <span>Homologation Officielle — Licence Commerciale Pro</span>
         </div>
 
         <h2 style={{ margin: '10px 0 6px', fontSize: '22px' }}>
-          Titulaire Officiel de la Licence
+          Attribution de votre Licence Commerciale
         </h2>
         <p className="cb-modal-vip-sub" style={{ marginBottom: '14px' }}>
-          Votre attestation légale sera émise au nom renseigné ci-dessous. Veuillez saisir et confirmer votre <b>NOM et Prénom</b> :
+          Avant de procéder au règlement sécurisé, veuillez renseigner l'identité officielle et le nom de boutique auxquels sera rattachée votre attestation légale :
         </p>
 
         {error && (
@@ -62,37 +69,75 @@ export function ProIdentityModal({
         )}
 
         <form onSubmit={handleSubmit} className="cb-pro-identity-form">
-          <div className="cb-pro-field">
-            <label htmlFor="pro-name-1">NOM et Prénom du titulaire :</label>
-            <input
-              id="pro-name-1"
-              type="text"
-              className="cb-pro-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="ex: DUPONT Jean"
-              autoFocus
-              required
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="cb-pro-field">
+              <label htmlFor="pro-firstname">Prénom officiel : *</label>
+              <input
+                id="pro-firstname"
+                type="text"
+                className="cb-pro-input"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                placeholder="ex: Jean"
+                autoFocus
+                required
+              />
+            </div>
+
+            <div className="cb-pro-field">
+              <label htmlFor="pro-lastname">Nom de famille : *</label>
+              <input
+                id="pro-lastname"
+                type="text"
+                className="cb-pro-input"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                placeholder="ex: DUPONT"
+                required
+              />
+            </div>
           </div>
 
           <div className="cb-pro-field">
-            <label htmlFor="pro-name-2">Confirmez votre NOM et Prénom :</label>
+            <label htmlFor="pro-shopname" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Store size={14} color="#8d6e63" />
+              <span>Nom de votre boutique, atelier ou marque (facultatif) :</span>
+            </label>
             <input
-              id="pro-name-2"
+              id="pro-shopname"
               type="text"
               className="cb-pro-input"
-              value={nameConfirm}
-              onChange={e => setNameConfirm(e.target.value)}
-              placeholder="ex: DUPONT Jean"
-              required
+              value={shopName}
+              onChange={e => setShopName(e.target.value)}
+              placeholder="ex: Les Créas de Sophie, Atelier Bois & Couleurs..."
             />
+            <span style={{ fontSize: '11px', color: '#795548', fontFamily: 'Patrick Hand, cursive' }}>
+              Optionnel mais recommandé pour les boutiques Etsy, créateurs d'objets, ateliers ou salons artisanaux.
+            </span>
+          </div>
+
+          {/* Aperçu du certificat */}
+          <div style={{
+            background: '#f8fafc',
+            border: '1.5px dashed #cbd5e1',
+            borderRadius: '10px',
+            padding: '10px 12px',
+            fontSize: '13px',
+            fontFamily: 'Patrick Hand, cursive',
+            color: '#334155'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', color: '#1e3a8a', marginBottom: '4px' }}>
+              <UserCheck size={16} />
+              <span>Aperçu de l'inscription sur le certificat :</span>
+            </div>
+            <div>• Titulaire officiel : <b>{previewName}</b></div>
+            <div>• Enseigne commerciale : <b>{previewShop}</b></div>
           </div>
 
           <div className="cb-pro-warning-notice">
             <ShieldAlert size={18} color="#b71c1c" style={{ flexShrink: 0 }} />
             <span>
-              <b>Attention :</b> Ce nom est définitif et ne pourra plus être modifié après validation, afin de prévenir toute usurpation ou génération de licences multiples.
+              <b>Mention légale :</b> Ces informations sont enregistrées de façon définitive au Registre Central des Licences Colorblop pour justifier vos droits de vente légale auprès de vos clients et des plateformes.
             </span>
           </div>
 
@@ -108,13 +153,13 @@ export function ProIdentityModal({
             <button
               type="submit"
               className="cb-btn-confirm-pro"
-              disabled={loading || !name.trim() || !nameConfirm.trim()}
+              disabled={loading || !firstName.trim() || !lastName.trim()}
             >
               {loading ? (
                 <span>Validation en cours…</span>
               ) : (
                 <>
-                  <span>Valider et continuer</span>
+                  <span>Passer au paiement sécurisé</span>
                   <ArrowRight size={16} />
                 </>
               )}

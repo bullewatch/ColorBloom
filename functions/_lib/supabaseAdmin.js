@@ -347,6 +347,9 @@ export async function syncCommercialLicense({
   userId,
   subscriptionId,
   customerName,
+  firstName,
+  lastName,
+  shopName,
   customerEmail,
   interval = 'month',
   periodStart,
@@ -380,11 +383,18 @@ export async function syncCommercialLicense({
     ? existing.customer_name
     : (customerName || 'MEMBRE PRO COLORBLOP');
 
+  const resolvedFirstName = firstName || existing?.first_name || null;
+  const resolvedLastName = lastName || existing?.last_name || null;
+  const resolvedShopName = shopName || existing?.shop_name || null;
+
   const licensePayload = {
     license_number: licenseNumber,
     user_id: userId,
     subscription_id: subscriptionId,
     customer_name: resolvedName,
+    first_name: resolvedFirstName,
+    last_name: resolvedLastName,
+    shop_name: resolvedShopName,
     customer_email: customerEmail || existing?.customer_email || '',
     plan_type: 'colorvip_pro',
     interval,

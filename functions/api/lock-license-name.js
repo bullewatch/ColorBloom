@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { name, nameConfirm } = body;
+    const { name, nameConfirm, firstName, lastName, shopName } = body;
     const trimmed1 = (name || '').trim();
     const trimmed2 = (nameConfirm || '').trim();
 
@@ -65,6 +65,10 @@ export async function onRequestPost(context) {
     }
 
     const officialName = trimmed1.toUpperCase();
+    const cleanFirst = firstName ? String(firstName).trim() : null;
+    const cleanLast = lastName ? String(lastName).trim().toUpperCase() : null;
+    const cleanShop = shopName ? String(shopName).trim() : null;
+
     const supabaseAdmin = getSupabaseAdmin(env, { isSandbox });
 
     // Vérifier si une licence existe pour cet utilisateur
@@ -88,12 +92,17 @@ export async function onRequestPost(context) {
     }
 
     if (existingLic?.id) {
+      const updatePayload = {
+        customer_name: officialName,
+        updated_at: new Date().toISOString(),
+      };
+      if (cleanFirst) updatePayload.first_name = cleanFirst;
+      if (cleanLast) updatePayload.last_name = cleanLast;
+      if (cleanShop) updatePayload.shop_name = cleanShop;
+
       await supabaseAdmin
         .from(tables.licenses)
-        .update({
-          customer_name: officialName,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', existingLic.id);
     }
 

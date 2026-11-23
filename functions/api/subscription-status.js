@@ -61,8 +61,11 @@ export async function onRequestGet(context) {
 
         license = {
           license_number: 'CBL-2026-FL83-MSTR-9901',
-          customer_name: 'Florian',
-          customer_email: 'flo83119@gmail.com',
+          customer_name: 'Florian (Artiste Fondateur)',
+          first_name: 'Florian',
+          last_name: 'Artiste Fondateur',
+          shop_name: 'Colorblop Atelier Officiel',
+          customer_email: 'contact@colorblop.com',
           plan_type: 'colorvip_pro',
           interval: 'year',
           valid_from: start.toISOString(),

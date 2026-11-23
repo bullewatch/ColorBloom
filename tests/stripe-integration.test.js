@@ -297,6 +297,16 @@ runTest('5.2 - Calcul exact des dates calendaires (Même jour d\'échéance)', (
   assert.equal(yEnd.getUTCDate(), 15);
 });
 
+runTest('5.3 - Structure du certificat commercial avec prénom, nom et boutique', () => {
+  const serial = generateLicenseSerialNumber(2026);
+  assert.ok(serial.startsWith('CBL-2026-'));
+  const firstName = 'Sophie';
+  const lastName = 'MARTIN';
+  const shopName = 'Les Créas de Sophie';
+  const formatted = `${lastName} ${firstName} (${shopName})`;
+  assert.equal(formatted, 'MARTIN Sophie (Les Créas de Sophie)');
+});
+
 // -----------------------------------------------------------------------------
 // TEST SUITE 6 : Sécurité Webhooks & Signature Cryptographique (MISSION 3)
 // -----------------------------------------------------------------------------
