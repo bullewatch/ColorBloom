@@ -3907,14 +3907,86 @@ canvas.cb-pinned-drawing {
 }
 
 /* Footer */
-footer {
+footer, .cb-main-footer {
   text-align: center;
-  background: rgba(16, 35, 18, 0.85);
+  background: rgba(16, 35, 18, 0.94);
+  border-top: 3px solid #3c2314;
   color: #dfd8ba;
-  padding: 18px;
-  font-size: 14px;
+  padding: 24px 20px 20px;
   font-family: 'Patrick Hand', cursive;
+  letter-spacing: 0.5px;
+}
+
+.cb-footer-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.cb-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cb-footer-title {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffeed5;
   letter-spacing: 1px;
+}
+
+.cb-footer-tagline {
+  font-size: 14px;
+  color: #cad8be;
+}
+
+.cb-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.cb-footer-link {
+  background: none;
+  border: none;
+  color: #f1dfbc;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.cb-footer-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: underline;
+}
+
+.cb-footer-sep {
+  color: #6a8270;
+  user-select: none;
+}
+
+.cb-footer-copy {
+  font-size: 12px;
+  color: #9cb5a0;
+  margin-top: 4px;
 }
 
 /* === Responsive Breakpoints === */
@@ -4439,6 +4511,62 @@ footer {
 .cb-cgu-accept-btn:hover {
   transform: translateY(-1px);
   filter: brightness(1.06);
+}
+
+/* === LEGAL MODAL TABS & CONTENT === */
+.cb-legal-tabs-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.cb-legal-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ecdac3;
+  color: #4b2b16;
+  border: 2px solid #bda385;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cb-legal-tab-btn:hover {
+  background: #dfc5a7;
+  border-color: #8c5b36;
+}
+
+.cb-legal-tab-btn.active {
+  background: #507842;
+  color: #ffffff;
+  border-color: #35532a;
+  box-shadow: 0 2px 6px rgba(53, 83, 42, 0.3);
+}
+
+.cb-legal-link {
+  color: #1b6335;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.cb-legal-link:hover {
+  color: #0d4220;
+}
+
+.cb-cgu-section.highlight-notice {
+  background: #fdf8eb;
+  border-color: #e5bc68;
+}
+
+.cb-cgu-section.highlight-notice h3 {
+  color: #9c5c0d;
 }
 
 /* === REGISTRATION & AUTH STYLING === */

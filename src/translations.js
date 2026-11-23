@@ -124,6 +124,13 @@ export const translations = {
     cguModalTitle: 'Conditions Générales d’Utilisation & de Vente (CGU / CGV)',
     cguModalSubtitle: 'Colorblop — Règles d’utilisation des coloriages et fichiers SVG, PNG, PDF',
     cguClose: 'J’ai compris et j’accepte',
+
+    // Footer Links
+    footerTerms: 'CGU & CGV',
+    footerLegal: 'Mentions Légales',
+    footerPrivacy: 'Confidentialité & RGPD',
+    footerContact: 'Contact & Boîte à courrier',
+    footerRights: 'Tous droits réservés. Illustrations originales.',
   },
 
   EN: {
@@ -248,6 +255,13 @@ export const translations = {
     cguModalTitle: 'Terms of Use & Sale (CGU / CGV)',
     cguModalSubtitle: 'Colorblop — Rules for using coloring pages and SVG, PNG, PDF files',
     cguClose: 'I understand and accept',
+
+    // Footer Links
+    footerTerms: 'Terms & Conditions',
+    footerLegal: 'Legal Notice',
+    footerPrivacy: 'Privacy & GDPR',
+    footerContact: 'Contact & Mailbox',
+    footerRights: 'All rights reserved. Original artwork.',
   },
 
   ES: {
@@ -372,6 +386,13 @@ export const translations = {
     cguModalTitle: 'Términos de Uso y Venta (CGU / CGV)',
     cguModalSubtitle: 'Colorblop — Normas de uso para dibujos y archivos SVG, PNG, PDF',
     cguClose: 'He leído y acepto',
+
+    // Footer Links
+    footerTerms: 'Términos y Condiciones',
+    footerLegal: 'Aviso Legal',
+    footerPrivacy: 'Privacidad y RGPD',
+    footerContact: 'Contacto y Buzón',
+    footerRights: 'Todos los derechos reservados. Ilustraciones originales.',
   },
 
   DE: {
@@ -496,6 +517,13 @@ export const translations = {
     cguModalTitle: 'Allgemeine Geschäfts- und Nutzungsbedingungen (AGB)',
     cguModalSubtitle: 'Colorblop — Nutzungsregeln für Ausmalbilder und SVG-, PNG-, PDF-Dateien',
     cguClose: 'Verstanden und akzeptiert',
+
+    // Footer Links
+    footerTerms: 'AGB & Nutzungsregeln',
+    footerLegal: 'Impressum',
+    footerPrivacy: 'Datenschutz & DSGVO',
+    footerContact: 'Kontakt & Briefkasten',
+    footerRights: 'Alle Rechte vorbehalten. Originale Illustrationen.',
   }
 };
 

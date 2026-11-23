@@ -8,13 +8,13 @@ import {
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
   Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
-  GripVertical, ArrowUp
+  GripVertical, ArrowUp, Building2
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
 import { animalCatalog } from './animalCatalog';
 import { translations, generateRandomPseudo, getDrawingTitle, matchesSearchWithTranslations, formatNewsItem } from './translations';
-import { CguModal } from './CguModal';
+import { CguModal, LegalModal } from './CguModal';
 import { MembershipView } from './MembershipView';
 import { MembershipModal } from './MembershipModal';
 import { MemberSubscriptionCard } from './MemberSubscriptionCard';
@@ -411,6 +411,10 @@ function App() {
   const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
   const [resetPasswordError, setResetPasswordError] = useState(null);
 
+  // Legal & CGU/CGV Modal State
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState('cgu');
+
   const fetchSubscriptionStatus = async () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -452,6 +456,21 @@ function App() {
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (urlParams.get('tab') === 'abonnement') {
       setPage('Profil');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('tab') === 'devenir-membre' || urlParams.get('tab') === 'membership') {
+      setPage('DevenirMembre');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('tab') === 'cgu') {
+      setLegalModalTab('cgu');
+      setIsLegalModalOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('tab') === 'mentions') {
+      setLegalModalTab('mentions');
+      setIsLegalModalOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('tab') === 'confidentialite' || urlParams.get('tab') === 'rgpd' || urlParams.get('tab') === 'privacy') {
+      setLegalModalTab('privacy');
+      setIsLegalModalOpen(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -2184,7 +2203,63 @@ function App() {
         </section>
       )}
 
-      <footer>{t.siteTitle} • {t.tagline}</footer>
+      <footer className="cb-main-footer">
+        <div className="cb-footer-inner">
+          <div className="cb-footer-brand">
+            <span className="cb-footer-title">{t.siteTitle}</span>
+            <span className="cb-footer-tagline">🌸 {t.tagline}</span>
+          </div>
+
+          <div className="cb-footer-links">
+            <button
+              type="button"
+              className="cb-footer-link"
+              onClick={() => {
+                setLegalModalTab('cgu');
+                setIsLegalModalOpen(true);
+              }}
+            >
+              <FileText size={14} /> {t.footerTerms || 'CGU & CGV'}
+            </button>
+            <span className="cb-footer-sep">•</span>
+            <button
+              type="button"
+              className="cb-footer-link"
+              onClick={() => {
+                setLegalModalTab('mentions');
+                setIsLegalModalOpen(true);
+              }}
+            >
+              <Building2 size={14} /> {t.footerLegal || 'Mentions Légales'}
+            </button>
+            <span className="cb-footer-sep">•</span>
+            <button
+              type="button"
+              className="cb-footer-link"
+              onClick={() => {
+                setLegalModalTab('privacy');
+                setIsLegalModalOpen(true);
+              }}
+            >
+              <ShieldCheck size={14} /> {t.footerPrivacy || 'Confidentialité & RGPD'}
+            </button>
+            <span className="cb-footer-sep">•</span>
+            <button
+              type="button"
+              className="cb-footer-link"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('cb-open-mailbox'));
+              }}
+            >
+              <Mail size={14} /> {t.footerContact || 'Contact & Boîte à courrier'}
+            </button>
+          </div>
+
+          <div className="cb-footer-copy">
+            © {new Date().getFullYear()} Colorblop — {t.footerRights || 'Tous droits réservés. Illustrations originales.'}
+          </div>
+        </div>
+      </footer>
 
       {/* Drawing Modal (En grand & Téléchargements SVG, PNG, PDF) */}
       {open && (
@@ -2541,6 +2616,14 @@ function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+
+      {/* Official Legal & CGU/CGV Modal accessible everywhere */}
+      <LegalModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+        lang={lang}
+      />
     </main>
   );
 }
@@ -2557,6 +2640,17 @@ function OfficialDrawingMailbox({ isOwner, pendingRequestsCount, drawings, sessi
   const [requestSent, setRequestSent] = useState(false);
   const [formError, setFormError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+
+  // Allow footer contact button or other components to open the mailbox
+  useEffect(() => {
+    function handleExternalMailboxOpen() {
+      setFormError('');
+      setRequestSent(false);
+      setIsClickOpen(true);
+    }
+    window.addEventListener('cb-open-mailbox', handleExternalMailboxOpen);
+    return () => window.removeEventListener('cb-open-mailbox', handleExternalMailboxOpen);
+  }, []);
 
   const senderPseudo = session ? (profile?.display_name || session.user.user_metadata?.pseudo || session.user.email?.split('@')[0] || 'Ami de Colorblop') : '';
 
