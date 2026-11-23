@@ -2205,11 +2205,6 @@ function App() {
 
       <footer className="cb-main-footer">
         <div className="cb-footer-inner">
-          <div className="cb-footer-brand">
-            <span className="cb-footer-title">{t.siteTitle}</span>
-            <span className="cb-footer-tagline">🌸 {t.tagline}</span>
-          </div>
-
           <div className="cb-footer-links">
             <button
               type="button"
