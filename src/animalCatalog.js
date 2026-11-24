@@ -10,7 +10,7 @@ export const animalCatalog = Array.from({ length: 126 }, (_, i) => i + 1)
     slug: `animal-svg-${num}`,
     title: `Animal mignon ${num}`,
     cat: ['Animaux'],
-    likes: ((num * 47 + 13) % 920) + 85,
+    likes: 0,
     imagePath: `/previews/animaux/animal-${num}.png`,
     image: `/previews/animaux/animal-${num}.png`,
     thumb: `/previews/animaux/thumbs/animal-${num}.webp`,

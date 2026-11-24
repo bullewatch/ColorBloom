@@ -8,7 +8,7 @@
     "generate-thumbs": "node scripts/generate-thumbnails.js",
     "build": "node scripts/generate-thumbnails.js && vite build",
     "preview": "vite preview",
-    "test": "node tests/stripe-integration.test.js"
+    "test": "node tests/stripe-integration.test.js && node tests/ads-and-favorites.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",

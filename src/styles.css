@@ -1298,55 +1298,244 @@ button, input, select, textarea {
   background: #5e8c4e;
 }
 
-/* === RIGHT SIDEBAR: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) === */
+/* === RIGHT SIDEBAR & GOOGLE AD BANNERS (PRET POUR AD SENSE) === */
 .cb-ad-sidebar {
   align-self: start;
 }
 
-.cb-ad-container {
+.cb-google-ad-block {
   width: 100%;
-  min-height: 440px;
-  background: rgba(28, 17, 8, 0.65);
-  border: 3px dashed #6b4324;
-  border-radius: 14px;
-  padding: 12px;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
-.cb-ad-label {
-  display: block;
-  font-size: 11px;
+.cb-google-ad-badge {
+  display: inline-block;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #eed5a7;
-  margin-bottom: 10px;
+  letter-spacing: 1.2px;
+  color: #cca46a;
+  background: rgba(20, 10, 4, 0.8);
+  border: 1px solid rgba(139, 87, 42, 0.5);
+  border-radius: 6px;
+  padding: 3px 12px;
+  margin-bottom: 8px;
+  align-self: center;
 }
 
-.cb-ad-empty-box {
-  flex: 1;
+.cb-google-ad-wrapper {
+  position: relative;
   width: 100%;
+  min-height: 250px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 12px;
+  background: rgba(22, 13, 6, 0.85);
+  border: 2px dashed #6b4324;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.cb-ad-placeholder-note {
+.cb-google-ad-block.cb-ad-sidebar .cb-google-ad-wrapper {
+  min-height: 480px;
+  padding: 8px;
+}
+
+.cb-google-ad-block.cb-ad-interstitial .cb-google-ad-wrapper {
+  width: 300px;
+  height: 250px;
+  min-height: 250px;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.cb-ad-fallback-canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(46, 26, 12, 0.9) 0%, rgba(18, 10, 4, 0.98) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cb-google-ad-wrapper:has(ins[data-ad-status="filled"]) .cb-ad-fallback-canvas {
+  display: none;
+}
+
+.cb-ad-fallback-center {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: #bfa585;
-  font-family: 'Patrick Hand', cursive;
-  font-size: 16px;
+  text-align: center;
+  padding: 16px;
+}
+
+.cb-ad-sparkle {
+  color: #e6a756;
+  filter: drop-shadow(0 0 6px rgba(230, 167, 86, 0.5));
+  animation: cbSparklePulse 3s infinite ease-in-out;
+}
+
+@keyframes cbSparklePulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 10px rgba(230, 167, 86, 0.8)); }
+}
+
+.cb-ad-tagline {
+  font-family: 'Patrick Hand SC', cursive;
+  font-size: 19px;
+  font-weight: 700;
+  color: #f7e6c4;
+  letter-spacing: 0.5px;
+}
+
+.cb-ad-subtext {
+  font-size: 11px;
+  color: #9e7f5f;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* === MOBILE INTERSTITIAL AD MODAL === */
+.cb-ad-interstitial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(8, 4, 2, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cbFadeIn 0.25s ease-out;
+}
+
+.cb-ad-interstitial-dialog {
+  width: 100%;
+  max-width: 380px;
+  background: linear-gradient(175deg, #2a160c 0%, #170d06 100%);
+  border: 3px solid #8c582f;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cb-ad-interstitial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(15, 8, 3, 0.6);
+  border-bottom: 1px solid rgba(140, 88, 47, 0.4);
+}
+
+.cb-ad-pill-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #eed5a7;
+}
+
+.cb-ad-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cb-ad-skip-btn.waiting {
+  background: rgba(255, 255, 255, 0.12);
+  color: #c9b49a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.cb-ad-skip-btn.ready {
+  background: linear-gradient(135deg, #48994e 0%, #306e35 100%);
+  color: #ffffff;
+  border: 1px solid #75cf7c;
+  box-shadow: 0 3px 10px rgba(48, 110, 53, 0.5);
+  transform: scale(1.02);
+}
+
+.cb-ad-skip-btn.ready:hover {
+  background: linear-gradient(135deg, #53ab59 0%, #377d3c 100%);
+  transform: scale(1.06);
+}
+
+.cb-ad-interstitial-body {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cb-ad-interstitial-footer {
+  padding: 12px 16px;
+  background: rgba(10, 5, 2, 0.6);
+  border-top: 1px solid rgba(140, 88, 47, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+}
+
+.cb-ad-vip-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #d1b897;
+}
+
+.cb-ad-crown-icon {
+  color: #ffd700;
+  flex-shrink: 0;
+}
+
+.cb-ad-vip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #c9933b 0%, #8c5b1b 100%);
+  color: #fff9ea;
+  border: 1px solid #ecc27b;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cb-ad-vip-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+/* Layout adjustments when user is VIP/Paid */
+.layout.cb-home.is-paid {
+  grid-template-columns: 210px minmax(0, 1fr);
+  max-width: 1240px;
 }
 
 /* === 4-STAGE OFFICIAL MAILBOX WIDGET (BOTTOM-RIGHT CORNER) === */
@@ -1977,6 +2166,41 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.cb-btn-subtle-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(217, 83, 79, 0.12);
+  border: 1px solid rgba(217, 83, 79, 0.4);
+  color: #c0392b;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cb-btn-subtle-reset:hover:not(:disabled) {
+  background: rgba(217, 83, 79, 0.25);
+  color: #962d22;
+  border-color: #c0392b;
+}
+
+.cb-btn-subtle-reset:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes cbSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.cb-spin {
+  animation: cbSpin 1s linear infinite;
 }
 
 .cb-stats-sub {

@@ -47,6 +47,12 @@ export const translations = {
     unlimitedDownloads: 'Compte connecté : téléchargements sans limite.',
     visitorDownloadsLeft: 'téléchargement(s) visiteur restant(s) avant création de compte.',
     modalClose: 'Fermer',
+    adSponsored: 'Annonce sponsorisée',
+    skipAd: 'Passer l’annonce',
+    skipAdIn: 'Passer dans',
+    vipNoAds: 'Les membres VIP profitent d’un site 100% sans publicité.',
+    upgradeVipBtn: 'Devenir VIP sans pub',
+    adSlotLabel: 'Espace Publicitaire',
 
     // Mailbox
     mailboxTitle: 'Fais une demande de dessin ici',
@@ -178,6 +184,12 @@ export const translations = {
     unlimitedDownloads: 'Logged in account: unlimited downloads.',
     visitorDownloadsLeft: 'visitor download(s) left before creating an account.',
     modalClose: 'Close',
+    adSponsored: 'Sponsored Ad',
+    skipAd: 'Skip ad',
+    skipAdIn: 'Skip in',
+    vipNoAds: 'VIP members enjoy a 100% ad-free experience.',
+    upgradeVipBtn: 'Get ad-free VIP',
+    adSlotLabel: 'Advertising Space',
 
     // Mailbox
     mailboxTitle: 'Request a drawing here',
@@ -309,6 +321,12 @@ export const translations = {
     unlimitedDownloads: 'Cuenta conectada: descargas ilimitadas.',
     visitorDownloadsLeft: 'descarga(s) de visitante restante(s) antes de crear una cuenta.',
     modalClose: 'Cerrar',
+    adSponsored: 'Anuncio patrocinado',
+    skipAd: 'Saltar anuncio',
+    skipAdIn: 'Saltar en',
+    vipNoAds: 'Los miembros VIP disfrutan de una experiencia 100% sin anuncios.',
+    upgradeVipBtn: 'Hazte VIP sin anuncios',
+    adSlotLabel: 'Espacio Publicitario',
 
     // Mailbox
     mailboxTitle: 'Pide un dibujo aquí',
@@ -440,6 +458,12 @@ export const translations = {
     unlimitedDownloads: 'Angemeldetes Konto: unbegrenzte Downloads.',
     visitorDownloadsLeft: 'Gast-Download(s) übrig vor der Kontoerstellung.',
     modalClose: 'Schließen',
+    adSponsored: 'Gesponserte Anzeige',
+    skipAd: 'Anzeige überspringen',
+    skipAdIn: 'Überspringen in',
+    vipNoAds: 'VIP-Mitglieder genießen ein 100% werbefreies Erlebnis.',
+    upgradeVipBtn: 'Werbefrei VIP werden',
+    adSlotLabel: 'Werbefläche',
 
     // Mailbox
     mailboxTitle: 'Wünsche dir hier ein Ausmalbild',

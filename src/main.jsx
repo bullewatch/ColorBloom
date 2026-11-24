@@ -21,6 +21,8 @@ import { MemberSubscriptionCard } from './MemberSubscriptionCard';
 import { generateCommercialLicensePdf } from './licensePdf';
 import { exportDrawingToCanvas, prepareHighResSvgString } from './svgExport';
 import { ResetPasswordView } from './ResetPasswordView';
+import GoogleAdBanner from './GoogleAdBanner';
+import AdInterstitialModal from './AdInterstitialModal';
 
 import colorblopBandeau from '../assets/colorblop-bandeau.png';
 import colorVipBadge from '../assets/colorvip.png';
@@ -433,6 +435,9 @@ function App() {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('cgu');
 
+  // Mobile Interstitial Ad State (pop up every 3 downloads in free version)
+  const [isAdInterstitialOpen, setIsAdInterstitialOpen] = useState(false);
+
   // Références d'état pour la gestion native du bouton retour mobile (Android & Navigateurs)
   const openRef = useRef(open);
   openRef.current = open;
@@ -442,6 +447,8 @@ function App() {
   isLegalModalOpenRef.current = isLegalModalOpen;
   const isMembershipModalOpenRef = useRef(isMembershipModalOpen);
   isMembershipModalOpenRef.current = isMembershipModalOpen;
+  const isAdInterstitialOpenRef = useRef(isAdInterstitialOpen);
+  isAdInterstitialOpenRef.current = isAdInterstitialOpen;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
@@ -480,6 +487,10 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       // Si la modale dessin est ouverte, la fermeture s'opère sans quitter le site
+      if (isAdInterstitialOpenRef.current) {
+        setIsAdInterstitialOpen(false);
+        return;
+      }
       if (openRef.current) {
         setOpen(null);
         return;
@@ -504,7 +515,11 @@ function App() {
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (openRef.current) {
+        if (isAdInterstitialOpenRef.current) {
+        setIsAdInterstitialOpen(false);
+        return;
+      }
+      if (openRef.current) {
           closeDrawing();
         } else if (nouveautesOpenRef.current) {
           closeNouveautes();
@@ -837,6 +852,9 @@ function App() {
 
     return null;
   }, [session, subscriptionData, isOwner]);
+
+  // Statut de formule payante : désactive 100% des publicités (desktop et popups mobile)
+  const isPaidUser = Boolean(vipBadge || isOwner || subscriptionData?.hasActiveSubscription);
 
   // Visitor IP Quota management (blocks incognito / private browsing bypass)
   const [visitorIp, setVisitorIp] = useState(null);
@@ -1462,6 +1480,23 @@ function App() {
         setDownloads(n);
         localStorage.setItem('cb-downloads', n);
       }
+
+      // Pop up Google Ad sur mobile tous les 3 téléchargements dans la version gratuite (strictement désactivé dans la version payante)
+      if (!isPaidUser) {
+        const isMobileDevice = typeof window !== 'undefined' && (
+          window.innerWidth <= 768 ||
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        );
+
+        if (isMobileDevice) {
+          const prevCount = Number(localStorage.getItem('cb-free-dl-ad-count') || 0);
+          const nextCount = prevCount + 1;
+          localStorage.setItem('cb-free-dl-ad-count', String(nextCount));
+          if (nextCount % 3 === 0) {
+            setIsAdInterstitialOpen(true);
+          }
+        }
+      }
     } catch (error) {
       console.error(error);
       alert('Le téléchargement a échoué. Réessaie dans un instant.');
@@ -1931,7 +1966,7 @@ function App() {
           </div>
         </section>
       ) : (
-        <section className="layout cb-home">
+        <section className={`layout cb-home ${isPaidUser ? 'is-paid' : ''}`}>
           {/* Left Sidebar: PURE CSS STICKY WOODEN PANEL (SUIT LE SCROLL) */}
           <aside className="cb-panel-aside">
             <div className="cb-css-panel">
@@ -2423,27 +2458,15 @@ function App() {
             )}
           </section>
 
-          {/* Right Sidebar: PROPER EMPTY GOOGLE AD SLOT (PRET POUR AD SENSE) */}
-          <aside className="cb-ad-sidebar">
-            <div className="cb-ad-container" id="colorblop-ad-slot">
-              <span className="cb-ad-label">Espace Publicitaire</span>
-              <div className="cb-ad-empty-box">
-                {/* Standard Google Ad Tag ready */}
-                <ins
-                  className="adsbygoogle"
-                  style={{ display: 'block' }}
-                  data-ad-client="ca-pub-0000000000000000"
-                  data-ad-slot="0000000000"
-                  data-ad-format="auto"
-                  data-full-width-responsive="true"
-                />
-                <div className="cb-ad-placeholder-note">
-                  <Sparkles size={20} />
-                  <span>Emplacement réservé Google Ad</span>
-                </div>
-              </div>
-            </div>
-          </aside>
+          {/* Right Sidebar: Bandeau Google Ad sur Ordinateur (actif dans la version gratuite, masqué en version payante) */}
+          {!isPaidUser && (
+            <aside className="cb-ad-sidebar">
+              <GoogleAdBanner
+                slotType="sidebar"
+                label={t.adSlotLabel || 'Espace Publicitaire'}
+              />
+            </aside>
+          )}
         </section>
       )}
 
@@ -2883,6 +2906,20 @@ function App() {
         initialTab={legalModalTab}
         lang={lang}
       />
+
+      {/* Mobile Interstitial Google Ad Modal (Pop up tous les 3 téléchargements en version gratuite, rien en version payante) */}
+      {!isPaidUser && (
+        <AdInterstitialModal
+          isOpen={isAdInterstitialOpen}
+          onClose={() => setIsAdInterstitialOpen(false)}
+          onOpenMembership={() => {
+            setIsAdInterstitialOpen(false);
+            setIsMembershipModalOpen(true);
+          }}
+          lang={lang}
+          t={t}
+        />
+      )}
     </main>
   );
 }
@@ -3920,6 +3957,46 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     return (categoriesList || []).filter(c => !c.parentId);
   }, [categoriesList]);
 
+  // Réinitialisation des favoris et compteurs de likes
+  const [resettingLikes, setResettingLikes] = useState(false);
+
+  async function handleResetLikesAndFavorites() {
+    if (!window.confirm('Voulez-vous réinitialiser à 0 toutes les mentions « J’aime » et vider tous les favoris ? Cette action remet les compteurs à zéro.')) {
+      return;
+    }
+    setResettingLikes(true);
+    try {
+      // 1. Remettre à 0 likes_count dans Supabase
+      const { error: updateErr } = await supabase
+        .from('coloring_pages')
+        .update({ likes_count: 0 })
+        .gt('likes_count', -1);
+
+      if (updateErr) {
+        console.warn('Notice Supabase reset likes:', updateErr);
+      }
+
+      // 2. Nettoyer les favoris locaux
+      localStorage.removeItem('cb-favs');
+
+      // 3. Mettre à jour l’état React des dessins
+      if (setDrawings) {
+        setDrawings(prev => prev.map(d => ({ ...d, likes: 0 })));
+      }
+
+      if (reloadDrawings) {
+        await reloadDrawings();
+      }
+
+      alert('Toutes les mentions « J’aime » et les favoris ont été remis à zéro avec succès !');
+    } catch (err) {
+      console.error('Erreur réinitialisation favoris:', err);
+      alert('Erreur lors de la réinitialisation : ' + (err.message || 'Erreur'));
+    } finally {
+      setResettingLikes(false);
+    }
+  }
+
   async function handleCreateCategory(e) {
     if (e) e.preventDefault();
     const trimmedName = newCatName.trim();
@@ -4809,7 +4886,19 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
           <div className="cb-stats-columns">
             {/* Top Most Popular Colorings */}
             <div className="cb-stats-card">
-              <h3><ThumbsUp size={18} /> Top Coloriages les plus aimés</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0 }}><ThumbsUp size={18} /> Top Coloriages les plus aimés</h3>
+                <button
+                  type="button"
+                  className="cb-btn-subtle-reset"
+                  onClick={handleResetLikesAndFavorites}
+                  disabled={resettingLikes}
+                  title="Remettre tous les compteurs de J'aime et favoris à zéro"
+                >
+                  <RefreshCw size={13} className={resettingLikes ? 'cb-spin' : ''} />
+                  <span>{resettingLikes ? 'Remise à zéro…' : 'Remettre à zéro'}</span>
+                </button>
+              </div>
               <div className="cb-top-drawings-list">
                 {topDrawings.map((d, index) => (
                   <div className="cb-top-drawing-row" key={d.id}>
