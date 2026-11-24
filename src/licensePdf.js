@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import { jsPDF, GState } from 'jspdf';
 
 /**
  * Calcule avec précision les dates de début et de fin selon le calendrier exact.
@@ -181,16 +181,44 @@ export function generateCommercialLicensePdf({
 
   const cleanEmail = holderEmail ? String(holderEmail).trim() : 'Email client enregistré';
 
-  // === TABLEAU D'IDENTIFICATION OFFICIEL (CARTOUCHE ÉPURÉ) ===
+  // === TABLEAU D'IDENTIFICATION OFFICIEL & CADRE DE SÉCURITÉ ANTI-FALSIFICATION ===
   const tableY = 51;
-  const tableHeight = 58;
+  const tableHeight = 60;
   const col1X = marginX + 3.5;
   const colValX = marginX + 50;
   const rightX = pageWidth - marginX - 3.5;
 
+  // 1. Fond teinté du cartouche sécurisé
   doc.setFillColor(248, 250, 252); // Slate 50
   doc.rect(marginX, tableY, contentWidth, tableHeight, 'F');
 
+  // 2. Zone délimitée pour les motifs de sécurité (clipping strict)
+  doc.saveGraphicsState();
+  doc.rect(marginX, tableY, contentWidth, tableHeight);
+  doc.clip();
+
+  // 2.A. Trame de sécurité guilloche (micro-lignes géométriques obliques)
+  doc.setGState(new GState({ opacity: 0.12 }));
+  doc.setDrawColor(148, 163, 184); // Slate 400
+  doc.setLineWidth(0.12);
+  for (let x = marginX - tableHeight; x <= marginX + contentWidth + tableHeight; x += 4) {
+    doc.line(x, tableY, x + tableHeight, tableY + tableHeight);
+  }
+
+  // 2.B. Filigrane de sécurité "Ghost Code" imprimé en transparence derrière le nom et les données
+  doc.setGState(new GState({ opacity: 0.10 }));
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(30, 58, 138); // Bleu nuit institutionnel
+
+  // Répétitions transparentes du numéro de licence sous les lignes sensibles
+  doc.text(`${cleanSerial}   •   COLORBLOP SÉCURISÉ   •   ${cleanSerial}`, marginX + 4, tableY + 16);
+  doc.text(`${cleanSerial}   •   CERTIFIÉ INVIOLABLE   •   ${cleanSerial}`, marginX - 10, tableY + 34);
+  doc.text(`${cleanSerial}   •   TITULAIRE HOMOLOGUÉ   •   ${cleanSerial}`, marginX + 8, tableY + 51);
+
+  doc.restoreGraphicsState();
+
+  // 3. Bordure externe du cartouche sécurisé
   doc.setDrawColor(203, 213, 225); // Slate 300
   doc.setLineWidth(0.35);
   doc.rect(marginX, tableY, contentWidth, tableHeight, 'S');
@@ -313,6 +341,16 @@ export function generateCommercialLicensePdf({
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
   doc.text('Tous supports matériels tangibles', rightX, rowY, { align: 'right' });
+
+  // Fil de micro-impression de sécurité anti-falsification (au bas du cartouche)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(3.8);
+  doc.setTextColor(148, 163, 184); // Slate 400
+  doc.text(
+    `FIL DE SÉCURITÉ ANTI-FRAUDE  •  TITULAIRE CERTIFIÉ : ${cleanHolder}  •  N° DE LICENCE : ${cleanSerial}  •  HOMOLOGATION COLORBLOP OFFICIELLE  •  VÉRIFICATION : HTTPS://COLORBLOP.COM`,
+    col1X,
+    tableY + tableHeight - 1.6
+  );
 
   // === SECTION 1 : ÉTENDUE DES DROITS COMMERCIAUX ===
   let curY = tableY + tableHeight + 8;
