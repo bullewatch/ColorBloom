@@ -1234,6 +1234,10 @@ function App() {
 
       // Track member login event in analytics
       if (_event === 'SIGNED_IN' && nextSession?.user) {
+        // Nettoyer les hash tokens d'OAuth dans la barre d'adresse pour une URL propre
+        if (window.location.hash.includes('access_token=') || window.location.hash.includes('refresh_token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
         supabase.from('site_analytics').insert({
           event_type: 'login',
           metadata: {
@@ -3470,7 +3474,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
     setMessage('');
     try {
       const redirectUrl = window.location.origin ? `${window.location.origin}/` : 'https://colorblop.com/';
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
@@ -3482,9 +3486,12 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
       });
       if (error) {
         if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
-          throw new Error("L'authentification Google n'est pas encore activée dans la console Supabase (Client ID Google manquant).");
+          throw new Error("L'authentification Google doit être activée dans Supabase (Authentication > Providers > Google) avec le Client ID.");
         }
         throw error;
+      }
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (err) {
       console.error('Erreur Google Auth:', err);
