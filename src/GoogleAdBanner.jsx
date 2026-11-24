@@ -3,7 +3,7 @@ import { Sparkles } from 'lucide-react';
 
 export default function GoogleAdBanner({
   slotType = 'sidebar',
-  adClient = import.meta.env.VITE_GOOGLE_ADSENSE_CLIENT_ID || 'ca-pub-0000000000000000',
+  adClient = import.meta.env.VITE_GOOGLE_ADSENSE_CLIENT_ID || 'ca-pub-3406729061784263',
   adSlot = import.meta.env.VITE_GOOGLE_ADSENSE_SLOT_ID || '0000000000',
   label = 'Espace Publicitaire',
   className = '',
