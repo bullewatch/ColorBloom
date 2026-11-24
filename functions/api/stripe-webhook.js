@@ -282,6 +282,11 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isS
       fallbackMeta?.last_name ||
       null;
 
+    const birthDate =
+      sub.metadata?.birth_date ||
+      fallbackMeta?.birth_date ||
+      null;
+
     const shopName =
       sub.metadata?.shop_name ||
       fallbackMeta?.shop_name ||
@@ -294,6 +299,7 @@ async function handleSubscriptionUpdate(sub, fallbackMeta = {}, env, stripe, isS
         customerName,
         firstName,
         lastName,
+        birthDate,
         shopName,
         customerEmail,
         interval,

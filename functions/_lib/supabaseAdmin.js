@@ -349,6 +349,7 @@ export async function syncCommercialLicense({
   customerName,
   firstName,
   lastName,
+  birthDate,
   shopName,
   customerEmail,
   interval = 'month',
@@ -385,6 +386,7 @@ export async function syncCommercialLicense({
 
   const resolvedFirstName = firstName || existing?.first_name || null;
   const resolvedLastName = lastName || existing?.last_name || null;
+  const resolvedBirthDate = birthDate || existing?.birth_date || null;
   const resolvedShopName = shopName || existing?.shop_name || null;
 
   const licensePayload = {
@@ -394,6 +396,7 @@ export async function syncCommercialLicense({
     customer_name: resolvedName,
     first_name: resolvedFirstName,
     last_name: resolvedLastName,
+    birth_date: resolvedBirthDate,
     shop_name: resolvedShopName,
     customer_email: customerEmail || existing?.customer_email || '',
     plan_type: 'colorvip_pro',

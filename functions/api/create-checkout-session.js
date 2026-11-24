@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { planId, interval, customerName, firstName, lastName, shopName } = body;
+    const { planId, interval, customerName, firstName, lastName, birthDate, shopName } = body;
 
     // 2. Validation stricte des données d'entrée
     if (![PLANS.COLORVIP, PLANS.COLORVIP_PRO].includes(planId)) {
@@ -48,6 +48,7 @@ export async function onRequestPost(context) {
 
     const cleanFirstName = firstName ? String(firstName).trim() : null;
     const cleanLastName = lastName ? String(lastName).trim().toUpperCase() : null;
+    const cleanBirthDate = birthDate ? String(birthDate).trim() : null;
     const cleanShopName = shopName ? String(shopName).trim() : null;
 
     let computedName = null;
@@ -168,6 +169,7 @@ export async function onRequestPost(context) {
           customer_name: finalCustomerName,
           first_name: cleanFirstName || '',
           last_name: cleanLastName || '',
+          birth_date: cleanBirthDate || '',
           shop_name: cleanShopName || '',
           sandbox: isSandbox ? 'true' : 'false',
         },
@@ -179,6 +181,7 @@ export async function onRequestPost(context) {
         customer_name: finalCustomerName,
         first_name: cleanFirstName || '',
         last_name: cleanLastName || '',
+        birth_date: cleanBirthDate || '',
         shop_name: cleanShopName || '',
         sandbox: isSandbox ? 'true' : 'false',
       },

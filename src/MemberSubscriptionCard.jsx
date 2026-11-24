@@ -174,6 +174,7 @@ export function MemberSubscriptionCard({
       holderName: verifiedHolder,
       firstName: license?.first_name || null,
       lastName: license?.last_name || null,
+      birthDate: license?.birth_date || null,
       shopName: license?.shop_name || null,
       holderEmail: license?.customer_email || session?.user?.email,
       interval: license?.interval || sub?.interval || 'month',

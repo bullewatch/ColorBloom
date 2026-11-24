@@ -5742,6 +5742,7 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                             holderName: lic.customer_name,
                             firstName: lic.first_name,
                             lastName: lic.last_name,
+                            birthDate: lic.birth_date,
                             shopName: lic.shop_name,
                             holderEmail: lic.customer_email,
                             interval: lic.interval || 'month',

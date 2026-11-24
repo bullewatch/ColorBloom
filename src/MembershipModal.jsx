@@ -28,11 +28,13 @@ export function MembershipModal({
       let payloadCustomerName = null;
       let firstName = null;
       let lastName = null;
+      let birthDate = null;
       let shopName = null;
 
       if (identityData && typeof identityData === 'object') {
         firstName = identityData.firstName || null;
         lastName = identityData.lastName || null;
+        birthDate = identityData.birthDate || null;
         shopName = identityData.shopName || null;
         payloadCustomerName = identityData.customerName || null;
       } else if (typeof identityData === 'string') {
@@ -51,6 +53,7 @@ export function MembershipModal({
           customerName: payloadCustomerName,
           firstName,
           lastName,
+          birthDate,
           shopName,
         }),
       });

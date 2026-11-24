@@ -64,6 +64,7 @@ export async function onRequestGet(context) {
           customer_name: 'Florian (Artiste Fondateur)',
           first_name: 'Florian',
           last_name: 'Artiste Fondateur',
+          birth_date: '1990-01-01',
           shop_name: 'Colorblop Atelier Officiel',
           customer_email: 'contact@colorblop.com',
           plan_type: 'colorvip_pro',
