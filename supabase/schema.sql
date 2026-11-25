@@ -235,8 +235,10 @@ revoke all on public.coloring_requests from anon, authenticated;
 grant select on public.coloring_pages to anon, authenticated;
 grant insert, update, delete on public.coloring_pages to authenticated;
 
-grant select on public.profiles to authenticated;
-grant update (display_name, avatar_index) on public.profiles to authenticated;
+grant select on public.profiles to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+
+grant select, insert on public.site_analytics to anon, authenticated;
 
 grant select, insert, delete on public.favorites to authenticated;
 
