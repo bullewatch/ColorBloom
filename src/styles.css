@@ -8046,3 +8046,704 @@ footer, .cb-main-footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   OWNER SPACE — GESTION DES DOSSIERS, CATÉGORIES & SÉLECTION MULTIPLE
+   ========================================================================== */
+
+/* Library Action Buttons & Batch Selection */
+.cb-btn-select-mode {
+  background: #f7ede0;
+  color: #4a2c11;
+  border: 2px solid #8e6844;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.cb-btn-select-mode:hover, .cb-btn-select-mode.active {
+  background: #46673d;
+  color: #fff;
+  border-color: #20351b;
+}
+
+.cb-btn-goto-categories {
+  background: #fdfaf5;
+  color: #3b2210;
+  border: 2px solid #8e6844;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-btn-goto-categories:hover {
+  background: #edd8b4;
+}
+
+/* Sticky / Top Selection Toolbar Banner */
+.cb-selection-toolbar-banner {
+  background: #fff8eb;
+  border: 2px solid #d49f48;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(100, 60, 10, 0.1);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.cb-sel-banner-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cb-sel-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #55341a;
+}
+
+.cb-sel-btn-subtle {
+  background: #edd8b4;
+  color: #3b2210;
+  border: 1px solid #bba377;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cb-sel-btn-subtle:hover {
+  background: #dfc499;
+}
+
+.cb-sel-banner-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cb-sel-move-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1.5px solid #c9a46c;
+  border-radius: 8px;
+  padding: 4px 8px;
+  flex-wrap: wrap;
+}
+
+.cb-sel-move-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #4a2c11;
+}
+
+.cb-sel-select, .cb-sel-mode-select {
+  border: 1px solid #c9a46c;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  background: #fff;
+  color: #3b2210;
+  outline: none;
+}
+
+.cb-btn-apply-move {
+  background: #2e693b;
+  color: #fff;
+  border: 1px solid #1a4424;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.15s ease;
+}
+.cb-btn-apply-move:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cb-btn-batch-delete {
+  background: #fbf0f0;
+  color: #a43a29;
+  border: 1.5px solid #d49a9a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.cb-btn-batch-delete:hover:not(:disabled) {
+  background: #a43a29;
+  color: #fff;
+}
+
+/* Card Selection Highlights */
+.cb-library-card {
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.cb-library-card.selected {
+  border-color: #2e693b;
+  background: #f4fbf4;
+  box-shadow: 0 0 0 2px rgba(46, 105, 59, 0.25);
+}
+
+.cb-card-select-wrap {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1.5px solid #bba377;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.cb-library-card:hover .cb-card-select-wrap,
+.cb-card-select-wrap.visible {
+  opacity: 1;
+}
+
+.cb-card-select-wrap input {
+  cursor: pointer;
+  width: 17px;
+  height: 17px;
+  accent-color: #2e693b;
+  margin: 0;
+}
+
+/* ==========================================================================
+   VIEW 3 : GESTION DES DOSSIERS & CATÉGORIES
+   ========================================================================== */
+.cb-owner-view-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cb-mgr-header-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 2px solid #d4ba8a;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.cb-mgr-header-bar h2 {
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  color: #3b2210;
+}
+
+.cb-mgr-header-bar p {
+  margin: 0;
+  font-size: 13px;
+  color: #6a492f;
+}
+
+.cb-mgr-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cb-btn-mgr-add {
+  background: linear-gradient(180deg, #46673d 0%, #314b2a 100%);
+  color: #fff;
+  border: 2px solid #20351b;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cb-btn-mgr-merge {
+  background: #fff7eb;
+  color: #64390e;
+  border: 2px solid #c9a46c;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-btn-mgr-merge.active {
+  background: #64390e;
+  color: #fff;
+  border-color: #3b2210;
+}
+
+.cb-cat-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.cb-cat-stat-item {
+  background: #fff;
+  border: 2px solid #d4ba8a;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #4a2c11;
+}
+
+.cb-cat-stat-item b {
+  display: block;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.cb-cat-stat-item span {
+  font-size: 12px;
+  color: #7a5a3f;
+  font-weight: 600;
+}
+
+/* Merge Panel Box */
+.cb-merge-panel-box {
+  background: #fffdf9;
+  border: 2px dashed #bba377;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 12px rgba(100, 60, 10, 0.08);
+}
+
+.cb-merge-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #55341a;
+}
+
+.cb-merge-panel-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #6a492f;
+}
+
+.cb-merge-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cb-merge-col {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cb-merge-col label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #3b2210;
+}
+
+.cb-merge-col select {
+  background: #fff;
+  border: 2px solid #8e6844;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+}
+
+.cb-merge-arrow-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 20px;
+  color: #8e6844;
+}
+
+.cb-merge-options-row {
+  padding-top: 4px;
+}
+
+.cb-merge-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #55341a;
+  cursor: pointer;
+}
+
+.cb-merge-toggle-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: #46673d;
+}
+
+.cb-merge-actions-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cb-btn-confirm-merge {
+  background: linear-gradient(180deg, #46673d 0%, #314b2a 100%);
+  color: #fff;
+  border: 2px solid #20351b;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-btn-confirm-merge:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cb-btn-cancel-merge {
+  background: #e2d7c5;
+  border: 1px solid #b39f84;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Search bar */
+.cb-categories-search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cb-cat-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 2px solid #8e6844;
+  border-radius: 8px;
+  padding: 6px 12px;
+  width: 320px;
+  max-width: 100%;
+}
+
+.cb-cat-search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+}
+
+.cb-cat-count-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7b5b3d;
+}
+
+/* Folder List & Cards */
+.cb-mgr-folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cb-mgr-folder-group-card {
+  background: #fff;
+  border: 2px solid #d4ba8a;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.cb-mgr-root-folder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cb-mgr-folder-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cb-mgr-folder-icon {
+  color: #8e6844;
+  flex-shrink: 0;
+}
+
+.cb-mgr-folder-name {
+  font-size: 16px;
+  color: #3b2210;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.cb-mgr-folder-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cb-mgr-pill-root {
+  background: #f7ede0;
+  color: #55341a;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #d4ba8a;
+}
+
+.cb-mgr-pill-count {
+  background: #eef6ec;
+  color: #24581f;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #b7dfb2;
+}
+
+.cb-mgr-pill-subs {
+  background: #f3f3f9;
+  color: #3d3b66;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.cb-mgr-folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cb-btn-folder-view {
+  background: #46673d;
+  color: #fff;
+  border: 1px solid #28441f;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cb-btn-folder-rename {
+  background: #fdfaf5;
+  color: #4a2c11;
+  border: 1px solid #bba377;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cb-btn-folder-rename:hover {
+  background: #edd8b4;
+}
+
+.cb-btn-folder-merge {
+  background: #fff8eb;
+  color: #64390e;
+  border: 1px solid #c9a46c;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cb-btn-folder-merge:hover {
+  background: #f7e6ca;
+}
+
+.cb-btn-folder-add-sub {
+  background: #f7f9f6;
+  color: #2b5523;
+  border: 1px solid #a8cfa3;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cb-btn-folder-add-sub:hover {
+  background: #e2f0df;
+}
+
+.cb-btn-folder-delete {
+  background: #fbf0f0;
+  color: #a43a29;
+  border: 1px solid #d49a9a;
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.cb-btn-folder-delete:hover {
+  background: #a43a29;
+  color: #fff;
+}
+
+/* Subcategories row inside folder card */
+.cb-mgr-subfolders-container {
+  margin-top: 6px;
+  padding-left: 20px;
+  border-left: 2px dashed #e2d2ba;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cb-mgr-subfolder-row {
+  background: #fcf9f4;
+  border: 1px solid #e5d7c3;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cb-mgr-subfolder-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cb-subfolder-branch {
+  color: #bba377;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.cb-subfolder-icon {
+  color: #8e6844;
+}
+
+.cb-mgr-subfolder-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3b2210;
+}
+
+.cb-mgr-folder-actions.mini .cb-btn-folder-view.mini,
+.cb-mgr-folder-actions.mini .cb-btn-folder-rename.mini,
+.cb-mgr-folder-actions.mini .cb-btn-folder-merge.mini {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.cb-mgr-folder-actions.mini .cb-btn-folder-delete.mini {
+  padding: 3px 6px;
+}
+
+@media (max-width: 768px) {
+  .cb-cat-stats-strip {
+    grid-template-columns: 1fr;
+  }
+  .cb-mgr-root-folder {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .cb-mgr-subfolder-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+

@@ -8,7 +8,8 @@ import {
   Home, Sparkles, Info, HelpCircle, Bell, FileCode, Check, History,
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
   Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
-  GripVertical, ArrowUp, Building2
+  GripVertical, ArrowUp, Building2, FolderTree, FolderPlus, ArrowRightLeft,
+  MoveRight, CheckSquare, Square, FolderInput
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -608,9 +609,18 @@ function App() {
   // Dynamic categories with Supabase sync and localStorage fallback
   const [categoriesList, setCategoriesList] = useState(() => {
     const local = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+    const deletedCatIds = new Set(JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]'));
     const map = new Map();
-    INITIAL_CATEGORIES.forEach(c => map.set(c.id, normalizeCategory(c)));
-    local.forEach(c => map.set(c.id, normalizeCategory(c)));
+    INITIAL_CATEGORIES.forEach(c => {
+      if (!deletedCatIds.has(c.id) && !deletedCatIds.has(c.name.toLowerCase())) {
+        map.set(c.id, normalizeCategory(c));
+      }
+    });
+    local.forEach(c => {
+      if (!deletedCatIds.has(c.id) && !deletedCatIds.has(c.name?.toLowerCase())) {
+        map.set(c.id, normalizeCategory(c));
+      }
+    });
     return Array.from(map.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   });
 
@@ -667,12 +677,25 @@ function App() {
         .order('sort_order', { ascending: true });
 
       const local = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+      const deletedCatIds = new Set(JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]'));
       const map = new Map();
-      INITIAL_CATEGORIES.forEach(c => map.set(c.id, normalizeCategory(c)));
+      INITIAL_CATEGORIES.forEach(c => {
+        if (!deletedCatIds.has(c.id) && !deletedCatIds.has(c.name.toLowerCase())) {
+          map.set(c.id, normalizeCategory(c));
+        }
+      });
       if (!error && data && data.length) {
-        data.forEach(r => map.set(r.id, normalizeCategory(r)));
+        data.forEach(r => {
+          if (!deletedCatIds.has(r.id) && !deletedCatIds.has(r.name?.toLowerCase())) {
+            map.set(r.id, normalizeCategory(r));
+          }
+        });
       }
-      local.forEach(c => map.set(c.id, normalizeCategory(c)));
+      local.forEach(c => {
+        if (!deletedCatIds.has(c.id) && !deletedCatIds.has(c.name?.toLowerCase())) {
+          map.set(c.id, normalizeCategory(c));
+        }
+      });
       const merged = Array.from(map.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       setCategoriesList(merged);
     } catch (err) {
@@ -1095,6 +1118,18 @@ function App() {
     setCategoriesList(updated);
     localStorage.setItem('cb-custom-categories', JSON.stringify(updated));
 
+    const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
+    if (!delList.includes(catItem.id)) delList.push(catItem.id);
+    if (!delList.includes(catItem.name.toLowerCase())) delList.push(catItem.name.toLowerCase());
+    if (!isSub) {
+      const subs = categoriesList.filter(c => c.parentId === catItem.id);
+      subs.forEach(s => {
+        if (!delList.includes(s.id)) delList.push(s.id);
+        if (!delList.includes(s.name.toLowerCase())) delList.push(s.name.toLowerCase());
+      });
+    }
+    localStorage.setItem('cb-deleted-categories', JSON.stringify(delList));
+
     try {
       await supabase.from('categories').delete().eq('id', catItem.id);
       if (!isSub) {
@@ -1128,6 +1163,7 @@ function App() {
     }
 
     const localOverrides = JSON.parse(localStorage.getItem('cb-custom-titles') || '{}');
+    const localCatOverrides = JSON.parse(localStorage.getItem('cb-custom-drawings-cats') || '{}');
     const localDeleted = JSON.parse(localStorage.getItem('cb-deleted-slugs') || '[]');
     const deletedSlugsSet = new Set([
       ...localDeleted,
@@ -1138,8 +1174,13 @@ function App() {
       .filter(row => row.is_published !== false && !deletedSlugsSet.has(row.slug) && !deletedSlugsSet.has(String(row.id)))
       .map(toDrawing)
       .map(d => {
-        const override = localOverrides[d.id] || localOverrides[d.slug];
-        return override ? { ...d, title: override } : d;
+        const titleOverride = localOverrides[d.id] || localOverrides[d.slug];
+        const catOverride = localCatOverrides[d.id] || localCatOverrides[d.slug];
+        return {
+          ...d,
+          ...(titleOverride ? { title: titleOverride } : {}),
+          ...(catOverride && Array.isArray(catOverride) && catOverride.length ? { cat: catOverride } : {}),
+        };
       });
 
     const existingSlugs = new Set(dbDrawings.map(d => d.slug));
@@ -1148,8 +1189,13 @@ function App() {
       ...animalCatalog
         .filter(a => !existingSlugs.has(a.slug) && !deletedSlugsSet.has(a.slug) && !deletedSlugsSet.has(String(a.id)))
         .map(a => {
-          const override = localOverrides[a.id] || localOverrides[a.slug];
-          return override ? { ...a, title: override } : a;
+          const titleOverride = localOverrides[a.id] || localOverrides[a.slug];
+          const catOverride = localCatOverrides[a.id] || localCatOverrides[a.slug];
+          return {
+            ...a,
+            ...(titleOverride ? { title: titleOverride } : {}),
+            ...(catOverride && Array.isArray(catOverride) && catOverride.length ? { cat: catOverride } : {}),
+          };
         }),
     ];
 
@@ -3957,6 +4003,402 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     return (categoriesList || []).filter(c => !c.parentId);
   }, [categoriesList]);
 
+  // === MULTI-SELECTION & BATCH MOVE IN LIBRARY ===
+  const [selectedDrawingIds, setSelectedDrawingIds] = useState(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [batchTargetCategory, setBatchTargetCategory] = useState('');
+  const [batchMoveMode, setBatchMoveMode] = useState('replace');
+  const [isMovingBatchDrawings, setIsMovingBatchDrawings] = useState(false);
+
+  // === CATEGORY & FOLDER MANAGER STATE ===
+  const [categorySearch, setCategorySearch] = useState('');
+  const [showMgrCatCreator, setShowMgrCatCreator] = useState(false);
+  const [mgrNewCatName, setMgrNewCatName] = useState('');
+  const [mgrNewCatParentId, setMgrNewCatParentId] = useState('');
+  const [creatingCatInManager, setCreatingCatInManager] = useState(false);
+
+  // === MERGE CATEGORIES STATE ===
+  const [showMergePanel, setShowMergePanel] = useState(false);
+  const [mergeSourceCat, setMergeSourceCat] = useState('');
+  const [mergeTargetCat, setMergeTargetCat] = useState('');
+  const [mergeDeleteSource, setMergeDeleteSource] = useState(true);
+  const [isMergingCategories, setIsMergingCategories] = useState(false);
+
+  // Toggle selection of a drawing
+  function toggleSelectDrawing(id) {
+    setSelectedDrawingIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllFilteredDrawings() {
+    setSelectedDrawingIds(new Set(filteredLibraryDrawings.map(d => d.id)));
+  }
+
+  function clearDrawingSelection() {
+    setSelectedDrawingIds(new Set());
+  }
+
+  // Count drawings in a category (hierarchical for root categories)
+  function getCategoryDrawingsCount(categoryObj) {
+    if (!categoryObj) return 0;
+    const normName = normalizeCatStr(categoryObj.name);
+    const normId = normalizeCatStr(categoryObj.id);
+
+    if (categoryObj.parentId) {
+      return drawings.filter(d =>
+        (d.cat || []).some(c => {
+          const nc = normalizeCatStr(c);
+          return nc === normName || nc === normId;
+        })
+      ).length;
+    }
+
+    const subcats = getSubcategoriesFor(categoryObj, categoriesList);
+    const accepted = new Set([
+      normName,
+      normId,
+      ...subcats.map(s => normalizeCatStr(s.name)),
+      ...subcats.map(s => normalizeCatStr(s.id)),
+    ]);
+
+    return drawings.filter(d => (d.cat || []).some(c => accepted.has(normalizeCatStr(c)))).length;
+  }
+
+  // Universal drawing category updater (Supabase + localStorage + React state)
+  async function updateDrawingCategoriesInDbAndState(drawingIds, newCategoriesFn) {
+    const catOverrides = JSON.parse(localStorage.getItem('cb-custom-drawings-cats') || '{}');
+    const updatedMap = new Map();
+
+    for (const id of drawingIds) {
+      const d = drawings.find(x => x.id === id);
+      if (!d) continue;
+
+      const newCats = newCategoriesFn(d.cat || []);
+      catOverrides[d.id] = newCats;
+      if (d.slug) catOverrides[d.slug] = newCats;
+
+      if (String(d.id).startsWith('cb-svg-')) {
+        await supabase.from('coloring_pages').upsert({
+          slug: d.slug,
+          title: d.title,
+          categories: newCats,
+          image_path: d.imagePath || d.image,
+          likes_count: d.likes || 0,
+          downloads_count: d.downloads || 0,
+          is_published: true,
+          created_by: user?.id || null,
+        }, { onConflict: 'slug' });
+      } else {
+        await supabase.from('coloring_pages').update({ categories: newCats }).eq('id', d.id);
+      }
+
+      updatedMap.set(d.id, newCats);
+    }
+
+    localStorage.setItem('cb-custom-drawings-cats', JSON.stringify(catOverrides));
+
+    if (setDrawings) {
+      setDrawings(prev => prev.map(d => {
+        if (updatedMap.has(d.id)) {
+          return { ...d, cat: updatedMap.get(d.id) };
+        }
+        return d;
+      }));
+    }
+
+    if (reloadDrawings) {
+      await reloadDrawings();
+    }
+  }
+
+  // Batch move selected drawings to target category
+  async function handleBatchMoveDrawings(targetCategoryName, mode = 'replace') {
+    if (!targetCategoryName) {
+      alert('Veuillez choisir une catégorie ou un dossier de destination.');
+      return;
+    }
+    const ids = Array.from(selectedDrawingIds);
+    if (ids.length === 0) {
+      alert('Veuillez sélectionner au moins un dessin.');
+      return;
+    }
+
+    setIsMovingBatchDrawings(true);
+    try {
+      await updateDrawingCategoriesInDbAndState(ids, (oldCats) => {
+        if (mode === 'add') {
+          return Array.from(new Set([...oldCats, targetCategoryName]));
+        }
+        return [targetCategoryName];
+      });
+
+      setSelectedDrawingIds(new Set());
+      alert(`✅ ${ids.length} dessin(s) ont été déplacés vers « ${targetCategoryName} » avec succès !`);
+    } catch (err) {
+      console.error('Erreur lors du déplacement groupé des dessins:', err);
+      alert('Une erreur est survenue lors du déplacement.');
+    } finally {
+      setIsMovingBatchDrawings(false);
+    }
+  }
+
+  // Batch delete selected drawings
+  async function handleBatchDeleteDrawings() {
+    const ids = Array.from(selectedDrawingIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Supprimer définitivement les ${ids.length} dessins sélectionnés ?`)) return;
+
+    setIsMovingBatchDrawings(true);
+    try {
+      for (const id of ids) {
+        const d = drawings.find(x => x.id === id);
+        if (d) {
+          if (setDrawings) {
+            setDrawings(prev => prev.filter(x => x.id !== d.id && x.slug !== d.slug));
+          }
+          const localDeleted = JSON.parse(localStorage.getItem('cb-deleted-slugs') || '[]');
+          if (d.slug && !localDeleted.includes(d.slug)) localDeleted.push(d.slug);
+          if (d.id && !localDeleted.includes(String(d.id))) localDeleted.push(String(d.id));
+          localStorage.setItem('cb-deleted-slugs', JSON.stringify(localDeleted));
+
+          if (d.slug) {
+            try {
+              await supabase.from('deleted_colorings').upsert({ slug: d.slug }, { onConflict: 'slug' });
+            } catch (delErr) {
+              console.warn(delErr);
+            }
+          }
+          if (d.id && !String(d.id).startsWith('cb-svg-')) {
+            await supabase.from('coloring_pages').delete().eq('id', d.id);
+          }
+          if (d.slug) {
+            await supabase.from('coloring_pages').delete().eq('slug', d.slug);
+          }
+        }
+      }
+      setSelectedDrawingIds(new Set());
+      await reloadDrawings();
+      alert(`🗑️ ${ids.length} dessin(s) ont été supprimés avec succès.`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression groupée.');
+    } finally {
+      setIsMovingBatchDrawings(false);
+    }
+  }
+
+  // Delete category core
+  async function deleteCategoryCore(catItem) {
+    const isSub = Boolean(catItem.parentId);
+    const updated = categoriesList.filter(c => c.id !== catItem.id && c.parentId !== catItem.id);
+
+    const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
+    if (!delList.includes(catItem.id)) delList.push(catItem.id);
+    if (!delList.includes(catItem.name.toLowerCase())) delList.push(catItem.name.toLowerCase());
+    if (!isSub) {
+      const subs = categoriesList.filter(c => c.parentId === catItem.id);
+      subs.forEach(s => {
+        if (!delList.includes(s.id)) delList.push(s.id);
+        if (!delList.includes(s.name.toLowerCase())) delList.push(s.name.toLowerCase());
+      });
+    }
+    localStorage.setItem('cb-deleted-categories', JSON.stringify(delList));
+    localStorage.setItem('cb-custom-categories', JSON.stringify(updated));
+
+    try {
+      await supabase.from('categories').delete().eq('id', catItem.id);
+      if (!isSub) {
+        await supabase.from('categories').delete().eq('parent_id', catItem.id);
+      }
+    } catch (err) {
+      console.warn('Supabase delete category notice:', err);
+    }
+  }
+
+  // User-facing delete category with drawing transfer option
+  async function handleDeleteCategoryWithOption(catItem) {
+    const normCat = normalizeCatStr(catItem.name);
+    const affected = drawings.filter(d => (d.cat || []).some(c => normalizeCatStr(c) === normCat));
+    const count = affected.length;
+    let targetTransfer = null;
+
+    if (count > 0) {
+      const choice = confirm(
+        `La catégorie « ${catItem.name} » contient ${count} dessin(s).\n\n` +
+        `Voulez-vous transférer ces ${count} dessins vers « Divers » avant de supprimer la catégorie ?\n\n` +
+        `• Cliquez sur « OK » pour transférer les dessins vers « Divers » et supprimer « ${catItem.name} ».\n` +
+        `• Cliquez sur « Annuler » pour annuler l'opération.`
+      );
+      if (!choice) return;
+      targetTransfer = 'Divers';
+    } else {
+      if (!confirm(`Supprimer définitivement la catégorie « ${catItem.name} » ?`)) return;
+    }
+
+    try {
+      if (targetTransfer && count > 0) {
+        await updateDrawingCategoriesInDbAndState(
+          affected.map(d => d.id),
+          (cats) => Array.from(new Set(cats.filter(c => normalizeCatStr(c) !== normCat).concat(targetTransfer)))
+        );
+      }
+
+      await deleteCategoryCore(catItem);
+      if (reloadCategories) await reloadCategories();
+      if (reloadDrawings) await reloadDrawings();
+
+      alert(`🗑️ Catégorie « ${catItem.name} » supprimée avec succès !`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression de la catégorie.');
+    }
+  }
+
+  // Rename category and propagate to all associated drawings
+  async function handleRenameCategoryOwner(catItem) {
+    const newName = window.prompt(`Nouveau nom pour la catégorie « ${catItem.name} » :`, catItem.name);
+    if (!newName || !newName.trim() || newName.trim() === catItem.name) return;
+    const trimmed = newName.trim();
+    const oldNorm = normalizeCatStr(catItem.name);
+
+    try {
+      const updatedCats = categoriesList.map(c => c.id === catItem.id ? { ...c, name: trimmed } : c);
+      localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCats));
+
+      try {
+        await supabase.from('categories').update({ name: trimmed }).eq('id', catItem.id);
+      } catch (dbErr) {
+        console.warn(dbErr);
+      }
+
+      const affected = drawings.filter(d => (d.cat || []).some(c => normalizeCatStr(c) === oldNorm));
+      if (affected.length > 0) {
+        await updateDrawingCategoriesInDbAndState(
+          affected.map(d => d.id),
+          (cats) => cats.map(c => normalizeCatStr(c) === oldNorm ? trimmed : c)
+        );
+      }
+
+      if (reloadCategories) await reloadCategories();
+      alert(`✅ Catégorie renommée en « ${trimmed} » (${affected.length} dessin(s) mis à jour) !`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors du renommage.');
+    }
+  }
+
+  // Merge categories: move all drawings from source to target, optionally deleting source
+  async function handleMergeCategories(sourceName, targetName, deleteSource = true) {
+    if (!sourceName || !targetName) {
+      alert('Veuillez sélectionner le dossier source et le dossier de destination.');
+      return;
+    }
+    const normSource = normalizeCatStr(sourceName);
+    const normTarget = normalizeCatStr(targetName);
+    if (normSource === normTarget) {
+      alert('La catégorie source et la catégorie de destination doivent être différentes.');
+      return;
+    }
+
+    const affected = drawings.filter(d => (d.cat || []).some(c => normalizeCatStr(c) === normSource));
+    const confirmMsg =
+      `Confirmer la fusion des dossiers :\n\n` +
+      `• Déplacer les ${affected.length} dessin(s) de « ${sourceName} » vers « ${targetName} »\n` +
+      (deleteSource ? `• Supprimer ensuite le dossier source « ${sourceName} »\n\n` : `\n`) +
+      `Voulez-vous continuer ?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setIsMergingCategories(true);
+    try {
+      if (affected.length > 0) {
+        await updateDrawingCategoriesInDbAndState(
+          affected.map(d => d.id),
+          (cats) => Array.from(new Set(cats.filter(c => normalizeCatStr(c) !== normSource).concat(targetName)))
+        );
+      }
+
+      if (deleteSource) {
+        const sourceObj = categoriesList.find(c => normalizeCatStr(c.name) === normSource);
+        if (sourceObj) {
+          await deleteCategoryCore(sourceObj);
+        }
+      }
+
+      if (reloadCategories) await reloadCategories();
+      if (reloadDrawings) await reloadDrawings();
+
+      setMergeSourceCat('');
+      setShowMergePanel(false);
+      alert(`🎉 Fusion réussie ! ${affected.length} dessin(s) ont été transférés vers « ${targetName} »${deleteSource ? ` et « ${sourceName} » a été supprimée.` : '.'}`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la fusion des dossiers.');
+    } finally {
+      setIsMergingCategories(false);
+    }
+  }
+
+  // Create new category from Manager
+  async function handleCreateCategoryInManager(e) {
+    if (e) e.preventDefault();
+    const trimmed = mgrNewCatName.trim();
+    if (!trimmed) {
+      alert('Veuillez entrer un nom pour la catégorie.');
+      return;
+    }
+    const existing = categoriesList.find(c => normalizeCatStr(c.name) === normalizeCatStr(trimmed));
+    if (existing) {
+      alert(`La catégorie « ${existing.name} » existe déjà.`);
+      return;
+    }
+
+    setCreatingCatInManager(true);
+    try {
+      const parentId = mgrNewCatParentId && mgrNewCatParentId !== 'root' ? mgrNewCatParentId : null;
+      const baseSlug = slugify(trimmed);
+      const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
+
+      const newCatObj = {
+        id: newId,
+        name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1),
+        parent_id: parentId,
+        sort_order: categoriesList.length + 1,
+      };
+
+      const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
+      const nextDel = delList.filter(x => x !== newId && x !== newCatObj.name.toLowerCase());
+      localStorage.setItem('cb-deleted-categories', JSON.stringify(nextDel));
+
+      const storedCustom = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+      const updatedCustom = [...storedCustom.filter(c => c.id !== newId), newCatObj];
+      localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCustom));
+
+      try {
+        await supabase.from('categories').upsert(newCatObj, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('Database category insert notice:', dbErr);
+      }
+
+      if (reloadCategories) {
+        await reloadCategories();
+      }
+
+      setMgrNewCatName('');
+      setShowMgrCatCreator(false);
+      alert(`🎉 Dossier / catégorie « ${newCatObj.name} » créée avec succès !`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la création de la catégorie.');
+    } finally {
+      setCreatingCatInManager(false);
+    }
+  }
+
   // Réinitialisation des favoris et compteurs de likes
   const [resettingLikes, setResettingLikes] = useState(false);
 
@@ -4817,6 +5259,12 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
             <FolderOpen size={16} /> Gérer les Dessins ({drawings.length})
           </button>
           <button
+            className={`cb-owner-tab ${view === 'categories' ? 'active' : ''}`}
+            onClick={() => setView('categories')}
+          >
+            <FolderTree size={16} /> Gérer les Catégories ({categoriesList.length})
+          </button>
+          <button
             className={`cb-owner-tab ${view === 'requests' ? 'active' : ''}`}
             onClick={() => setView('requests')}
           >
@@ -5025,6 +5473,23 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               <Plus size={18} /> Ajouter un coloriage
             </button>
 
+            {/* Selection Mode Button */}
+            <button
+              type="button"
+              className={`cb-btn-select-mode ${isSelectMode || selectedDrawingIds.size > 0 ? 'active' : ''}`}
+              onClick={() => {
+                const nextMode = !isSelectMode;
+                setIsSelectMode(nextMode);
+                if (!nextMode && selectedDrawingIds.size > 0) {
+                  setSelectedDrawingIds(new Set());
+                }
+              }}
+              title="Sélectionner des dessins pour les changer de dossier ou les gérer par lot"
+            >
+              <CheckSquare size={16} />
+              <span>{isSelectMode ? 'Fermer la sélection' : '☑️ Sélection groupée'}</span>
+            </button>
+
             {/* Batch Renaming Toggle Button */}
             <button
               type="button"
@@ -5033,7 +5498,18 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               title="Renommer tous les dessins à la chaîne avec un seul bouton d'enregistrement"
             >
               <Pencil size={16} />
-              <span>{isBatchRenaming ? 'Fermer le mode renommage' : '✏️ Renommer tous les dessins'}</span>
+              <span>{isBatchRenaming ? 'Fermer le mode renommage' : '✏️ Renommer les dessins'}</span>
+            </button>
+
+            {/* Manage Categories Shortcut */}
+            <button
+              type="button"
+              className="cb-btn-goto-categories"
+              onClick={() => setView('categories')}
+              title="Ouvrir le gestionnaire des dossiers & catégories"
+            >
+              <FolderTree size={16} />
+              <span>Dossiers & Catégories</span>
             </button>
 
             <div className="cb-library-search">
@@ -5048,26 +5524,120 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
             </div>
 
             <div className="cb-library-cat-filter">
-              <span>Catégorie :</span>
+              <span>Dossier :</span>
               <select
                 value={libraryCatFilter}
                 onChange={e => setLibraryCatFilter(e.target.value)}
               >
-                <option value="Tous">Toutes les catégories</option>
+                <option value="Tous">Tous les dossiers ({drawings.length})</option>
                 {rootCategories.map(rc => {
                   const subs = getSubcategoriesFor(rc, categoriesList);
+                  const rcCount = getCategoryDrawingsCount(rc);
                   return (
                     <React.Fragment key={rc.id}>
-                      <option value={rc.name}>{rc.name}</option>
-                      {subs.map(sc => (
-                        <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name}</option>
-                      ))}
+                      <option value={rc.name}>📁 {rc.name} ({rcCount})</option>
+                      {subs.map(sc => {
+                        const scCount = getCategoryDrawingsCount(sc);
+                        return (
+                          <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name} ({scCount})</option>
+                        );
+                      })}
                     </React.Fragment>
                   );
                 })}
               </select>
             </div>
           </div>
+
+          {/* Selection Toolbar Banner for batch changing folder/category or bulk delete */}
+          {(selectedDrawingIds.size > 0 || isSelectMode) && (
+            <div className="cb-selection-toolbar-banner">
+              <div className="cb-sel-banner-left">
+                <span className="cb-sel-count-badge">
+                  <CheckSquare size={18} />
+                  <b>{selectedDrawingIds.size}</b> dessin(s) sélectionné(s) sur {filteredLibraryDrawings.length}
+                </span>
+                <button
+                  type="button"
+                  className="cb-sel-btn-subtle"
+                  onClick={selectAllFilteredDrawings}
+                  title="Sélectionner tous les dessins filtrés affichés"
+                >
+                  Tout sélectionner ({filteredLibraryDrawings.length})
+                </button>
+                {selectedDrawingIds.size > 0 && (
+                  <button
+                    type="button"
+                    className="cb-sel-btn-subtle"
+                    onClick={clearDrawingSelection}
+                  >
+                    Désélectionner tout
+                  </button>
+                )}
+              </div>
+
+              {selectedDrawingIds.size > 0 && (
+                <div className="cb-sel-banner-right">
+                  <div className="cb-sel-move-group">
+                    <label htmlFor="cb-batch-target-cat">
+                      <FolderInput size={16} />
+                      <span>Déplacer vers :</span>
+                    </label>
+                    <select
+                      id="cb-batch-target-cat"
+                      className="cb-sel-select"
+                      value={batchTargetCategory}
+                      onChange={e => setBatchTargetCategory(e.target.value)}
+                    >
+                      <option value="">-- Choisir un dossier / catégorie --</option>
+                      {rootCategories.map(rc => {
+                        const subs = getSubcategoriesFor(rc, categoriesList);
+                        return (
+                          <React.Fragment key={rc.id}>
+                            <option value={rc.name}>📁 {rc.name}</option>
+                            {subs.map(sc => (
+                              <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name}</option>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </select>
+
+                    <select
+                      className="cb-sel-mode-select"
+                      value={batchMoveMode}
+                      onChange={e => setBatchMoveMode(e.target.value)}
+                      title="Remplacer le dossier actuel ou ajouter ce dossier en plus"
+                    >
+                      <option value="replace">Remplacer le dossier</option>
+                      <option value="add">Ajouter en plus</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      className="cb-btn-apply-move"
+                      disabled={!batchTargetCategory || isMovingBatchDrawings}
+                      onClick={() => handleBatchMoveDrawings(batchTargetCategory, batchMoveMode)}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>{isMovingBatchDrawings ? 'Déplacement…' : `Déplacer (${selectedDrawingIds.size})`}</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="cb-btn-batch-delete"
+                    onClick={handleBatchDeleteDrawings}
+                    disabled={isMovingBatchDrawings}
+                    title="Supprimer définitivement les dessins sélectionnés"
+                  >
+                    <Trash2 size={15} />
+                    <span>Supprimer</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Sticky / Top Batch Renaming Action Banner */}
           {isBatchRenaming && (
@@ -5166,7 +5736,32 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               const isTitleModified = isBatchRenaming && currentBatchTitle.trim() !== d.title;
 
               return (
-                <div className={`cb-library-card ${isEditing || isBatchRenaming ? 'editing' : ''}`} key={d.id}>
+                <div
+                  className={`cb-library-card ${isEditing || isBatchRenaming ? 'editing' : ''} ${selectedDrawingIds.has(d.id) ? 'selected' : ''}`}
+                  key={d.id}
+                  onClick={() => {
+                    if (isSelectMode && !isEditing && !isBatchRenaming) {
+                      toggleSelectDrawing(d.id);
+                    }
+                  }}
+                >
+                  {/* Select Checkbox (visible in select mode or when any drawing is selected) */}
+                  <div
+                    className={`cb-card-select-wrap ${isSelectMode || selectedDrawingIds.size > 0 ? 'visible' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelectDrawing(d.id);
+                    }}
+                    title={selectedDrawingIds.has(d.id) ? 'Désélectionner ce dessin' : 'Sélectionner ce dessin'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedDrawingIds.has(d.id)}
+                      onChange={() => toggleSelectDrawing(d.id)}
+                      aria-label={`Sélectionner ${d.title}`}
+                    />
+                  </div>
+
                   <div className="cb-lib-thumb">
                     <img src={d.image} alt={d.title} />
                     {d.isSvg ? (
@@ -5283,7 +5878,397 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
         </div>
       )}
 
-      {/* VIEW 3 : BOÎTE AUX LETTRES & DEMANDES DE DESSINS */}
+      {/* VIEW 3 : GESTION DES DOSSIERS & CATÉGORIES */}
+      {view === 'categories' && (
+        <div className="cb-owner-view-categories">
+          {/* Header & Quick Stats */}
+          <div className="cb-mgr-header-bar">
+            <div>
+              <h2><FolderTree size={22} /> Gestion des Dossiers & Catégories</h2>
+              <p>Organisez, renommez et supprimez vos dossiers. Déplacez et fusionnez des catégories pour regrouper tous leurs coloriages en toute simplicité.</p>
+            </div>
+            <div className="cb-mgr-head-actions">
+              <button
+                type="button"
+                className="cb-btn-mgr-add"
+                onClick={() => { setShowMgrCatCreator(!showMgrCatCreator); setMgrNewCatParentId(''); }}
+              >
+                <FolderPlus size={16} />
+                <span>{showMgrCatCreator ? 'Fermer le formulaire' : '+ Nouveau dossier'}</span>
+              </button>
+              <button
+                type="button"
+                className={`cb-btn-mgr-merge ${showMergePanel ? 'active' : ''}`}
+                onClick={() => setShowMergePanel(!showMergePanel)}
+              >
+                <ArrowRightLeft size={16} />
+                <span>{showMergePanel ? 'Fermer la fusion' : '🔀 Fusionner des dossiers'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* KPI Mini-bar for Categories */}
+          <div className="cb-cat-stats-strip">
+            <div className="cb-cat-stat-item">
+              <FolderOpen size={18} />
+              <div>
+                <b>{rootCategories.length}</b>
+                <span>Dossiers principaux</span>
+              </div>
+            </div>
+            <div className="cb-cat-stat-item">
+              <FolderTree size={18} />
+              <div>
+                <b>{categoriesList.filter(c => c.parentId).length}</b>
+                <span>Sous-catégories</span>
+              </div>
+            </div>
+            <div className="cb-cat-stat-item">
+              <Leaf size={18} />
+              <div>
+                <b>{drawings.length}</b>
+                <span>Dessins au total</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Merge Folders Panel */}
+          {showMergePanel && (
+            <div className="cb-merge-panel-box">
+              <div className="cb-merge-panel-title">
+                <ArrowRightLeft size={18} />
+                <b>Fusionner deux catégories / dossiers de dessins</b>
+              </div>
+              <p className="cb-merge-panel-desc">
+                Déplace automatiquement tous les dessins de la catégorie source vers la catégorie de destination. Les dessins seront mis à jour instantanément.
+              </p>
+
+              <div className="cb-merge-inputs-row">
+                <div className="cb-merge-col">
+                  <label>1. Dossier source (à vider) :</label>
+                  <select
+                    className="cb-select"
+                    value={mergeSourceCat}
+                    onChange={e => setMergeSourceCat(e.target.value)}
+                  >
+                    <option value="">-- Choisir le dossier source --</option>
+                    {rootCategories.map(rc => {
+                      const subs = getSubcategoriesFor(rc, categoriesList);
+                      const rcCount = getCategoryDrawingsCount(rc);
+                      return (
+                        <React.Fragment key={rc.id}>
+                          <option value={rc.name}>📁 {rc.name} ({rcCount} dessins)</option>
+                          {subs.map(sc => (
+                            <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name} ({getCategoryDrawingsCount(sc)} dessins)</option>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="cb-merge-arrow-col">
+                  <MoveRight size={24} className="cb-merge-arrow-icon" />
+                </div>
+
+                <div className="cb-merge-col">
+                  <label>2. Dossier de destination :</label>
+                  <select
+                    className="cb-select"
+                    value={mergeTargetCat}
+                    onChange={e => setMergeTargetCat(e.target.value)}
+                  >
+                    <option value="">-- Choisir le dossier cible --</option>
+                    {rootCategories.map(rc => {
+                      const subs = getSubcategoriesFor(rc, categoriesList);
+                      const rcCount = getCategoryDrawingsCount(rc);
+                      return (
+                        <React.Fragment key={rc.id}>
+                          <option value={rc.name}>📁 {rc.name} ({rcCount} dessins)</option>
+                          {subs.map(sc => (
+                            <option key={sc.id} value={sc.name}>&nbsp;&nbsp;↳ {sc.name} ({getCategoryDrawingsCount(sc)} dessins)</option>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              <div className="cb-merge-options-row">
+                <label className="cb-merge-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={mergeDeleteSource}
+                    onChange={e => setMergeDeleteSource(e.target.checked)}
+                  />
+                  <span>Supprimer automatiquement le dossier source « {mergeSourceCat || 'source'} » après avoir transféré ses dessins</span>
+                </label>
+              </div>
+
+              <div className="cb-merge-actions-row">
+                <button
+                  type="button"
+                  className="cb-btn-confirm-merge"
+                  disabled={!mergeSourceCat || !mergeTargetCat || isMergingCategories}
+                  onClick={() => handleMergeCategories(mergeSourceCat, mergeTargetCat, mergeDeleteSource)}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>
+                    {isMergingCategories
+                      ? 'Fusion en cours…'
+                      : `Fusionner et déplacer les dessins vers « ${mergeTargetCat || '…'} »`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="cb-btn-cancel-merge"
+                  onClick={() => setShowMergePanel(false)}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline Category Creator Panel */}
+          {showMgrCatCreator && (
+            <div className="cb-category-creator-box cb-mgr-creator">
+              <div className="cb-cat-creator-title">
+                <FolderPlus size={18} />
+                <b>Créer un nouveau dossier / catégorie</b>
+              </div>
+              <div className="cb-creator-fields-grid">
+                <div className="cb-creator-field">
+                  <label>Nom du dossier :</label>
+                  <input
+                    type="text"
+                    className="cb-input-text"
+                    value={mgrNewCatName}
+                    onChange={e => setMgrNewCatName(e.target.value)}
+                    placeholder="Ex: Mandalas, Fées, Véhicules..."
+                    autoFocus
+                  />
+                </div>
+                <div className="cb-creator-field">
+                  <label>Emplacement :</label>
+                  <select
+                    className="cb-select"
+                    value={mgrNewCatParentId}
+                    onChange={e => setMgrNewCatParentId(e.target.value)}
+                  >
+                    <option value="">📁 Dossier principal (racine)</option>
+                    <optgroup label="Sous-dossier de :">
+                      {rootCategories.map(r => (
+                        <option key={r.id} value={r.id}>
+                          ↳ Dans « {r.name} »
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+              <div className="cb-creator-actions-row">
+                <button
+                  type="button"
+                  className="cb-btn-submit-cat"
+                  onClick={handleCreateCategoryInManager}
+                  disabled={creatingCatInManager || !mgrNewCatName.trim()}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{creatingCatInManager ? 'Création en cours…' : 'Créer le dossier'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="cb-btn-cancel-cat"
+                  onClick={() => { setShowMgrCatCreator(false); setMgrNewCatName(''); }}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search bar for categories */}
+          <div className="cb-categories-search-bar">
+            <div className="cb-cat-search-box">
+              <Search size={16} />
+              <input
+                type="text"
+                value={categorySearch}
+                onChange={e => setCategorySearch(e.target.value)}
+                placeholder="Filtrer parmi les catégories…"
+              />
+              {categorySearch && <button onClick={() => setCategorySearch('')}><X size={14} /></button>}
+            </div>
+            <span className="cb-cat-count-badge">
+              {rootCategories.filter(rc => {
+                if (!categorySearch.trim()) return true;
+                const q = categorySearch.trim().toLowerCase();
+                if (rc.name.toLowerCase().includes(q)) return true;
+                const subs = getSubcategoriesFor(rc, categoriesList);
+                return subs.some(s => s.name.toLowerCase().includes(q));
+              }).length} dossier(s) affiché(s)
+            </span>
+          </div>
+
+          {/* Hierarchical Categories Folder List */}
+          <div className="cb-mgr-folders-list">
+            {rootCategories
+              .filter(rc => {
+                if (!categorySearch.trim()) return true;
+                const q = categorySearch.trim().toLowerCase();
+                if (rc.name.toLowerCase().includes(q)) return true;
+                const subs = getSubcategoriesFor(rc, categoriesList);
+                return subs.some(s => s.name.toLowerCase().includes(q));
+              })
+              .map(rc => {
+                const subs = getSubcategoriesFor(rc, categoriesList);
+                const rcCount = getCategoryDrawingsCount(rc);
+                const isMatchingQuery = !categorySearch.trim() || rc.name.toLowerCase().includes(categorySearch.trim().toLowerCase());
+
+                return (
+                  <div className="cb-mgr-folder-group-card" key={rc.id}>
+                    {/* Root Folder Card */}
+                    <div className="cb-mgr-root-folder">
+                      <div className="cb-mgr-folder-info">
+                        <FolderOpen className="cb-mgr-folder-icon" size={24} />
+                        <div>
+                          <b className="cb-mgr-folder-name">{rc.name}</b>
+                          <div className="cb-mgr-folder-meta">
+                            <span className="cb-mgr-pill-root">Dossier racine</span>
+                            <span className="cb-mgr-pill-count">
+                              📁 <b>{rcCount}</b> dessin(s)
+                            </span>
+                            {subs.length > 0 && (
+                              <span className="cb-mgr-pill-subs">
+                                {subs.length} sous-catégorie(s)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="cb-mgr-folder-actions">
+                        <button
+                          type="button"
+                          className="cb-btn-folder-view"
+                          onClick={() => { setLibraryCatFilter(rc.name); setView('library'); }}
+                          title={`Voir les ${rcCount} dessins de ce dossier`}
+                        >
+                          <FolderOpen size={14} />
+                          <span>Voir les dessins ({rcCount})</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="cb-btn-folder-rename"
+                          onClick={() => handleRenameCategoryOwner(rc)}
+                          title="Renommer ce dossier"
+                        >
+                          <Pencil size={14} />
+                          <span>Renommer</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="cb-btn-folder-merge"
+                          onClick={() => { setMergeSourceCat(rc.name); setShowMergePanel(true); }}
+                          title="Fusionner les dessins de ce dossier vers un autre"
+                        >
+                          <ArrowRightLeft size={14} />
+                          <span>Fusionner vers…</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="cb-btn-folder-add-sub"
+                          onClick={() => { setMgrNewCatParentId(rc.id); setShowMgrCatCreator(true); }}
+                          title="Ajouter une sous-catégorie dans ce dossier"
+                        >
+                          <Plus size={14} />
+                          <span>Sous-dossier</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="cb-btn-folder-delete"
+                          onClick={() => handleDeleteCategoryWithOption(rc)}
+                          title="Supprimer ce dossier"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Subcategories (if any) */}
+                    {subs.length > 0 && (
+                      <div className="cb-mgr-subfolders-container">
+                        {subs
+                          .filter(sc => {
+                            if (!categorySearch.trim()) return true;
+                            const q = categorySearch.trim().toLowerCase();
+                            return sc.name.toLowerCase().includes(q) || isMatchingQuery;
+                          })
+                          .map(sc => {
+                            const scCount = getCategoryDrawingsCount(sc);
+                            return (
+                              <div className="cb-mgr-subfolder-row" key={sc.id}>
+                                <div className="cb-mgr-subfolder-left">
+                                  <span className="cb-subfolder-branch">↳</span>
+                                  <FolderTree className="cb-subfolder-icon" size={17} />
+                                  <span className="cb-mgr-subfolder-name">{sc.name}</span>
+                                  <span className="cb-mgr-pill-count">
+                                    📁 <b>{scCount}</b> dessin(s)
+                                  </span>
+                                </div>
+
+                                <div className="cb-mgr-folder-actions mini">
+                                  <button
+                                    type="button"
+                                    className="cb-btn-folder-view mini"
+                                    onClick={() => { setLibraryCatFilter(sc.name); setView('library'); }}
+                                    title={`Voir les ${scCount} dessins`}
+                                  >
+                                    <FolderOpen size={13} />
+                                    <span>Voir ({scCount})</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cb-btn-folder-rename mini"
+                                    onClick={() => handleRenameCategoryOwner(sc)}
+                                    title="Renommer cette sous-catégorie"
+                                  >
+                                    <Pencil size={13} />
+                                    <span>Renommer</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cb-btn-folder-merge mini"
+                                    onClick={() => { setMergeSourceCat(sc.name); setShowMergePanel(true); }}
+                                    title="Fusionner vers un autre dossier"
+                                  >
+                                    <ArrowRightLeft size={13} />
+                                    <span>Fusionner</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cb-btn-folder-delete mini"
+                                    onClick={() => handleDeleteCategoryWithOption(sc)}
+                                    title="Supprimer cette sous-catégorie"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 4 : BOÎTE AUX LETTRES & DEMANDES DE DESSINS */}
       {view === 'requests' && (
         <div className="cb-owner-view-requests">
           <div className="cb-requests-head-bar">
