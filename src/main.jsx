@@ -1925,6 +1925,7 @@ function App() {
           setDrawings={setDrawings}
           reloadDrawings={loadDrawings}
           categoriesList={categoriesList}
+          setCategoriesList={setCategoriesList}
           reloadCategories={loadCategories}
           reloadNews={loadNews}
           user={session?.user}
@@ -3889,7 +3890,7 @@ function Profile({ session, profile, selectedAvatar, updateAvatar, databaseReady
 }
 
 /* === OWNER / ADMIN SPACE CONNECTED TO SUPABASE WITH STATS & DRAWINGS MANAGEMENT === */
-function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, categoriesList = [], reloadCategories, reloadNews, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
+function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, categoriesList = [], setCategoriesList, reloadCategories, reloadNews, user, closeAdmin, pendingRequestsCount, refreshPendingRequests }) {
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedSlugForRequest, setSelectedSlugForRequest] = useState({});
@@ -4196,6 +4197,10 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     const isSub = Boolean(catItem.parentId);
     const updated = categoriesList.filter(c => c.id !== catItem.id && c.parentId !== catItem.id);
 
+    if (setCategoriesList) {
+      setCategoriesList(updated);
+    }
+
     const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
     if (!delList.includes(catItem.id)) delList.push(catItem.id);
     if (!delList.includes(catItem.name.toLowerCase())) delList.push(catItem.name.toLowerCase());
@@ -4267,6 +4272,9 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
 
     try {
       const updatedCats = categoriesList.map(c => c.id === catItem.id ? { ...c, name: trimmed } : c);
+      if (setCategoriesList) {
+        setCategoriesList(updatedCats);
+      }
       localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCats));
 
       try {
@@ -4343,54 +4351,100 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     }
   }
 
-  // Create new category from Manager
+  // Universal direct category creation helper (Immediate React State + LocalStorage + Supabase)
+  async function createCategoryDirectly(rawName, parentId = null) {
+    const trimmed = (rawName || '').trim();
+    if (!trimmed) {
+      alert('Veuillez entrer un nom pour le dossier / la catégorie.');
+      return false;
+    }
+
+    const norm = normalizeCatStr(trimmed);
+    const existingSameScope = categoriesList.find(c => {
+      const cParent = c.parentId || null;
+      const targetParent = parentId || null;
+      return normalizeCatStr(c.name) === norm && cParent === targetParent;
+    });
+
+    if (existingSameScope) {
+      alert(`Le dossier « ${existingSameScope.name} » existe déjà à cet emplacement.`);
+      return false;
+    }
+
+    const baseSlug = slugify(trimmed) || 'cat';
+    const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
+    const finalName = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+
+    const newCatObj = {
+      id: newId,
+      name: finalName,
+      parent_id: parentId || null,
+      sort_order: categoriesList.length + 1,
+    };
+
+    const normalizedNew = normalizeCategory(newCatObj);
+
+    // 1. Mise à jour instantanée de l'état React (0 ms de latence visuelle)
+    if (setCategoriesList) {
+      setCategoriesList(prev => [...prev.filter(c => c.id !== newId), normalizedNew]);
+    }
+
+    // 2. Persistance locale dans localStorage
+    const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
+    const nextDel = delList.filter(x => x !== newId && x !== finalName.toLowerCase());
+    localStorage.setItem('cb-deleted-categories', JSON.stringify(nextDel));
+
+    const storedCustom = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
+    const updatedCustom = [...storedCustom.filter(c => c.id !== newId), newCatObj];
+    localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCustom));
+
+    // 3. Sauvegarde dans la table Supabase categories
+    try {
+      const { error: upsertErr } = await supabase.from('categories').upsert(newCatObj, { onConflict: 'id' });
+      if (upsertErr) {
+        console.warn('Database category insert notice:', upsertErr);
+      }
+    } catch (dbErr) {
+      console.warn('Database category insert notice:', dbErr);
+    }
+
+    // 4. Synchronisation en arrière-plan
+    if (reloadCategories) {
+      reloadCategories().catch(() => {});
+    }
+
+    return true;
+  }
+
+  // Quick subcategory creator triggered from folder card (immediate prompt with Enter validation)
+  async function handleQuickAddSubCategory(rc) {
+    const subName = window.prompt(`Nom de la sous-catégorie à ajouter dans « ${rc.name} » :`);
+    if (!subName || !subName.trim()) return;
+
+    const ok = await createCategoryDirectly(subName.trim(), rc.id);
+    if (ok) {
+      alert(`🎉 Sous-dossier « ${subName.trim()} » créé avec succès dans « ${rc.name} » !`);
+    }
+  }
+
+  // Create new category from Manager top form
   async function handleCreateCategoryInManager(e) {
-    if (e) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const trimmed = mgrNewCatName.trim();
     if (!trimmed) {
       alert('Veuillez entrer un nom pour la catégorie.');
-      return;
-    }
-    const existing = categoriesList.find(c => normalizeCatStr(c.name) === normalizeCatStr(trimmed));
-    if (existing) {
-      alert(`La catégorie « ${existing.name} » existe déjà.`);
       return;
     }
 
     setCreatingCatInManager(true);
     try {
       const parentId = mgrNewCatParentId && mgrNewCatParentId !== 'root' ? mgrNewCatParentId : null;
-      const baseSlug = slugify(trimmed);
-      const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
-
-      const newCatObj = {
-        id: newId,
-        name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1),
-        parent_id: parentId,
-        sort_order: categoriesList.length + 1,
-      };
-
-      const delList = JSON.parse(localStorage.getItem('cb-deleted-categories') || '[]');
-      const nextDel = delList.filter(x => x !== newId && x !== newCatObj.name.toLowerCase());
-      localStorage.setItem('cb-deleted-categories', JSON.stringify(nextDel));
-
-      const storedCustom = JSON.parse(localStorage.getItem('cb-custom-categories') || '[]');
-      const updatedCustom = [...storedCustom.filter(c => c.id !== newId), newCatObj];
-      localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCustom));
-
-      try {
-        await supabase.from('categories').upsert(newCatObj, { onConflict: 'id' });
-      } catch (dbErr) {
-        console.warn('Database category insert notice:', dbErr);
+      const ok = await createCategoryDirectly(trimmed, parentId);
+      if (ok) {
+        setMgrNewCatName('');
+        setShowMgrCatCreator(false);
+        alert(`🎉 Dossier / catégorie « ${trimmed} » créée avec succès !`);
       }
-
-      if (reloadCategories) {
-        await reloadCategories();
-      }
-
-      setMgrNewCatName('');
-      setShowMgrCatCreator(false);
-      alert(`🎉 Dossier / catégorie « ${newCatObj.name} » créée avec succès !`);
     } catch (err) {
       console.error(err);
       alert('Erreur lors de la création de la catégorie.');
@@ -4478,7 +4532,10 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
         console.warn('Supabase categories insert notice:', dbErr);
       }
 
-      // 3. Reload categories in App
+      // 3. Update React state & reload categories in App
+      if (setCategoriesList) {
+        setCategoriesList(prev => [...prev.filter(c => c.id !== newId), normalizeCategory(newCatObj)]);
+      }
       if (reloadCategories) {
         await reloadCategories();
       }
@@ -6033,7 +6090,10 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
 
           {/* Inline Category Creator Panel */}
           {showMgrCatCreator && (
-            <div className="cb-category-creator-box cb-mgr-creator">
+            <form
+              className="cb-category-creator-box cb-mgr-creator"
+              onSubmit={handleCreateCategoryInManager}
+            >
               <div className="cb-cat-creator-title">
                 <FolderPlus size={18} />
                 <b>Créer un nouveau dossier / catégorie</b>
@@ -6046,6 +6106,12 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                     className="cb-input-text"
                     value={mgrNewCatName}
                     onChange={e => setMgrNewCatName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCategoryInManager(e);
+                      }
+                    }}
                     placeholder="Ex: Mandalas, Fées, Véhicules..."
                     autoFocus
                   />
@@ -6070,9 +6136,8 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               </div>
               <div className="cb-creator-actions-row">
                 <button
-                  type="button"
+                  type="submit"
                   className="cb-btn-submit-cat"
-                  onClick={handleCreateCategoryInManager}
                   disabled={creatingCatInManager || !mgrNewCatName.trim()}
                 >
                   <CheckCircle2 size={16} />
@@ -6086,7 +6151,7 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                   Annuler
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {/* Search bar for categories */}
@@ -6180,7 +6245,7 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                         <button
                           type="button"
                           className="cb-btn-folder-add-sub"
-                          onClick={() => { setMgrNewCatParentId(rc.id); setShowMgrCatCreator(true); }}
+                          onClick={() => handleQuickAddSubCategory(rc)}
                           title="Ajouter une sous-catégorie dans ce dossier"
                         >
                           <Plus size={14} />
