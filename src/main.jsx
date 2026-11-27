@@ -9,7 +9,7 @@ import {
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
   Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
   GripVertical, ArrowUp, Building2, FolderTree, FolderPlus, ArrowRightLeft,
-  MoveRight, CheckSquare, Square, FolderInput
+  MoveRight, CheckSquare, Square, FolderInput, ShieldAlert
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -300,6 +300,46 @@ function CanvasDrawingCard({ imageSrc, title }) {
 
 function ModalDrawingPreview({ drawing, title, hasWatermark }) {
   const canvasRef = useRef(null);
+  const [isBlurred, setIsBlurred] = useState(false);
+
+  // Protection dynamique anti-capture d'écran (Flou immédiat dès perte de focus, multitâche ou PrintScreen)
+  useEffect(() => {
+    function handleBlur() {
+      setIsBlurred(true);
+    }
+    function handleFocus() {
+      setIsBlurred(false);
+    }
+    function handleVisibility() {
+      if (document.hidden) {
+        setIsBlurred(true);
+      } else {
+        setIsBlurred(false);
+      }
+    }
+    function handleKey(e) {
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        setIsBlurred(true);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText('').catch(() => {});
+        }
+      }
+    }
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('keyup', handleKey);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -375,15 +415,30 @@ function ModalDrawingPreview({ drawing, title, hasWatermark }) {
 
   return (
     <div 
-      className="cb-modal-drawing-wrapper"
+      className={`cb-modal-drawing-wrapper ${isBlurred ? 'cb-shield-active' : ''}`}
       onContextMenu={(e) => e.preventDefault()}
+      onClick={() => isBlurred && setIsBlurred(false)}
     >
       <canvas
         ref={canvasRef}
-        className="coloring-img big cb-preview-canvas"
+        className={`coloring-img big cb-preview-canvas ${isBlurred ? 'cb-canvas-blurred' : ''}`}
         onContextMenu={(e) => e.preventDefault()}
         aria-label={title}
       />
+      {/* Bouclier tactile transparent : bloque le glisser-déposer, l'appui long et l'enregistrement sur mobile et desktop */}
+      <div 
+        className="cb-drawing-protection-shield" 
+        onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={() => {}}
+      />
+      {/* Voile de flou dynamique dès que le focus est perdu ou lors d'une tentative de capture */}
+      {isBlurred && (
+        <div className="cb-shield-notice-overlay" onClick={() => setIsBlurred(false)}>
+          <ShieldAlert size={36} className="cb-shield-notice-icon" />
+          <b className="cb-shield-notice-title">Aperçu protégé contre la capture</b>
+          <span className="cb-shield-notice-sub">Cliquez sur l'écran pour réafficher le dessin</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -627,8 +682,9 @@ function App() {
   // Desktop sidebar expansion state for categories with subcategories
   const [expandedCats, setExpandedCats] = useState({ animaux: true });
 
-  // Responsive Grid Density setting (base default: 2 drawings per row)
+  // Responsive Grid Density setting (base default: 2 drawings per row on mobile, 4 on desktop)
   const [gridDensity, setGridDensity] = useState(() => localStorage.getItem('cb-grid-density') || '2');
+  const [desktopGridDensity, setDesktopGridDensity] = useState(() => localStorage.getItem('cb-desktop-grid-density') || '4');
 
   // Auto-hiding tabs strip state on scroll (mobile)
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -668,6 +724,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('cb-grid-density', gridDensity);
   }, [gridDensity]);
+
+  useEffect(() => {
+    localStorage.setItem('cb-desktop-grid-density', desktopGridDensity);
+  }, [desktopGridDensity]);
 
   async function loadCategories() {
     try {
@@ -1866,6 +1926,37 @@ function App() {
                 </div>
               </div>
 
+              {/* Desktop Drawing Grid Size Selector (Visible on Desktop only) */}
+              <div className="setting-section cb-desktop-only-setting">
+                <b><LayoutGrid className="settings-head-icon" /> {t.settingsDesktopGrid || 'Affichage sur ordinateur (par ligne)'}</b>
+                <p className="setting-subtext">{t.settingsDesktopGridSub || 'Choisis le nombre de coloriages par ligne sur grand écran :'}</p>
+                <div className="cb-grid-density-picker cols-4">
+                  {[
+                    { id: '3', num: '3', label: t.desktopGrid3 || '3 grands', desc: '3 grands dessins par ligne' },
+                    { id: '4', num: '4', label: t.desktopGrid4 || '4 standard', desc: '4 dessins par ligne (recommandé)' },
+                    { id: '5', num: '5', label: t.desktopGrid5 || '5 compacts', desc: '5 dessins par ligne' },
+                    { id: '6', num: '6', label: t.desktopGrid6 || '6 mini', desc: '6 dessins par ligne' }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`cb-density-btn ${desktopGridDensity === opt.id ? 'active' : ''}`}
+                      onClick={() => setDesktopGridDensity(opt.id)}
+                      title={opt.desc}
+                    >
+                      <span className="cb-density-num">{opt.num}</span>
+                      <span className="cb-density-label">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <small className="setting-hint">
+                  {desktopGridDensity === '3' && "Grand format : 3 dessins par ligne pour admirer chaque détail."}
+                  {desktopGridDensity === '4' && "Standard : 4 dessins par ligne (équilibre idéal sur ordinateur)."}
+                  {desktopGridDensity === '5' && "Compact : 5 dessins par ligne pour afficher plus de coloriages."}
+                  {desktopGridDensity === '6' && "Très compact : 6 dessins par ligne pour parcourir la collection en un clin d'œil."}
+                </small>
+              </div>
+
               {/* Mobile Drawing Grid Size Selector (Visible on Mobile only) */}
               <div className="setting-section cb-mobile-only-setting">
                 <b><LayoutGrid className="settings-head-icon" /> {t.settingsMobileGrid}</b>
@@ -2437,7 +2528,7 @@ function App() {
               </div>
             )}
             {shown.length ? (
-              <div className={`cb-boards-grid cb-grid-cols-${gridDensity}`}>
+              <div className={`cb-boards-grid cb-desktop-cols-${desktopGridDensity} cb-grid-cols-${gridDensity}`}>
                 {shown.map((d) => (
                   <article 
                     className="cb-board-item" 
