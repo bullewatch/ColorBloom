@@ -9,7 +9,7 @@ import {
   PackageCheck, TrendingUp, ThumbsUp, CheckCheck, LayoutGrid,
   Users, Eye, RefreshCw, FileImage, FileText, Dices, Crown, Lock, FileBadge,
   GripVertical, ArrowUp, Building2, FolderTree, FolderPlus, ArrowRightLeft,
-  MoveRight, CheckSquare, Square, FolderInput, ShieldAlert
+  MoveRight, CheckSquare, Square, FolderInput, ShieldAlert, ChevronUp, ChevronDown
 } from 'lucide-react';
 import './styles.css';
 import { supabase, coloringImageUrl } from './supabase';
@@ -716,6 +716,41 @@ function App() {
 
   // Desktop sidebar expansion state for categories with subcategories
   const [expandedCats, setExpandedCats] = useState({ animaux: true });
+  const catPlanksRef = useRef(null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const checkSidebarScroll = () => {
+    const el = catPlanksRef.current;
+    if (!el) return;
+    const hasScroll = el.scrollHeight > el.clientHeight + 4;
+    setCanScrollUp(hasScroll && el.scrollTop > 6);
+    setCanScrollDown(hasScroll && el.scrollTop + el.clientHeight < el.scrollHeight - 6);
+  };
+
+  function scrollSidebar(direction) {
+    const el = catPlanksRef.current;
+    if (!el) return;
+    const delta = direction === 'down' ? 140 : -140;
+    el.scrollBy({ top: delta, behavior: 'smooth' });
+    setTimeout(checkSidebarScroll, 220);
+  }
+
+  useEffect(() => {
+    checkSidebarScroll();
+  }, [categoriesList, expandedCats, isCatEditMode]);
+
+  useEffect(() => {
+    const el = catPlanksRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => checkSidebarScroll());
+    observer.observe(el);
+    window.addEventListener('resize', checkSidebarScroll);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', checkSidebarScroll);
+    };
+  }, []);
 
   // Responsive Grid Density setting (base default: 2 drawings per row on mobile, 4 on desktop)
   const [gridDensity, setGridDensity] = useState(() => localStorage.getItem('cb-grid-density') || '2');
@@ -2158,7 +2193,16 @@ function App() {
               <span className="cb-css-nail bottom-left" aria-hidden="true" />
               <span className="cb-css-nail bottom-right" aria-hidden="true" />
 
-              <div className="cb-panel-content">
+              <div
+                className="cb-panel-content"
+                onWheel={(e) => {
+                  const el = catPlanksRef.current;
+                  if (el && el.scrollHeight > el.clientHeight) {
+                    el.scrollTop += e.deltaY;
+                    checkSidebarScroll();
+                  }
+                }}
+              >
                 {/* Sort Bar Plank */}
                 <div className="cb-sort-plank">
                   <span className="cb-plank-label">{t.sortBy}</span>
@@ -2169,33 +2213,52 @@ function App() {
                   </select>
                 </div>
 
-                {/* Categories Wooden Planks (Avec Sous-catégories déployables) */}
-                <div className="cb-categories-planks">
-                  <div className="cb-planks-header-row">
-                    <span className="cb-plank-label">{t.categoriesTitle}</span>
-                    {isOwner && (
-                      <button
-                        type="button"
-                        className={`cb-btn-toggle-cat-edit ${isCatEditMode ? 'active' : ''}`}
-                        onClick={() => {
-                          setIsCatEditMode(!isCatEditMode);
-                          setDraggedCat(null);
-                          setDragOverTargetId(null);
-                        }}
-                        title={isCatEditMode ? 'Enregistrer et quitter le mode modification' : 'Modifier et réorganiser les catégories'}
-                      >
-                        {isCatEditMode ? (
-                          <>
-                            <Check size={13} /> <span>Terminer</span>
-                          </>
-                        ) : (
-                          <>
-                            <Pencil size={13} /> <span>Modifier</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
+                {/* Categories Header Fixed Row */}
+                <div className="cb-planks-header-row">
+                  <span className="cb-plank-label">{t.categoriesTitle}</span>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      className={`cb-btn-toggle-cat-edit ${isCatEditMode ? 'active' : ''}`}
+                      onClick={() => {
+                        setIsCatEditMode(!isCatEditMode);
+                        setDraggedCat(null);
+                        setDragOverTargetId(null);
+                      }}
+                      title={isCatEditMode ? 'Enregistrer et quitter le mode modification' : 'Modifier et réorganiser les catégories'}
+                    >
+                      {isCatEditMode ? (
+                        <>
+                          <Check size={13} /> <span>Terminer</span>
+                        </>
+                      ) : (
+                        <>
+                          <Pencil size={13} /> <span>Modifier</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Categories Scrollable Container with Up/Down Chevrons */}
+                <div className="cb-categories-scroll-wrapper">
+                  {canScrollUp && (
+                    <button
+                      type="button"
+                      className="cb-sidebar-scroll-btn up"
+                      onClick={() => scrollSidebar('up')}
+                      title="Défiler vers le haut"
+                      aria-label="Défiler vers le haut"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                  )}
+
+                  <div
+                    className="cb-categories-planks"
+                    ref={catPlanksRef}
+                    onScroll={checkSidebarScroll}
+                  >
 
                   {/* Zone de glisser-déposer pour convertir une sous-catégorie vers le haut en catégorie principale */}
                   {isCatEditMode && draggedCat && draggedCat.parentId && (
@@ -2252,7 +2315,7 @@ function App() {
                     const count = getCategoryDrawingsCount(rc);
                     const isRootSelected = cat === rc.name && page === 'Accueil';
                     const isChildSelected = subcats.some(s => s.name === cat) && page === 'Accueil';
-                    const isExpanded = isCatEditMode || expandedCats[rc.id] || isRootSelected || isChildSelected;
+                    const isExpanded = isCatEditMode || (expandedCats[rc.id] !== undefined ? Boolean(expandedCats[rc.id]) : Boolean(isRootSelected || isChildSelected));
                     const isDropTarget = dragOverTargetId === rc.id;
 
                     return (
@@ -2357,7 +2420,10 @@ function App() {
                                   className={`cb-plank-arrow ${isExpanded ? 'open' : ''}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setExpandedCats(prev => ({ ...prev, [rc.id]: !prev[rc.id] }));
+                                    setExpandedCats(prev => {
+                                      const current = prev[rc.id] !== undefined ? Boolean(prev[rc.id]) : Boolean(isRootSelected || isChildSelected);
+                                      return { ...prev, [rc.id]: !current };
+                                    });
                                   }}
                                   title={isExpanded ? 'Réduire' : 'Dérouler'}
                                 >
@@ -2527,6 +2593,19 @@ function App() {
                     <span className="cb-plank-pill">{favsCount}</span>
                   </button>
                 </div>
+
+                {canScrollDown && (
+                  <button
+                    type="button"
+                    className="cb-sidebar-scroll-btn down"
+                    onClick={() => scrollSidebar('down')}
+                    title="Défiler vers le bas"
+                    aria-label="Défiler vers le bas"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                )}
+              </div>
               </div>
             </div>
           </aside>
