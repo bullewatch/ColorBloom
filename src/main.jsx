@@ -141,17 +141,35 @@ export const INITIAL_CATEGORIES = [
   { id: 'couronnes', name: 'Couronnes', parent_id: null, sort_order: 10 },
   { id: 'couronnes-noel', name: 'Couronnes Noël', parent_id: 'couronnes', sort_order: 1 },
   { id: 'couronnes-halloween', name: 'Couronnes Halloween', parent_id: 'couronnes', sort_order: 2 },
-  { id: 'vip', name: 'VIP', parent_id: null, sort_order: 11 },
+  { id: 'vip', name: 'VIP', parent_id: null, sort_order: 11, is_vip: true },
   { id: 'divers', name: 'Divers', parent_id: null, sort_order: 12 },
 ];
 
 function normalizeCategory(c) {
+  const isVip = Boolean(
+    c.is_vip ||
+    c.isVip ||
+    c.id === 'vip' ||
+    String(c.name || '').toLowerCase() === 'vip' ||
+    String(c.id || '').toLowerCase().startsWith('vip-') ||
+    String(c.id || '').toLowerCase().endsWith('-vip')
+  );
   return {
     id: c.id,
     name: c.name,
     parentId: c.parent_id !== undefined ? c.parent_id : (c.parentId || null),
     sortOrder: c.sort_order !== undefined ? c.sort_order : (c.sortOrder || 0),
+    isVip,
   };
+}
+
+function isDrawingVip(drawing, allCategories) {
+  if (!drawing) return false;
+  if (drawing.isVip || drawing.is_vip) return true;
+  const drawingCats = (drawing.cat || []).map(c => normalizeCatStr(c));
+  if (drawingCats.includes('vip')) return true;
+  if (!allCategories || !allCategories.length) return false;
+  return allCategories.some(cat => cat.isVip && (drawingCats.includes(normalizeCatStr(cat.name)) || drawingCats.includes(normalizeCatStr(cat.id))));
 }
 
 function getSubcategoriesFor(parentCat, allCats) {
@@ -213,7 +231,7 @@ async function getSvgBlobUrl(url) {
   }
 }
 
-function CanvasDrawingCard({ imageSrc, title }) {
+function CanvasDrawingCard({ imageSrc, title, hasWatermark = false }) {
   const canvasRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -264,6 +282,22 @@ function CanvasDrawingCard({ imageSrc, title }) {
       const dx = (canvas.width - dw) / 2;
       const dy = (canvas.height - dh) / 2;
       ctx.drawImage(img, dx, dy, dw, dh);
+
+      // Filigrane automatique pour les miniatures des dessins VIP non abonnés
+      if (hasWatermark) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((-28 * Math.PI) / 180);
+        ctx.fillStyle = 'rgba(150, 85, 30, 0.28)';
+        ctx.font = '800 23px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const text = 'COLORBLOP VIP  ---  COLORBLOP VIP';
+        for (let y = -280; y <= 280; y += 60) {
+          ctx.fillText(text, 0, y);
+        }
+        ctx.restore();
+      }
     };
 
     if (imageSrc.toLowerCase().includes('.svg')) {
@@ -284,7 +318,7 @@ function CanvasDrawingCard({ imageSrc, title }) {
     return () => {
       active = false;
     };
-  }, [isVisible, imageSrc]);
+  }, [isVisible, imageSrc, hasWatermark]);
 
   return (
     <canvas
@@ -378,12 +412,13 @@ function ModalDrawingPreview({ drawing, title, hasWatermark }) {
         ctx.save();
         ctx.translate(width / 2, height / 2);
         ctx.rotate((-28 * Math.PI) / 180);
-        ctx.fillStyle = 'rgba(125, 75, 35, 0.23)';
+        ctx.fillStyle = 'rgba(135, 75, 30, 0.26)';
         ctx.font = '800 52px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const text = 'COLORBLOP  ---  COLORBLOP  ---  COLORBLOP';
+        const isVipArt = Boolean(drawing?.isVip || drawing?.is_vip || (drawing?.cat || []).some(c => String(c).toLowerCase().includes('vip')));
+        const text = isVipArt ? 'COLORBLOP VIP  ---  COLORBLOP VIP  ---  COLORBLOP VIP' : 'COLORBLOP  ---  COLORBLOP  ---  COLORBLOP';
         const stepY = 120;
         const range = Math.max(width, height) * 1.5;
         for (let y = -range; y <= range; y += stepY) {
@@ -1442,6 +1477,14 @@ function App() {
 
   async function download(format) {
     if (!open) return;
+
+    // Coloriage VIP : téléchargement (SVG, PNG, PDF) strictement réservé aux membres VIP
+    if (isDrawingVip(open, categoriesList) && !isPaidUser) {
+      setDownloading(null);
+      setIsMembershipModalOpen(true);
+      return;
+    }
+
     if (downloads >= 3 && !session) {
       alert('Tu as atteint la limite de 3 coloriages gratuits. Crée un compte gratuit pour continuer sans limite !');
       return;
@@ -1800,6 +1843,7 @@ function App() {
                     setOwnerOpen(false);
                   }}
                 >
+                  {rc.isVip && <Crown size={12} className="cb-mobile-crown-icon" />}
                   <span>{getCatLabel(rc.name, t)}</span>
                   <span className="cb-mobile-pill-count">({count})</span>
                   {subcats.length > 0 && <span className="cb-pill-sub-indicator">▾</span>}
@@ -2263,7 +2307,10 @@ function App() {
                             <span className="cb-plank-dot">•</span>
                           )}
 
-                          <span className="cb-plank-title">{getCatLabel(rc.name, t)}</span>
+                          <span className="cb-plank-title">
+                            {rc.isVip && <Crown size={14} className="cb-plank-crown-icon" />}
+                            {getCatLabel(rc.name, t)}
+                          </span>
 
                           {/* Mode Modification : Boutons d'action pour l'admin */}
                           {isCatEditMode ? (
@@ -2334,7 +2381,10 @@ function App() {
                                 }}
                               >
                                 <span className="cb-subplank-branch">↳</span>
-                                <span className="cb-subplank-title">Tous les {getCatLabel(rc.name, t)}</span>
+                                <span className="cb-subplank-title">
+                                  {rc.isVip && <Crown size={12} className="cb-plank-crown-icon" />}
+                                  Tous les {getCatLabel(rc.name, t)}
+                                </span>
                                 <span className="cb-subplank-pill">{count}</span>
                               </button>
                             )}
@@ -2393,7 +2443,10 @@ function App() {
                                       <span className="cb-subplank-branch">↳</span>
                                     )}
 
-                                    <span className="cb-subplank-title">{getCatLabel(sc.name, t)}</span>
+                                    <span className="cb-subplank-title">
+                                      {(sc.isVip || rc.isVip) && <Crown size={12} className="cb-plank-crown-icon" />}
+                                      {getCatLabel(sc.name, t)}
+                                    </span>
 
                                     {isCatEditMode ? (
                                       <div className="cb-plank-edit-actions" onClick={e => e.stopPropagation()}>
@@ -2540,20 +2593,34 @@ function App() {
                     <div className="cb-board-frame" style={{ backgroundImage: `url(${boardArt})` }}>
                       {/* Pinned Drawing on the Inner Parchment Canvas */}
                       <div className="cb-board-canvas" onContextMenu={(e) => e.preventDefault()}>
-                        {d.isSvg && <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>}
-                        {((newsList[0] && d.createdAt && d.createdAt.slice(0, 10) === newsList[0].dateKey) || d.fresh) && (
-                          <span className="cb-fresh-card-tag" title="Nouveau coloriage"><Sparkles size={10} /> {lang === 'EN' ? 'New' : lang === 'ES' ? 'Nuevo' : lang === 'DE' ? 'Neu' : 'Nouveau'}</span>
-                        )}
-                        {d.image ? (
-                          <CanvasDrawingCard 
-                            imageSrc={d.thumb || d.image} 
-                            title={getDrawingTitle(d.title, lang)} 
-                          />
-                        ) : (
-                          <div className="cb-drawing-empty">
-                            <span>{getDrawingTitle(d.title, lang)}</span>
-                          </div>
-                        )}
+                        {(() => {
+                          const isVipArt = isDrawingVip(d, categoriesList);
+                          return (
+                            <>
+                              {isVipArt ? (
+                                <span className={`cb-board-vip-tag ${!isPaidUser ? 'locked' : ''}`} title={isPaidUser ? "Coloriage exclusif membre VIP" : "Coloriage réservé aux membres VIP"}>
+                                  <Crown size={11} /> {!isPaidUser && <Lock size={9} />} VIP
+                                </span>
+                              ) : d.isSvg ? (
+                                <span className="cb-svg-tag" title="Dessin vectoriel SVG disponible"><FileCode size={11} /> SVG</span>
+                              ) : null}
+                              {((newsList[0] && d.createdAt && d.createdAt.slice(0, 10) === newsList[0].dateKey) || d.fresh) && (
+                                <span className="cb-fresh-card-tag" title="Nouveau coloriage"><Sparkles size={10} /> {lang === 'EN' ? 'New' : lang === 'ES' ? 'Nuevo' : lang === 'DE' ? 'Neu' : 'Nouveau'}</span>
+                              )}
+                              {d.image ? (
+                                <CanvasDrawingCard 
+                                  imageSrc={d.thumb || d.image} 
+                                  title={getDrawingTitle(d.title, lang)} 
+                                  hasWatermark={isVipArt && !isPaidUser}
+                                />
+                              ) : (
+                                <div className="cb-drawing-empty">
+                                  <span>{getDrawingTitle(d.title, lang)}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -2670,13 +2737,45 @@ function App() {
               <ModalDrawingPreview
                 drawing={open}
                 title={getDrawingTitle(open.title, lang)}
-                hasWatermark={isVisitorLimitReached}
+                hasWatermark={isVisitorLimitReached || (isDrawingVip(open, categoriesList) && !isPaidUser)}
               />
             </div>
             <h2>{getDrawingTitle(open.title, lang)}</h2>
             <p>{open.cat.map(c => getCatLabel(c, t)).join(' • ')}</p>
 
-            {isVisitorLimitReached ? (
+            {isDrawingVip(open, categoriesList) && !isPaidUser ? (
+              <div className="cb-vip-drawing-cta-box">
+                <div className="cb-vip-drawing-cta-header">
+                  <span className="cb-vip-lock-badge">
+                    <Crown size={15} /> 🔒 Dossier réservé aux membres VIP
+                  </span>
+                </div>
+                <p className="cb-vip-drawing-cta-desc">
+                  Ce coloriage fait partie de notre collection exclusive VIP. Rejoins le club ColorVIP pour débloquer les téléchargements PDF A4, PNG et SVG vectoriel sans filigrane !
+                </p>
+                <div className="cb-vip-drawing-cta-actions">
+                  <button
+                    type="button"
+                    className="cb-btn-unlock-vip-cta"
+                    onClick={() => {
+                      closeDrawing();
+                      setIsMembershipModalOpen(true);
+                    }}
+                  >
+                    <Crown size={16} />
+                    <span>Devenir membre VIP</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="cb-btn-locked-preview"
+                    onClick={() => setIsMembershipModalOpen(true)}
+                    title="Téléchargements réservés aux membres VIP"
+                  >
+                    <Lock size={14} /> Téléchargements verrouillés
+                  </button>
+                </div>
+              </div>
+            ) : isVisitorLimitReached ? (
               <div className="cb-limit-cta-box">
                 <div className="cb-limit-cta-header">
                   <span className="cb-limit-lock-badge">🔒 3/3 coloriages gratuits utilisés</span>
@@ -4107,6 +4206,7 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
   const [showMgrCatCreator, setShowMgrCatCreator] = useState(false);
   const [mgrNewCatName, setMgrNewCatName] = useState('');
   const [mgrNewCatParentId, setMgrNewCatParentId] = useState('');
+  const [mgrNewCatIsVip, setMgrNewCatIsVip] = useState(false);
   const [creatingCatInManager, setCreatingCatInManager] = useState(false);
 
   // === MERGE CATEGORIES STATE ===
@@ -4443,7 +4543,7 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
   }
 
   // Universal direct category creation helper (Immediate React State + LocalStorage + Supabase)
-  async function createCategoryDirectly(rawName, parentId = null) {
+  async function createCategoryDirectly(rawName, parentId = null, isVip = false) {
     const trimmed = (rawName || '').trim();
     if (!trimmed) {
       alert('Veuillez entrer un nom pour le dossier / la catégorie.');
@@ -4466,11 +4566,19 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
     const finalName = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 
+    const isVipFolder = Boolean(
+      isVip ||
+      norm === 'vip' ||
+      baseSlug.startsWith('vip-') ||
+      baseSlug.endsWith('-vip')
+    );
+
     const newCatObj = {
       id: newId,
       name: finalName,
       parent_id: parentId || null,
       sort_order: categoriesList.length + 1,
+      is_vip: isVipFolder,
     };
 
     const normalizedNew = normalizeCategory(newCatObj);
@@ -4507,12 +4615,55 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     return true;
   }
 
+  // Action directe pour « Créer un Dossier VIP »
+  async function handleCreateVipFolderPrompt() {
+    const vipName = window.prompt(
+      'Nom du dossier VIP à créer (ex: VIP Exclusif, Mandalas VIP, etc.) :',
+      'VIP'
+    );
+    if (!vipName || !vipName.trim()) return;
+
+    const ok = await createCategoryDirectly(vipName.trim(), null, true);
+    if (ok) {
+      alert(`👑 Dossier VIP « ${vipName.trim()} » créé avec succès ! Les coloriages placés dans ce dossier afficheront automatiquement un filigrane et un cadenas pour les visiteurs non abonnés.`);
+    }
+  }
+
+  // Activer ou désactiver le statut VIP de n'importe quel dossier
+  async function handleToggleVipCategory(catItem) {
+    const nextVip = !catItem.isVip;
+    const confirmMsg = nextVip
+      ? `Passer le dossier « ${catItem.name} » en réservé VIP ?\n\nSes dessins afficheront automatiquement un filigrane et un cadenas pour les visiteurs non abonnés.`
+      : `Retirer le statut VIP du dossier « ${catItem.name} » ?\n\nSes dessins redeviendront accessibles gratuitement au public.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const updatedCats = categoriesList.map(c => c.id === catItem.id ? { ...c, isVip: nextVip } : c);
+      if (setCategoriesList) {
+        setCategoriesList(updatedCats);
+      }
+      localStorage.setItem('cb-custom-categories', JSON.stringify(updatedCats));
+
+      try {
+        await supabase.from('categories').update({ is_vip: nextVip }).eq('id', catItem.id);
+      } catch (dbErr) {
+        console.warn('Supabase toggle VIP notice:', dbErr);
+      }
+
+      if (reloadCategories) await reloadCategories();
+      alert(`👑 Statut VIP de « ${catItem.name} » mis à jour : ${nextVip ? 'Dossier VIP activé' : 'Dossier public standard'}`);
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la mise à jour du statut VIP.');
+    }
+  }
+
   // Quick subcategory creator triggered from folder card (immediate prompt with Enter validation)
   async function handleQuickAddSubCategory(rc) {
     const subName = window.prompt(`Nom de la sous-catégorie à ajouter dans « ${rc.name} » :`);
     if (!subName || !subName.trim()) return;
 
-    const ok = await createCategoryDirectly(subName.trim(), rc.id);
+    const ok = await createCategoryDirectly(subName.trim(), rc.id, rc.isVip);
     if (ok) {
       alert(`🎉 Sous-dossier « ${subName.trim()} » créé avec succès dans « ${rc.name} » !`);
     }
@@ -4530,9 +4681,10 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
     setCreatingCatInManager(true);
     try {
       const parentId = mgrNewCatParentId && mgrNewCatParentId !== 'root' ? mgrNewCatParentId : null;
-      const ok = await createCategoryDirectly(trimmed, parentId);
+      const ok = await createCategoryDirectly(trimmed, parentId, mgrNewCatIsVip);
       if (ok) {
         setMgrNewCatName('');
+        setMgrNewCatIsVip(false);
         setShowMgrCatCreator(false);
         alert(`🎉 Dossier / catégorie « ${trimmed} » créée avec succès !`);
       }
@@ -4604,11 +4756,18 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
       const baseSlug = slugify(trimmedName);
       const newId = parentId ? `${parentId}-${baseSlug}` : baseSlug;
 
+      const isVipCat = Boolean(
+        trimmedName.toLowerCase() === 'vip' ||
+        baseSlug.startsWith('vip-') ||
+        baseSlug.endsWith('-vip')
+      );
+
       const newCatObj = {
         id: newId,
         name: trimmedName.charAt(0).toUpperCase() + trimmedName.slice(1),
         parent_id: parentId,
         sort_order: (categoriesList || []).length + 1,
+        is_vip: isVipCat,
       };
 
       // 1. Local storage fallback
@@ -6039,10 +6198,19 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
               <button
                 type="button"
                 className="cb-btn-mgr-add"
-                onClick={() => { setShowMgrCatCreator(!showMgrCatCreator); setMgrNewCatParentId(''); }}
+                onClick={() => { setShowMgrCatCreator(!showMgrCatCreator); setMgrNewCatParentId(''); setMgrNewCatIsVip(false); }}
               >
                 <FolderPlus size={16} />
                 <span>{showMgrCatCreator ? 'Fermer le formulaire' : '+ Nouveau dossier'}</span>
+              </button>
+              <button
+                type="button"
+                className="cb-btn-mgr-add-vip"
+                onClick={handleCreateVipFolderPrompt}
+                title="Créer un nouveau dossier réservé aux abonnés VIP"
+              >
+                <Crown size={16} />
+                <span>+ Créer un Dossier VIP</span>
               </button>
               <button
                 type="button"
@@ -6224,6 +6392,17 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                     </optgroup>
                   </select>
                 </div>
+                <div className="cb-creator-field full-width">
+                  <label className="cb-creator-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={mgrNewCatIsVip}
+                      onChange={e => setMgrNewCatIsVip(e.target.checked)}
+                    />
+                    <Crown size={15} style={{ color: '#d97706' }} />
+                    <span>Dossier réservé aux VIP (filigrane & cadenas automatique pour les non-abonnés)</span>
+                  </label>
+                </div>
               </div>
               <div className="cb-creator-actions-row">
                 <button
@@ -6290,7 +6469,14 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                       <div className="cb-mgr-folder-info">
                         <FolderOpen className="cb-mgr-folder-icon" size={24} />
                         <div>
-                          <b className="cb-mgr-folder-name">{rc.name}</b>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <b className="cb-mgr-folder-name">{rc.name}</b>
+                            {rc.isVip && (
+                              <span className="cb-mgr-pill-vip" title="Dossier réservé aux abonnés VIP">
+                                <Crown size={12} /> Dossier VIP
+                              </span>
+                            )}
+                          </div>
                           <div className="cb-mgr-folder-meta">
                             <span className="cb-mgr-pill-root">Dossier racine</span>
                             <span className="cb-mgr-pill-count">
@@ -6306,6 +6492,15 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                       </div>
 
                       <div className="cb-mgr-folder-actions">
+                        <button
+                          type="button"
+                          className={`cb-btn-folder-vip ${rc.isVip ? 'active' : ''}`}
+                          onClick={() => handleToggleVipCategory(rc)}
+                          title={rc.isVip ? "Dossier VIP actif (cliquer pour repasser en public)" : "Rendre ce dossier réservé aux abonnés VIP"}
+                        >
+                          <Crown size={13} />
+                          <span>{rc.isVip ? 'VIP Actif' : 'Passer VIP'}</span>
+                        </button>
                         <button
                           type="button"
                           className="cb-btn-folder-view"
@@ -6370,12 +6565,26 @@ function AdminPanel({ view, setView, drawings, setDrawings, reloadDrawings, cate
                                   <span className="cb-subfolder-branch">↳</span>
                                   <FolderTree className="cb-subfolder-icon" size={17} />
                                   <span className="cb-mgr-subfolder-name">{sc.name}</span>
+                                  {sc.isVip && (
+                                    <span className="cb-mgr-pill-vip mini" title="Sous-dossier VIP">
+                                      <Crown size={10} /> VIP
+                                    </span>
+                                  )}
                                   <span className="cb-mgr-pill-count">
                                     📁 <b>{scCount}</b> dessin(s)
                                   </span>
                                 </div>
 
                                 <div className="cb-mgr-folder-actions mini">
+                                  <button
+                                    type="button"
+                                    className={`cb-btn-folder-vip mini ${sc.isVip ? 'active' : ''}`}
+                                    onClick={() => handleToggleVipCategory(sc)}
+                                    title={sc.isVip ? "Sous-dossier VIP (cliquer pour repasser en public)" : "Rendre ce sous-dossier VIP"}
+                                  >
+                                    <Crown size={11} />
+                                    <span>{sc.isVip ? 'VIP' : '+ VIP'}</span>
+                                  </button>
                                   <button
                                     type="button"
                                     className="cb-btn-folder-view mini"
