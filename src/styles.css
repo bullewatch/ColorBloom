@@ -9187,4 +9187,77 @@ footer, .cb-main-footer {
   cursor: pointer;
 }
 
+/* Bannière d'en-tête de la galerie lors de la consultation d'un Dossier VIP */
+.cb-vip-gallery-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.95) 0%, rgba(253, 230, 138, 0.9) 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.16);
+  flex-wrap: wrap;
+}
+
+.cb-vip-gallery-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cb-vip-banner-crown {
+  color: #d97706;
+  filter: drop-shadow(0 2px 4px rgba(180, 83, 9, 0.35));
+  flex-shrink: 0;
+}
+
+.cb-vip-banner-title {
+  font-family: 'Patrick Hand SC', 'Patrick_Hand_SC-Regular', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  color: #78350f;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cb-vip-banner-count {
+  font-size: 14px;
+  color: #b45309;
+  font-weight: 600;
+}
+
+.cb-vip-banner-sub {
+  font-size: 13.5px;
+  color: #5c3210;
+  margin: 2px 0 0 0;
+  font-weight: 500;
+}
+
+.cb-vip-banner-join-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.3);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.cb-vip-banner-join-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #b45309, #92400e);
+}
+
+
 

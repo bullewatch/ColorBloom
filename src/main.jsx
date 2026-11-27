@@ -1689,8 +1689,30 @@ function App() {
     }
   }
 
+  const publicDrawingsCount = useMemo(() => {
+    return drawings.filter(d => !isDrawingVip(d, categoriesList)).length;
+  }, [drawings, categoriesList]);
+
   const shown = useMemo(() => {
+    // Vérifier si la catégorie actuellement consultée est un Dossier VIP
+    const currentTargetCat = categoriesList.find(c => 
+      normalizeCatStr(c.name) === normalizeCatStr(cat) || 
+      normalizeCatStr(c.id) === normalizeCatStr(cat)
+    );
+    const isViewingVipFolder = Boolean(currentTargetCat?.isVip || normalizeCatStr(cat) === 'vip');
+
     let result = drawings.filter(d => {
+      const isArtVip = isDrawingVip(d, categoriesList);
+
+      // Les dessins des Dossiers VIP ne s'affichent pas dans l'accueil mélangé aux autres dessins :
+      // ils sont visibles uniquement lorsque l'utilisateur se trouve dans ce dossier VIP
+      if (isArtVip && !isViewingVipFolder) {
+        return false;
+      }
+      if (isViewingVipFolder && !isArtVip) {
+        return false;
+      }
+
       // Multilingual search matching in any supported language
       if (q && !matchesSearchWithTranslations(d.title, q, lang)) {
         return false;
@@ -1709,18 +1731,14 @@ function App() {
       }
       if (cat === 'Tous') return true;
 
-      const targetCat = categoriesList.find(c => 
-        normalizeCatStr(c.name) === normalizeCatStr(cat) || 
-        normalizeCatStr(c.id) === normalizeCatStr(cat)
-      );
-      if (!targetCat) {
+      if (!currentTargetCat) {
         return (d.cat || []).some(c => normalizeCatStr(c) === normalizeCatStr(cat));
       }
 
-      const normName = normalizeCatStr(targetCat.name);
-      const normId = normalizeCatStr(targetCat.id);
+      const normName = normalizeCatStr(currentTargetCat.name);
+      const normId = normalizeCatStr(currentTargetCat.id);
 
-      if (targetCat.parentId) {
+      if (currentTargetCat.parentId) {
         // Specific subcategory (e.g. 'Chats')
         return (d.cat || []).some(c => {
           const nc = normalizeCatStr(c);
@@ -1728,7 +1746,7 @@ function App() {
         });
       } else {
         // Root category (e.g. 'Animaux'): include drawings of this category OR any of its subcategories
-        const subcats = getSubcategoriesFor(targetCat, categoriesList);
+        const subcats = getSubcategoriesFor(currentTargetCat, categoriesList);
         const accepted = new Set([
           normName,
           normId,
@@ -1859,7 +1877,7 @@ function App() {
               }}
             >
               <span>{t.catAll}</span>
-              <span className="cb-mobile-pill-count">({drawings.length})</span>
+              <span className="cb-mobile-pill-count">({publicDrawingsCount})</span>
             </button>
 
             {rootCategories.map((rc) => {
@@ -2290,7 +2308,7 @@ function App() {
                   >
                     <span className="cb-plank-dot">•</span>
                     <span className="cb-plank-title">{t.catAll}</span>
-                    <span className="cb-plank-pill">{drawings.length}</span>
+                    <span className="cb-plank-pill">{publicDrawingsCount}</span>
                   </button>
 
                   {/* Nouveautés */}
@@ -2612,6 +2630,43 @@ function App() {
 
           {/* Center Gallery: Grid of Wooden Boards with Pinned Drawings */}
           <section className="cb-gallery">
+            {(() => {
+              const currentTargetCat = categoriesList.find(c => 
+                normalizeCatStr(c.name) === normalizeCatStr(cat) || 
+                normalizeCatStr(c.id) === normalizeCatStr(cat)
+              );
+              const isViewingVipFolder = Boolean(currentTargetCat?.isVip || normalizeCatStr(cat) === 'vip');
+              if (!isViewingVipFolder || page !== 'Accueil') return null;
+              return (
+                <div className="cb-vip-gallery-banner">
+                  <div className="cb-vip-gallery-banner-content">
+                    <Crown size={24} className="cb-vip-banner-crown" />
+                    <div>
+                      <h3 className="cb-vip-banner-title">
+                        {currentTargetCat ? getCatLabel(currentTargetCat.name, t) : 'Dossier VIP'}
+                        <span className="cb-vip-banner-count"> ({shown.length} coloriage{shown.length > 1 ? 's' : ''})</span>
+                      </h3>
+                      <p className="cb-vip-banner-sub">
+                        {!isPaidUser
+                          ? 'Dossier exclusif réservé aux membres VIP. Débloquez tous les téléchargements HD en devenant membre !'
+                          : 'Coloriages exclusifs réservés aux membres VIP.'}
+                      </p>
+                    </div>
+                  </div>
+                  {!isPaidUser && (
+                    <button
+                      type="button"
+                      className="cb-vip-banner-join-btn"
+                      onClick={() => setIsMembershipModalOpen(true)}
+                    >
+                      <Crown size={15} />
+                      <span>Devenir membre VIP</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
             {cat === 'Nouveautes' && page === 'Accueil' && (
               <div className="cb-news-gallery-banner">
                 <div className="cb-news-banner-content">
